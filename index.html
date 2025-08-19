@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Points Control</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 720px }
+    form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+    .muted { color:#666 }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #ccc }
+    table { width:100%; border-collapse: collapse; margin-top:8px }
+    th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
+    #teacher-panel, #student-panel, #authed { display:none }
+  </style>
+</head>
+<body>
+  <h1>Points Control</h1>
+
+  <section id="auth">
+    <div class="card">
+      <h3>Iniciar sesión</h3>
+      <form id="login-form">
+        <div class="row">
+          <input id="email" type="email" placeholder="Email" required />
+          <input id="password" type="password" placeholder="Contraseña" required />
+          <button type="submit">Entrar</button>
+        </div>
+      </form>
+      <p class="muted">Solo login (alta de usuarios desde Supabase).</p>
+    </div>
+  </section>
+
+  <section id="authed">
+    <div class="row">
+      <div id="whoami" class="muted"></div>
+      <button id="logout">Salir</button>
+    </div>
+
+    <!-- Panel TEACHER -->
+    <section id="teacher-panel" class="card">
+      <h3>Panel de profesor</h3>
+      <form id="award-form" class="row">
+        <input id="identifier" placeholder="UID/Token de tarjeta" required />
+        <input id="delta" type="number" value="1" step="1" />
+        <input id="reason" placeholder="Motivo (ej. participación)" />
+        <input id="device" placeholder="Device ID (ej. laptop-ale)" />
+        <button type="submit">Aplicar</button>
+      </form>
+      <div class="row">
+        <button data-quick="1">+1</button>
+        <button data-quick="3">+3</button>
+        <button data-quick="-1">-1</button>
+        <button data-quick="-5">-5</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <strong>Últimas transacciones</strong>
+        <table id="tx-table">
+          <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel STUDENT -->
+    <section id="student-panel" class="card">
+      <h3>Mi saldo</h3>
+      <div id="student-info" class="muted"></div>
+      <h4>Balance actual: <span id="balance">—</span> puntos</h4>
+      <div>
+        <strong>Mis últimos movimientos</strong>
+        <table id="mytx-table">
+          <thead><tr><th>Fecha</th><th>Δ</th><th>Motivo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <!-- Supabase JS v2 desde CDN -->
+  <script src="https://esm.sh/@supabase/supabase-js@2"></script>
+  <script>
+    // ⚠️ Rellena con tus valores de Settings → API
+    const SUPABASE_URL = "https://TU-PROJECT-REF.supabase.co";
+    const SUPABASE_ANON_KEY = "TU-ANON-KEY";
+  </script>
+  <script src="./app.js"></script>
+</body>
+</html>
