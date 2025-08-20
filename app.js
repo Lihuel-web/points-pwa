@@ -6,31 +6,22 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 async function handleRecoveryFromHash() {
   const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
   const params = new URLSearchParams(hash);
-
-  // Supabase pone #access_token=...&refresh_token=...&type=recovery
   if (params.get('type') === 'recovery' && params.get('access_token')) {
     try {
-      // Establecer sesión temporal con el token del enlace
       await sb.auth.setSession({
         access_token: params.get('access_token'),
         refresh_token: params.get('refresh_token'),
       });
-
-      // Pedir nueva contraseña
       const newPass = prompt('Set a new password (min 6 chars):');
       if (newPass) {
         const { error } = await sb.auth.updateUser({ password: newPass });
-        if (error) {
-          alert(error.message);
-        } else {
-          alert('Password updated. Please log in again.');
-        }
+        if (error) alert(error.message);
+        else alert('Password updated. Please log in again.');
       }
     } catch (err) {
       console.error(err);
       alert('There was a problem updating your password.');
     } finally {
-      // Limpiar hash y cerrar sesión para volver al login
       history.replaceState({}, document.title, location.pathname);
       await sb.auth.signOut();
     }
@@ -77,7 +68,7 @@ async function refreshUI() {
   }
 }
 
-// ---------- Auth handlers ----------
+// ---------- Auth ----------
 el('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = el('email').value.trim();
@@ -94,7 +85,6 @@ el('logout').addEventListener('click', async () => {
 
 // ---------- STUDENT ----------
 async function loadStudent(userId) {
-  // Buscar su fila en students
   const { data: student, error: e1 } = await sb
     .from('students')
     .select('id,name,class')
@@ -111,7 +101,6 @@ async function loadStudent(userId) {
 
   el('student-info').textContent = `${student.name} (${student.class})`;
 
-  // Balance actual
   const { data: bal } = await sb
     .from('balances')
     .select('points')
@@ -119,7 +108,6 @@ async function loadStudent(userId) {
     .maybeSingle();
   el('balance').textContent = bal?.points ?? 0;
 
-  // Últimos movimientos
   const { data: txs } = await sb
     .from('transactions')
     .select('delta,reason,created_at')
@@ -128,36 +116,29 @@ async function loadStudent(userId) {
     .limit(50);
 
   const rows = (txs || [])
-    .map(
-      (t) =>
-        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${
-          t.reason ?? ''
-        }</td></tr>`
-    )
+    .map(t => `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`)
     .join('');
   el('mytx-table').querySelector('tbody').innerHTML = rows;
 }
 
 // ---------- TEACHER ----------
 async function loadTeacher() {
-  // Últimas transacciones globales (join con students)
+  // Últimas transacciones globales
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
     .order('created_at', { ascending: false })
     .limit(30);
-
-  const rows = (txs || [])
-    .map(
-      (t) =>
-        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${
-          t.students?.name ?? t.student_id
-        }</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
-    )
-    .join('');
+  const rows = (txs || []).map(t =>
+    `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.students?.name ?? t.student_id}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
+  ).join('');
   el('tx-table').querySelector('tbody').innerHTML = rows;
+
+  // Carga la lista de alumnos (por si ya hay filtros puestos)
+  await loadStudentsList();
 }
 
+// Form de asignación por IDENTIFICADOR (función existente)
 el('award-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const identifier = el('identifier').value.trim();
@@ -171,20 +152,100 @@ el('award-form').addEventListener('submit', async (e) => {
     _reason: reason,
     _device_id: device,
   });
-
   if (error) return alert(error.message);
-
-  // Limpiar campos y refrescar lista
   el('identifier').value = '';
   el('reason').value = '';
   loadTeacher();
 });
 
-document.querySelectorAll('[data-quick]').forEach((btn) => {
+// Botones rápidos (IDENTIFICADOR)
+document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
     el('delta').value = btn.getAttribute('data-quick');
   });
 });
+
+// --------- Asignación por ALUMNO (sin tarjeta) ---------
+el('reload-students')?.addEventListener('click', loadStudentsList);
+el('class-filter')?.addEventListener('change', loadStudentsList);
+el('search-name')?.addEventListener('input', () => {
+  // debounce sencillo
+  clearTimeout(loadStudentsList._t);
+  loadStudentsList._t = setTimeout(loadStudentsList, 200);
+});
+
+async function loadStudentsList() {
+  const cls = (el('class-filter')?.value || '').trim();
+  const q = (el('search-name')?.value || '').trim().toLowerCase();
+
+  let query = sb.from('students').select('id,name,class');
+  if (cls) query = query.ilike('class', cls);
+  if (q) query = query.ilike('name', `%${q}%`);
+  query = query.order('class', { ascending: true }).order('name', { ascending: true });
+
+  const { data: students, error } = await query;
+  if (error) { console.error(error); return; }
+
+  const container = el('students-list');
+  if (!students || students.length === 0) {
+    container.innerHTML = '<p class="muted">No students found for this filter.</p>';
+    return;
+  }
+
+  // Para cada alumno, leemos el balance actual (rápido por ser pocos; optimizable con join/vista)
+  const balances = {};
+  const ids = students.map(s => s.id);
+  if (ids.length > 0) {
+    const { data: bals } = await sb.from('balances').select('student_id,points').in('student_id', ids);
+    (bals || []).forEach(b => { balances[b.student_id] = b.points; });
+  }
+
+  container.innerHTML = students.map(s => {
+    const pts = balances[s.id] ?? 0;
+    return `
+      <div class="card" style="margin:8px 0; padding:12px">
+        <div class="row" style="justify-content:space-between">
+          <div><strong>${s.name}</strong> <span class="muted">(${s.class})</span> — <strong>${pts}</strong> pts</div>
+          <div class="row">
+            <button data-award="+1" data-student="${s.id}">+1</button>
+            <button data-award="+3" data-student="${s.id}">+3</button>
+            <button data-award="-1" data-student="${s.id}">-1</button>
+            <button data-award="-5" data-student="${s.id}">-5</button>
+            <button data-award="custom" data-student="${s.id}">Custom…</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Enlazar eventos
+  container.querySelectorAll('button[data-award]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const studentId = parseInt(btn.getAttribute('data-student'), 10);
+      let delta;
+      const t = btn.getAttribute('data-award');
+      if (t === 'custom') {
+        const val = prompt('Δ points (e.g., 2 or -3):');
+        if (!val) return;
+        delta = parseInt(val, 10);
+        if (isNaN(delta)) return alert('Invalid number');
+      } else {
+        delta = parseInt(t, 10);
+      }
+      const reason = prompt('Reason (optional):') || null;
+      const device = 'web-teacher';
+      const { error } = await sb.rpc('award_points_by_student', {
+        _student_id: studentId,
+        _delta: delta,
+        _reason: reason,
+        _device_id: device,
+      });
+      if (error) return alert(error.message);
+      // refrescar vista
+      await loadTeacher();
+    });
+  });
+}
 
 // Cambiar contraseña manual desde la app (opcional)
 el('change-pass')?.addEventListener('click', async () => {
