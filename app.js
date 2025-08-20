@@ -1,29 +1,43 @@
+// --- Supabase client (UMD build cargado en index.html) ---
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// -------- Password recovery desde link de email --------
 async function handleRecoveryFromHash() {
-  const h = location.hash.startsWith('#') ? location.hash.slice(1) : '';
-  const params = new URLSearchParams(h);
+  const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  const params = new URLSearchParams(hash);
+
+  // Supabase pone #access_token=...&refresh_token=...&type=recovery
   if (params.get('type') === 'recovery' && params.get('access_token')) {
-    // Establece sesión con el token del hash
-    await sb.auth.setSession({
-      access_token: params.get('access_token'),
-      refresh_token: params.get('refresh_token')
-    });
-    // Pide nueva contraseña
-    const newPass = prompt('Nueva contraseña (mín. 6 caracteres):');
-    if (newPass) {
-      const { error } = await sb.auth.updateUser({ password: newPass });
-      if (error) alert(error.message);
-      else alert('Contraseña actualizada. Ya puedes iniciar sesión normalmente.');
+    try {
+      // Establecer sesión temporal con el token del enlace
+      await sb.auth.setSession({
+        access_token: params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+      });
+
+      // Pedir nueva contraseña
+      const newPass = prompt('Set a new password (min 6 chars):');
+      if (newPass) {
+        const { error } = await sb.auth.updateUser({ password: newPass });
+        if (error) {
+          alert(error.message);
+        } else {
+          alert('Password updated. Please log in again.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('There was a problem updating your password.');
+    } finally {
+      // Limpiar hash y cerrar sesión para volver al login
+      history.replaceState({}, document.title, location.pathname);
+      await sb.auth.signOut();
     }
-    // Limpia el hash y refresca UI
-    history.replaceState({}, document.title, location.pathname);
   }
 }
-handleRecoveryFromHash();
 
-
+// --------- Utilidades UI ---------
 const el = (id) => document.getElementById(id);
 const authSec = el('auth');
 const authedSec = el('authed');
@@ -38,12 +52,18 @@ async function refreshUI() {
     authedSec.style.display = 'none';
     return;
   }
+
   authSec.style.display = 'none';
   authedSec.style.display = 'block';
   whoami.textContent = `${user.email}`;
 
-  // ¿Qué rol tiene?
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  // Rol (profiles.role)
+  const { data: profile } = await sb
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
   const role = profile?.role || 'student';
 
   if (role === 'teacher') {
@@ -57,6 +77,7 @@ async function refreshUI() {
   }
 }
 
+// ---------- Auth handlers ----------
 el('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = el('email').value.trim();
@@ -73,7 +94,7 @@ el('logout').addEventListener('click', async () => {
 
 // ---------- STUDENT ----------
 async function loadStudent(userId) {
-  // Encuentra su fila en students
+  // Buscar su fila en students
   const { data: student, error: e1 } = await sb
     .from('students')
     .select('id,name,class')
@@ -81,7 +102,8 @@ async function loadStudent(userId) {
     .single();
 
   if (e1) {
-    el('student-info').textContent = 'Tu cuenta aún no está vinculada a un registro de estudiante. Avísale al profesor.';
+    el('student-info').textContent =
+      'Your account is not linked to a student record yet. Ask your teacher.';
     el('balance').textContent = '—';
     el('mytx-table').querySelector('tbody').innerHTML = '';
     return;
@@ -89,7 +111,7 @@ async function loadStudent(userId) {
 
   el('student-info').textContent = `${student.name} (${student.class})`;
 
-  // Balance
+  // Balance actual
   const { data: bal } = await sb
     .from('balances')
     .select('points')
@@ -97,7 +119,7 @@ async function loadStudent(userId) {
     .maybeSingle();
   el('balance').textContent = bal?.points ?? 0;
 
-  // Movimientos
+  // Últimos movimientos
   const { data: txs } = await sb
     .from('transactions')
     .select('delta,reason,created_at')
@@ -105,23 +127,34 @@ async function loadStudent(userId) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  const rows = (txs || []).map(t =>
-    `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
-  ).join('');
+  const rows = (txs || [])
+    .map(
+      (t) =>
+        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${
+          t.reason ?? ''
+        }</td></tr>`
+    )
+    .join('');
   el('mytx-table').querySelector('tbody').innerHTML = rows;
 }
 
 // ---------- TEACHER ----------
 async function loadTeacher() {
-  // Ultimas transacciones globales
+  // Últimas transacciones globales (join con students)
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
     .order('created_at', { ascending: false })
     .limit(30);
-  const rows = (txs || []).map(t =>
-    `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.students?.name ?? t.student_id}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
-  ).join('');
+
+  const rows = (txs || [])
+    .map(
+      (t) =>
+        `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${
+          t.students?.name ?? t.student_id
+        }</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
+    )
+    .join('');
   el('tx-table').querySelector('tbody').innerHTML = rows;
 }
 
@@ -132,34 +165,36 @@ el('award-form').addEventListener('submit', async (e) => {
   const reason = el('reason').value.trim() || null;
   const device = el('device').value.trim() || null;
 
-  const { data, error } = await sb.rpc('award_points', {
+  const { error } = await sb.rpc('award_points', {
     _identifier: identifier,
     _delta: delta,
     _reason: reason,
-    _device_id: device
+    _device_id: device,
   });
+
   if (error) return alert(error.message);
-  // Limpia UI y recarga lista
+
+  // Limpiar campos y refrescar lista
   el('identifier').value = '';
   el('reason').value = '';
   loadTeacher();
 });
 
-document.querySelectorAll('[data-quick]').forEach(btn => {
+document.querySelectorAll('[data-quick]').forEach((btn) => {
   btn.addEventListener('click', () => {
     el('delta').value = btn.getAttribute('data-quick');
   });
 });
 
-
+// Cambiar contraseña manual desde la app (opcional)
 el('change-pass')?.addEventListener('click', async () => {
   const newPass = prompt('New password (min. 6 characters):');
   if (!newPass) return;
   const { error } = await sb.auth.updateUser({ password: newPass });
   if (error) return alert(error.message);
-  alert('Password updated. Sign out and sign back in with email + password.');
+  alert('Password updated. Sign out and sign back in.');
 });
 
-// Arranque
-refreshUI();
+// -------- Arranque --------
+handleRecoveryFromHash().finally(refreshUI);
 
