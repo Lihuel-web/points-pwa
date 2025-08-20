@@ -21,22 +21,23 @@
 
   <section id="auth">
     <div class="card">
-      <h3>Iniciar sesión</h3>
+      <h3>Login</h3>
       <form id="login-form">
         <div class="row">
           <input id="email" type="email" placeholder="Email" required />
           <input id="password" type="password" placeholder="Contraseña" required />
-          <button type="submit">Entrar</button>
+          <button type="submit">Enter</button>
         </div>
       </form>
-      <p class="muted">Solo login (alta de usuarios desde Supabase).</p>
+      <p class="muted">Login only (user registration from Supabase).</p>
     </div>
   </section>
 
   <section id="authed">
     <div class="row">
       <div id="whoami" class="muted"></div>
-      <button id="logout">Salir</button>
+      <button id="logout">Logout</button>
+      <button id="change-pass">Change password</button>
     </div>
 
     <!-- Panel TEACHER -->
@@ -47,7 +48,7 @@
         <input id="delta" type="number" value="1" step="1" />
         <input id="reason" placeholder="Motivo (ej. participación)" />
         <input id="device" placeholder="Device ID (ej. laptop-ale)" />
-        <button type="submit">Aplicar</button>
+        <button type="submit">Apply</button>
       </form>
       <div class="row">
         <button data-quick="1">+1</button>
@@ -57,7 +58,7 @@
       </div>
 
       <div style="margin-top:12px">
-        <strong>Últimas transacciones</strong>
+        <strong>Latest transactions</strong>
         <table id="tx-table">
           <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
           <tbody></tbody>
@@ -67,13 +68,13 @@
 
     <!-- Panel STUDENT -->
     <section id="student-panel" class="card">
-      <h3>Mi saldo</h3>
+      <h3>My balance</h3>
       <div id="student-info" class="muted"></div>
-      <h4>Balance actual: <span id="balance">—</span> puntos</h4>
+      <h4>Current balance: <span id="balance">—</span> points</h4>
       <div>
-        <strong>Mis últimos movimientos</strong>
+        <strong>My last movements</strong>
         <table id="mytx-table">
-          <thead><tr><th>Fecha</th><th>Δ</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Date</th><th>Δ</th><th>Reason</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
