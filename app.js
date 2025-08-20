@@ -1,6 +1,29 @@
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+async function handleRecoveryFromHash() {
+  const h = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  const params = new URLSearchParams(h);
+  if (params.get('type') === 'recovery' && params.get('access_token')) {
+    // Establece sesión con el token del hash
+    await sb.auth.setSession({
+      access_token: params.get('access_token'),
+      refresh_token: params.get('refresh_token')
+    });
+    // Pide nueva contraseña
+    const newPass = prompt('Nueva contraseña (mín. 6 caracteres):');
+    if (newPass) {
+      const { error } = await sb.auth.updateUser({ password: newPass });
+      if (error) alert(error.message);
+      else alert('Contraseña actualizada. Ya puedes iniciar sesión normalmente.');
+    }
+    // Limpia el hash y refresca UI
+    history.replaceState({}, document.title, location.pathname);
+  }
+}
+handleRecoveryFromHash();
+
+
 const el = (id) => document.getElementById(id);
 const authSec = el('auth');
 const authedSec = el('authed');
@@ -128,5 +151,15 @@ document.querySelectorAll('[data-quick]').forEach(btn => {
   });
 });
 
+
+el('change-pass')?.addEventListener('click', async () => {
+  const newPass = prompt('New password (min. 6 characters):');
+  if (!newPass) return;
+  const { error } = await sb.auth.updateUser({ password: newPass });
+  if (error) return alert(error.message);
+  alert('Password updated. Sign out and sign back in with email + password.');
+});
+
 // Arranque
 refreshUI();
+
