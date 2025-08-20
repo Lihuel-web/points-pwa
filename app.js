@@ -134,7 +134,7 @@ async function loadTeacher() {
   ).join('');
   el('tx-table').querySelector('tbody').innerHTML = rows;
 
-  // Carga la lista de alumnos (por si ya hay filtros puestos)
+  // Carga la lista de alumnos (para el panel de asignación por alumno)
   await loadStudentsList();
 }
 
@@ -165,11 +165,44 @@ document.querySelectorAll('[data-quick]').forEach(btn => {
   });
 });
 
+// --------- Alta de ALUMNO ---------
+el('new-student-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = el('ns-name').value.trim();
+  const klass = el('ns-class').value.trim();
+  const card = (el('ns-card').value || '').trim();
+
+  if (!name || !klass) return alert('Name and class are required.');
+
+  // 1) crea student
+  const { data: inserted, error: e1 } = await sb
+    .from('students')
+    .insert([{ name, class: klass }])
+    .select('id')
+    .single();
+
+  if (e1) return alert(e1.message);
+
+  // 2) si se ingresó card_uid, la vinculamos (upsert por si ya existe)
+  if (card) {
+    const { error: e2 } = await sb
+      .from('cards')
+      .upsert({ student_id: inserted.id, card_uid: card, active: true }, { onConflict: 'card_uid' });
+    if (e2) return alert(e2.message);
+  }
+
+  // limpiar y refrescar
+  el('ns-name').value = '';
+  el('ns-class').value = '';
+  el('ns-card').value = '';
+  await loadTeacher();
+  alert('Student created.');
+});
+
 // --------- Asignación por ALUMNO (sin tarjeta) ---------
 el('reload-students')?.addEventListener('click', loadStudentsList);
 el('class-filter')?.addEventListener('change', loadStudentsList);
 el('search-name')?.addEventListener('input', () => {
-  // debounce sencillo
   clearTimeout(loadStudentsList._t);
   loadStudentsList._t = setTimeout(loadStudentsList, 200);
 });
@@ -192,7 +225,7 @@ async function loadStudentsList() {
     return;
   }
 
-  // Para cada alumno, leemos el balance actual (rápido por ser pocos; optimizable con join/vista)
+  // balances en lote
   const balances = {};
   const ids = students.map(s => s.id);
   if (ids.length > 0) {
@@ -212,13 +245,14 @@ async function loadStudentsList() {
             <button data-award="-1" data-student="${s.id}">-1</button>
             <button data-award="-5" data-student="${s.id}">-5</button>
             <button data-award="custom" data-student="${s.id}">Custom…</button>
+            <button data-link-card="${s.id}">Link card…</button>
           </div>
         </div>
       </div>
     `;
   }).join('');
 
-  // Enlazar eventos
+  // otorgar puntos por alumno
   container.querySelectorAll('button[data-award]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-student'), 10);
@@ -241,7 +275,20 @@ async function loadStudentsList() {
         _device_id: device,
       });
       if (error) return alert(error.message);
-      // refrescar vista
+      await loadTeacher();
+    });
+  });
+
+  // vincular / cambiar tarjeta
+  container.querySelectorAll('button[data-link-card]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
+      const card = prompt('Card UID (write or scan later):');
+      if (!card) return;
+      const { error } = await sb
+        .from('cards')
+        .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
+      if (error) return alert(error.message);
       await loadTeacher();
     });
   });
