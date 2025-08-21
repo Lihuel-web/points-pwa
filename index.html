@@ -4,9 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Points Control</title>
+  <meta name="theme-color" content="#ffffff" />
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 820px }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 900px }
     form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
     .muted { color:#666 }
@@ -15,6 +16,8 @@
     table { width:100%; border-collapse: collapse; margin-top:8px }
     th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
     #teacher-panel, #student-panel, #authed { display:none }
+    .right { margin-left:auto }
+    .badge { font-size: 12px; padding: 2px 6px; border: 1px solid #ccc; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -24,7 +27,7 @@
   <section id="auth">
     <div class="card">
       <h3>Login</h3>
-      <form id="login-form">
+      <form id="login-form" autocomplete="on">
         <div class="row">
           <input id="email" type="email" placeholder="Email" required />
           <input id="password" type="password" placeholder="Contraseña" required />
@@ -36,10 +39,11 @@
   </section>
 
   <!-- APP AUTENTICADA -->
-  <section id="authed">
+  <section id="authed" aria-live="polite">
     <div class="row">
       <div id="whoami" class="muted"></div>
-      <button id="logout">Logout</button>
+      <span class="badge" id="role-badge"></span>
+      <button id="logout" class="right">Logout</button>
       <button id="change-pass">Change password</button>
     </div>
 
@@ -48,13 +52,27 @@
       <h3>Teacher Panel</h3>
 
       <!-- Otorgar por identificador (UID / token) -->
-      <form id="award-form" class="row">
+      <form id="award-form" class="row" autocomplete="off">
         <input id="identifier" placeholder="UID/Token de tarjeta" required />
         <input id="delta" type="number" value="1" step="1" />
         <input id="reason" placeholder="Motivo (ej. participación)" />
         <input id="device" placeholder="Device ID (ej. laptop-ale)" />
         <button type="submit">Apply</button>
       </form>
+
+      <!-- Scan mode (HID teclado) -->
+      <div class="row">
+        <label><input type="checkbox" id="scan-mode" /> Scan mode (auto focus & submit)</label>
+        <span class="muted">Usa Flipper como teclado HID: escribe el UID y presiona Enter.</span>
+      </div>
+
+      <!-- Botones rápidos para el form de identificador -->
+      <div class="row" style="margin: 6px 0;">
+        <button type="button" data-quick="1">+1</button>
+        <button type="button" data-quick="3">+3</button>
+        <button type="button" data-quick="-1">-1</button>
+        <button type="button" data-quick="-5">-5</button>
+      </div>
 
       <!-- Alta rápida de alumno -->
       <div class="card" style="margin-top:12px">
@@ -76,14 +94,6 @@
           <button id="reload-students" type="button">Cargar alumnos</button>
         </div>
         <div id="students-list"></div>
-      </div>
-
-      <!-- Botones rápidos para el form de identificador -->
-      <div class="row">
-        <button type="button" data-quick="1">+1</button>
-        <button type="button" data-quick="3">+3</button>
-        <button type="button" data-quick="-1">-1</button>
-        <button type="button" data-quick="-5">-5</button>
       </div>
 
       <!-- Últimas transacciones -->
@@ -114,10 +124,10 @@
   <!-- Supabase JS v2 (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    // ⚠️ Rellena con tus valores de Settings → API
-    const SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
+    const SUPABASE_URL = "https://<tu-project-ref>.supabase.co";
+    const SUPABASE_ANON_KEY = "<tu-anon-key>";
   </script>
   <script src="./app.js"></script>
 </body>
 </html>
+
