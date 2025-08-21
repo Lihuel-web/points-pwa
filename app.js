@@ -43,17 +43,22 @@ async function refreshUI() {
     authedSec.style.display = 'none';
     return;
   }
-
   authSec.style.display = 'none';
   authedSec.style.display = 'block';
   whoami.textContent = `${user.email}`;
 
   // Rol (profiles.role)
-  const { data: profile } = await sb
+  const { data: profile, error } = await sb
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    alert('Error loading profile/role.');
+    return;
+  }
 
   const role = profile?.role || 'student';
 
@@ -129,16 +134,17 @@ async function loadTeacher() {
     .select('student_id,delta,reason,created_at,students!inner(name)')
     .order('created_at', { ascending: false })
     .limit(30);
+
   const rows = (txs || []).map(t =>
     `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.students?.name ?? t.student_id}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
   ).join('');
   el('tx-table').querySelector('tbody').innerHTML = rows;
 
-  // Carga la lista de alumnos (para el panel de asignación por alumno)
+  // Carga la lista de alumnos (panel por alumno)
   await loadStudentsList();
 }
 
-// Form de asignación por IDENTIFICADOR (función existente)
+// Otorgar por IDENTIFICADOR (UID/token)
 el('award-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const identifier = el('identifier').value.trim();
@@ -158,7 +164,7 @@ el('award-form').addEventListener('submit', async (e) => {
   loadTeacher();
 });
 
-// Botones rápidos (IDENTIFICADOR)
+// Botones rápidos (rellenan el delta del form de arriba)
 document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
     el('delta').value = btn.getAttribute('data-quick');
@@ -180,10 +186,9 @@ el('new-student-form')?.addEventListener('submit', async (e) => {
     .insert([{ name, class: klass }])
     .select('id')
     .single();
-
   if (e1) return alert(e1.message);
 
-  // 2) si se ingresó card_uid, la vinculamos (upsert por si ya existe)
+  // 2) si se ingresó card_uid, vincular (upsert si ya existía esa UID)
   if (card) {
     const { error: e2 } = await sb
       .from('cards')
@@ -191,7 +196,6 @@ el('new-student-form')?.addEventListener('submit', async (e) => {
     if (e2) return alert(e2.message);
   }
 
-  // limpiar y refrescar
   el('ns-name').value = '';
   el('ns-class').value = '';
   el('ns-card').value = '';
@@ -207,7 +211,6 @@ el('search-name')?.addEventListener('input', () => {
   loadStudentsList._t = setTimeout(loadStudentsList, 200);
 });
 
-
 async function loadStudentsList() {
   const cls = (el('class-filter')?.value || '').trim();
   const q = (el('search-name')?.value || '').trim().toLowerCase();
@@ -220,7 +223,7 @@ async function loadStudentsList() {
   const { data: students, error } = await query;
   if (error) { console.error(error); return; }
 
-  const container = el('students-list');
+  const container = el('students-list'); // ← existe en index.html
   if (!students || students.length === 0) {
     container.innerHTML = '<p class="muted">No students found for this filter.</p>';
     return;
@@ -298,7 +301,7 @@ async function loadStudentsList() {
     });
   });
 
-  // eliminar alumno (usa RPC delete_student)
+  // eliminar alumno (RPC delete_student)
   container.querySelectorAll('button[data-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-delete'), 10);
@@ -316,7 +319,6 @@ async function loadStudentsList() {
   });
 }
 
-
 // Cambiar contraseña manual desde la app (opcional)
 el('change-pass')?.addEventListener('click', async () => {
   const newPass = prompt('New password (min. 6 characters):');
@@ -328,4 +330,3 @@ el('change-pass')?.addEventListener('click', async () => {
 
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
-
