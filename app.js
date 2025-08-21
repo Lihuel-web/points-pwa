@@ -246,10 +246,12 @@ async function loadStudentsList() {
             <button data-award="-5" data-student="${s.id}">-5</button>
             <button data-award="custom" data-student="${s.id}">Custom…</button>
             <button data-link-card="${s.id}">Link card…</button>
+            <button data-delete="${s.id}" data-name="${s.name}">Delete</button>
           </div>
         </div>
       </div>
     `;
+    
   }).join('');
 
   // otorgar puntos por alumno
@@ -293,6 +295,24 @@ async function loadStudentsList() {
     });
   });
 }
+
+// eliminar alumno (borra también cards + transactions por cascada)
+container.querySelectorAll('button[data-delete]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const studentId = parseInt(btn.getAttribute('data-delete'), 10);
+    const name = btn.getAttribute('data-name') || 'this student';
+    const confirmText = prompt(
+      `Type DELETE to remove ${name} and ALL their cards & transactions. This cannot be undone.`
+    );
+    if (confirmText !== 'DELETE') return;
+
+    const { error } = await sb.rpc('delete_student', { _student_id: studentId });
+    if (error) return alert(error.message);
+    await loadTeacher();
+    alert('Student deleted.');
+  });
+});
+
 
 // Cambiar contraseña manual desde la app (opcional)
 el('change-pass')?.addEventListener('click', async () => {
