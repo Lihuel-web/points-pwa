@@ -121,13 +121,17 @@
     </section>
   </section>
 
-  <!-- Supabase JS v2 (UMD) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script>
-    const SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
-  </script>
-  <script src="./app.js"></script>
+<!-- Supabase JS v2 (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+  // ✅ Defínelas explícitamente en window para que cualquier script las vea
+  window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
+</script>
+
+<script src="./app.js"></script>
+
 </body>
 </html>
 
