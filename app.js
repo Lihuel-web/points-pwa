@@ -1,3 +1,5 @@
+// app.js
+
 // --- Supabase client (UMD build cargado en index.html) ---
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -35,6 +37,7 @@ const authedSec = el('authed');
 const teacherPanel = el('teacher-panel');
 const studentPanel = el('student-panel');
 const whoami = el('whoami');
+const roleBadge = el('role-badge');
 
 async function refreshUI() {
   const { data: { user } } = await sb.auth.getUser();
@@ -47,7 +50,6 @@ async function refreshUI() {
   authedSec.style.display = 'block';
   whoami.textContent = `${user.email}`;
 
-  // Rol (profiles.role)
   const { data: profile, error } = await sb
     .from('profiles')
     .select('role')
@@ -61,6 +63,7 @@ async function refreshUI() {
   }
 
   const role = profile?.role || 'student';
+  roleBadge.textContent = role;
 
   if (role === 'teacher') {
     teacherPanel.style.display = 'block';
@@ -128,7 +131,6 @@ async function loadStudent(userId) {
 
 // ---------- TEACHER ----------
 async function loadTeacher() {
-  // Últimas transacciones globales
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
@@ -140,34 +142,46 @@ async function loadTeacher() {
   ).join('');
   el('tx-table').querySelector('tbody').innerHTML = rows;
 
-  // Carga la lista de alumnos (panel por alumno)
   await loadStudentsList();
 }
 
-// Otorgar por IDENTIFICADOR (UID/token)
+// Otorgar por identificador (UID/token)
 el('award-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const identifier = el('identifier').value.trim();
   const delta = parseInt(el('delta').value, 10);
   const reason = el('reason').value.trim() || null;
-  const device = el('device').value.trim() || null;
+  const device = el('device').value.trim() || 'web-teacher';
+
+  if (!identifier) return;
 
   const { error } = await sb.rpc('award_points', {
     _identifier: identifier,
-    _delta: delta,
+    _delta: isNaN(delta) ? 1 : delta,
     _reason: reason,
     _device_id: device,
   });
-  if (error) return alert(error.message);
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  // Limpieza + re-enfoque si Scan mode está activo
+  const scanToggle = el('scan-mode');
   el('identifier').value = '';
-  el('reason').value = '';
+  if (scanToggle?.checked) {
+    el('reason').value = '';
+    // No tocamos delta para permitir series con mismo valor
+    setTimeout(() => el('identifier').focus(), 0);
+  }
   loadTeacher();
 });
 
-// Botones rápidos (rellenan el delta del form de arriba)
+// Botones rápidos
 document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
     el('delta').value = btn.getAttribute('data-quick');
+    // si hay focus en identifier, no lo perdemos
   });
 });
 
@@ -180,7 +194,6 @@ el('new-student-form')?.addEventListener('submit', async (e) => {
 
   if (!name || !klass) return alert('Name and class are required.');
 
-  // 1) crea student
   const { data: inserted, error: e1 } = await sb
     .from('students')
     .insert([{ name, class: klass }])
@@ -188,7 +201,6 @@ el('new-student-form')?.addEventListener('submit', async (e) => {
     .single();
   if (e1) return alert(e1.message);
 
-  // 2) si se ingresó card_uid, vincular (upsert si ya existía esa UID)
   if (card) {
     const { error: e2 } = await sb
       .from('cards')
@@ -223,13 +235,13 @@ async function loadStudentsList() {
   const { data: students, error } = await query;
   if (error) { console.error(error); return; }
 
-  const container = el('students-list'); // ← existe en index.html
+  const container = el('students-list');
   if (!students || students.length === 0) {
     container.innerHTML = '<p class="muted">No students found for this filter.</p>';
     return;
   }
 
-  // balances en lote
+  // balances
   const balances = {};
   const ids = students.map(s => s.id);
   if (ids.length > 0) {
@@ -260,17 +272,15 @@ async function loadStudentsList() {
     `;
   }).join('');
 
-  // otorgar puntos por alumno
+  // otorgar por alumno
   container.querySelectorAll('button[data-award]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-student'), 10);
       let delta;
       const t = btn.getAttribute('data-award');
       if (t === 'custom') {
-        const val = prompt('Δ points (e.g., 2 or -3):');
-        if (!val) return;
-        delta = parseInt(val, 10);
-        if (isNaN(delta)) return alert('Invalid number');
+        const val = prompt('Δ points (e.g., 2 or -3):'); if (!val) return;
+        delta = parseInt(val, 10); if (isNaN(delta)) return alert('Invalid number');
       } else {
         delta = parseInt(t, 10);
       }
@@ -287,12 +297,11 @@ async function loadStudentsList() {
     });
   });
 
-  // vincular / cambiar tarjeta
+  // vincular tarjeta
   container.querySelectorAll('button[data-link-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
-      const card = prompt('Card UID (write or scan later):');
-      if (!card) return;
+      const card = prompt('Card UID (write or scan later):'); if (!card) return;
       const { error } = await sb
         .from('cards')
         .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
@@ -301,16 +310,13 @@ async function loadStudentsList() {
     });
   });
 
-  // eliminar alumno (RPC delete_student)
+  // borrar alumno
   container.querySelectorAll('button[data-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-delete'), 10);
       const name = btn.getAttribute('data-name') || 'this student';
-      const confirmText = prompt(
-        `Type DELETE to remove ${name} and ALL their cards & transactions. This cannot be undone.`
-      );
+      const confirmText = prompt(`Type DELETE to remove ${name} and ALL their cards & transactions. This cannot be undone.`);
       if (confirmText !== 'DELETE') return;
-
       const { error } = await sb.rpc('delete_student', { _student_id: studentId });
       if (error) return alert(error.message);
       await loadTeacher();
@@ -319,7 +325,7 @@ async function loadStudentsList() {
   });
 }
 
-// Cambiar contraseña manual desde la app (opcional)
+// Cambiar contraseña
 el('change-pass')?.addEventListener('click', async () => {
   const newPass = prompt('New password (min. 6 characters):');
   if (!newPass) return;
@@ -328,5 +334,28 @@ el('change-pass')?.addEventListener('click', async () => {
   alert('Password updated. Sign out and sign back in.');
 });
 
+// --- Scan mode: focus persistente + auto-submit en Enter ---
+(function setupScanMode(){
+  const scanToggle = document.getElementById('scan-mode');
+  const idInput = document.getElementById('identifier');
+  const awardForm = document.getElementById('award-form');
+
+  function keepFocus(){
+    if (!scanToggle?.checked) return;
+    if (document.activeElement !== idInput) idInput.focus();
+  }
+  setInterval(keepFocus, 500);
+
+  // Auto-submit en Enter (para HID que mande '\n')
+  idInput.addEventListener('keydown', (e) => {
+    if (!scanToggle?.checked) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      awardForm.requestSubmit();
+    }
+  });
+})();
+
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
+
