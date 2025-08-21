@@ -1,8 +1,23 @@
 // app.js
 
-// --- Supabase client (UMD build cargado en index.html) ---
+// --- Supabase client (UMD) ---
 const { createClient } = supabase;
+
+// Lee desde window y valida
+const SUPABASE_URL = String(window.SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = String(window.SUPABASE_ANON_KEY || '').trim();
+
+if (!SUPABASE_URL || !/^https?:\/\//.test(SUPABASE_URL)) {
+  console.error('SUPABASE_URL inválida o vacía:', SUPABASE_URL);
+  alert('Config error: SUPABASE_URL inválida.');
+}
+if (!SUPABASE_ANON_KEY) {
+  console.error('SUPABASE_ANON_KEY vacía.');
+  alert('Config error: falta SUPABASE_ANON_KEY.');
+}
+
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 
 // -------- Password recovery desde link de email --------
 async function handleRecoveryFromHash() {
