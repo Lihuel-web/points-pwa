@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Points Control</title>
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 720px }
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 820px }
     form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
     .muted { color:#666 }
@@ -19,6 +20,7 @@
 <body>
   <h1>Points Control</h1>
 
+  <!-- LOGIN -->
   <section id="auth">
     <div class="card">
       <h3>Login</h3>
@@ -29,10 +31,11 @@
           <button type="submit">Enter</button>
         </div>
       </form>
-      <p class="muted">Login only (user registration from Supabase).</p>
+      <p class="muted">Login only (user registration desde Supabase).</p>
     </div>
   </section>
 
+  <!-- APP AUTENTICADA -->
   <section id="authed">
     <div class="row">
       <div id="whoami" class="muted"></div>
@@ -40,9 +43,11 @@
       <button id="change-pass">Change password</button>
     </div>
 
-    <!-- Panel TEACHER -->
+    <!-- PANEL TEACHER -->
     <section id="teacher-panel" class="card">
       <h3>Teacher Panel</h3>
+
+      <!-- Otorgar por identificador (UID / token) -->
       <form id="award-form" class="row">
         <input id="identifier" placeholder="UID/Token de tarjeta" required />
         <input id="delta" type="number" value="1" step="1" />
@@ -51,35 +56,37 @@
         <button type="submit">Apply</button>
       </form>
 
-<div class="card" style="margin-top:12px">
-  <h4>Add student</h4>
-  <form id="new-student-form" class="row">
-    <input id="ns-name" placeholder="Full name" required />
-    <input id="ns-class" placeholder="Class (e.g., 8A)" required />
-    <input id="ns-card" placeholder="Card UID (optional)" />
-    <button type="submit">Create</button>
-  </form>
-</div>
-
-      
+      <!-- Alta rápida de alumno -->
       <div class="card" style="margin-top:12px">
-  <h4>Asignar por alumno (sin tarjeta)</h4>
-  <div class="row" style="margin-bottom:8px">
-    <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
-    <input id="search-name" placeholder="Buscar nombre" />
-    <button id="reload-students">Cargar alumnos</button>
-  </div>
-  <div id="students-list"></div>
-</div>
-
-      
-      <div class="row">
-        <button data-quick="1">+1</button>
-        <button data-quick="3">+3</button>
-        <button data-quick="-1">-1</button>
-        <button data-quick="-5">-5</button>
+        <h4>Add student</h4>
+        <form id="new-student-form" class="row">
+          <input id="ns-name" placeholder="Full name" required />
+          <input id="ns-class" placeholder="Class (e.g., 8A)" required />
+          <input id="ns-card" placeholder="Card UID (optional)" />
+          <button type="submit">Create</button>
+        </form>
       </div>
 
+      <!-- Asignación por alumno (sin tarjeta) -->
+      <div class="card" style="margin-top:12px">
+        <h4>Asignar por alumno (sin tarjeta)</h4>
+        <div class="row" style="margin-bottom:8px">
+          <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
+          <input id="search-name" placeholder="Buscar nombre" />
+          <button id="reload-students" type="button">Cargar alumnos</button>
+        </div>
+        <div id="students-list"></div>
+      </div>
+
+      <!-- Botones rápidos para el form de identificador -->
+      <div class="row">
+        <button type="button" data-quick="1">+1</button>
+        <button type="button" data-quick="3">+3</button>
+        <button type="button" data-quick="-1">-1</button>
+        <button type="button" data-quick="-5">-5</button>
+      </div>
+
+      <!-- Últimas transacciones -->
       <div style="margin-top:12px">
         <strong>Latest transactions</strong>
         <table id="tx-table">
@@ -89,7 +96,7 @@
       </div>
     </section>
 
-    <!-- Panel STUDENT -->
+    <!-- PANEL STUDENT -->
     <section id="student-panel" class="card">
       <h3>My balance</h3>
       <div id="student-info" class="muted"></div>
@@ -104,8 +111,8 @@
     </section>
   </section>
 
-  <!-- Supabase JS v2 desde CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Supabase JS v2 (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
     // ⚠️ Rellena con tus valores de Settings → API
     const SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
