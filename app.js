@@ -207,6 +207,7 @@ el('search-name')?.addEventListener('input', () => {
   loadStudentsList._t = setTimeout(loadStudentsList, 200);
 });
 
+
 async function loadStudentsList() {
   const cls = (el('class-filter')?.value || '').trim();
   const q = (el('search-name')?.value || '').trim().toLowerCase();
@@ -229,7 +230,10 @@ async function loadStudentsList() {
   const balances = {};
   const ids = students.map(s => s.id);
   if (ids.length > 0) {
-    const { data: bals } = await sb.from('balances').select('student_id,points').in('student_id', ids);
+    const { data: bals } = await sb
+      .from('balances')
+      .select('student_id,points')
+      .in('student_id', ids);
     (bals || []).forEach(b => { balances[b.student_id] = b.points; });
   }
 
@@ -251,7 +255,6 @@ async function loadStudentsList() {
         </div>
       </div>
     `;
-    
   }).join('');
 
   // otorgar puntos por alumno
@@ -294,24 +297,24 @@ async function loadStudentsList() {
       await loadTeacher();
     });
   });
-}
 
-// eliminar alumno (borra también cards + transactions por cascada)
-container.querySelectorAll('button[data-delete]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const studentId = parseInt(btn.getAttribute('data-delete'), 10);
-    const name = btn.getAttribute('data-name') || 'this student';
-    const confirmText = prompt(
-      `Type DELETE to remove ${name} and ALL their cards & transactions. This cannot be undone.`
-    );
-    if (confirmText !== 'DELETE') return;
+  // eliminar alumno (usa RPC delete_student)
+  container.querySelectorAll('button[data-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const studentId = parseInt(btn.getAttribute('data-delete'), 10);
+      const name = btn.getAttribute('data-name') || 'this student';
+      const confirmText = prompt(
+        `Type DELETE to remove ${name} and ALL their cards & transactions. This cannot be undone.`
+      );
+      if (confirmText !== 'DELETE') return;
 
-    const { error } = await sb.rpc('delete_student', { _student_id: studentId });
-    if (error) return alert(error.message);
-    await loadTeacher();
-    alert('Student deleted.');
+      const { error } = await sb.rpc('delete_student', { _student_id: studentId });
+      if (error) return alert(error.message);
+      await loadTeacher();
+      alert('Student deleted.');
+    });
   });
-});
+}
 
 
 // Cambiar contraseña manual desde la app (opcional)
