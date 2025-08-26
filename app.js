@@ -339,26 +339,20 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
   }
 });
 
-// --------- Alta de ALUMNO (record only) ---------
+/// --------- Alta de ALUMNO (record only) ---------
 (function wireRecordOnlyForm(){
   const form = el('new-student-form');
-  const btn  = el('ns-create-btn');
-  if (!form || !btn) return;
-
-  // Asegura que el submit dispare aunque el navegador no lo haga al click
-  btn.addEventListener('click', (e) => {
-    if (form.requestSubmit) form.requestSubmit(); else form.submit();
-  });
+  if (!form) { console.warn('[record-only] form not found'); return; }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const name  = (el('ns-name')?.value  || '').trim();
     const klass = (el('ns-class')?.value || '').trim();   // opcional
     const card  = (el('ns-card')?.value  || '').trim();   // opcional
     if (!name) { alert('Name is required.'); return; }
 
     try {
+      // 1) Inserta fila en students
       const { data: inserted, error: e1 } = await sb
         .from('students')
         .insert([{ name, class: klass || null }])
@@ -366,6 +360,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         .single();
       if (e1) throw e1;
 
+      // 2) Si viene card, upsert en cards
       if (card) {
         const { error: e2 } = await sb
           .from('cards')
@@ -376,10 +371,10 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         if (e2) throw e2;
       }
 
+      // Limpieza + refresco
       el('ns-name').value = '';
       el('ns-class').value = '';
       el('ns-card').value  = '';
-
       await loadTeacher();
       alert('Student created.');
     } catch (err) {
@@ -388,6 +383,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     }
   });
 })();
+
 
 // ---------- Otorgar por identificador (UID/token) ----------
 el('award-form')?.addEventListener('submit', async (e) => {
