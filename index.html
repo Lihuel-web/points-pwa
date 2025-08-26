@@ -4,10 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Points Control</title>
-  <meta name="theme-color" content="#ffffff" />
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 900px }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 980px }
     form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
     .muted { color:#666 }
@@ -16,122 +15,114 @@
     table { width:100%; border-collapse: collapse; margin-top:8px }
     th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
     #teacher-panel, #student-panel, #authed { display:none }
-    .right { margin-left:auto }
-    .badge { font-size: 12px; padding: 2px 6px; border: 1px solid #ccc; border-radius: 6px; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
+    @media (max-width: 900px){ .split { grid-template-columns: 1fr; } }
+    .tag { font-size: 12px; padding: 2px 8px; border:1px solid #ccc; border-radius: 999px; }
   </style>
 </head>
 <body>
   <h1>Points Control</h1>
 
-  <!-- LOGIN -->
+  <!-- AUTH -->
   <section id="auth">
     <div class="card">
       <h3>Login</h3>
-      <form id="login-form" autocomplete="on">
+      <form id="login-form">
         <div class="row">
           <input id="email" type="email" placeholder="Email" required />
           <input id="password" type="password" placeholder="Contraseña" required />
           <button type="submit">Enter</button>
         </div>
       </form>
-      <p class="muted">Login only (user registration desde Supabase).</p>
+      <p class="muted">Si no tienes cuenta, regístrate abajo.</p>
+    </div>
+
+    <div class="card">
+      <h3>Register (students)</h3>
+      <form id="signup-form">
+        <div class="row">
+          <input id="su-email" type="email" placeholder="Email" required />
+          <input id="su-password" type="password" placeholder="Contraseña (≥6)" required />
+          <input id="su-name" placeholder="Nombre para mostrar (opcional)" />
+          <input id="su-class" placeholder="Grupo/Clase (ej. 8A, opcional)" />
+          <button type="submit">Create account</button>
+        </div>
+      </form>
+      <p class="muted">Al registrarte se crea tu perfil y ficha de estudiante automáticamente.</p>
     </div>
   </section>
 
   <!-- APP AUTENTICADA -->
-  <section id="authed" aria-live="polite">
+  <section id="authed">
     <div class="row">
       <div id="whoami" class="muted"></div>
-      <span class="badge" id="role-badge"></span>
-      <button id="logout" class="right">Logout</button>
+      <span id="role-badge" class="tag"></span>
+      <button id="logout">Logout</button>
       <button id="change-pass">Change password</button>
     </div>
 
-    <!-- PANEL TEACHER -->
+    <!-- TEACHER -->
     <section id="teacher-panel" class="card">
       <h3>Teacher Panel</h3>
 
-      <!-- Otorgar por identificador (UID / token) -->
-      <form id="award-form" class="row" autocomplete="off">
-        <input id="identifier" placeholder="UID/Token de tarjeta" required />
-        <input id="delta" type="number" value="1" step="1" />
-        <input id="reason" placeholder="Motivo (ej. participación)" />
-        <input id="device" placeholder="Device ID (ej. laptop-ale)" />
-        <button type="submit">Apply</button>
-      </form>
+      <div class="split">
+        <!-- A) Transacciones recientes -->
+        <div class="card">
+          <h4>Latest transactions</h4>
+          <table id="tx-table"><thead>
+            <tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr>
+          </thead><tbody></tbody></table>
+        </div>
 
-      <!-- Scan mode (HID teclado) -->
-      <div class="row">
-        <label><input type="checkbox" id="scan-mode" /> Scan mode (auto focus & submit)</label>
-        <span class="muted">Usa Flipper como teclado HID: escribe el UID y presiona Enter.</span>
+        <!-- B) Gestión de equipos -->
+        <div class="card">
+          <h4>Teams</h4>
+          <form id="new-team-form" class="row">
+            <input id="team-name" placeholder="Team name (e.g., Team_1)" required />
+            <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
+            <button type="submit">Create team</button>
+          </form>
+
+          <div class="row" style="margin-top:8px">
+            <select id="team-select"></select>
+            <button id="reload-teams" type="button">Reload</button>
+            <button id="delete-team" type="button">Delete team</button>
+          </div>
+
+          <div class="row" style="margin-top:8px">
+            <select id="student-pool"></select>
+            <button id="assign-member" type="button">Assign to team</button>
+            <button id="remove-member" type="button">Remove from team</button>
+          </div>
+
+          <div style="margin-top:8px">
+            <strong>Team members</strong>
+            <ul id="team-members"></ul>
+          </div>
+
+          <div style="margin-top:8px">
+            <strong>Team balance:</strong> <span id="team-balance">—</span> pts
+          </div>
+        </div>
       </div>
 
-      <!-- Botones rápidos para el form de identificador -->
-      <div class="row">
-        <button type="button" data-quick="+1">+1</button>
-        <button type="button" data-quick="+2">+2</button>
-        <button type="button" data-quick="+3">+3</button>
-        <button type="button" data-quick="+4">+4</button>
-      </div>
-
-      <!-- Alta rápida de alumno -->
+      <!-- C) Alta rápida de alumno (sin login) y vinculación de tarjeta -->
       <div class="card" style="margin-top:12px">
-        <h4>Add student</h4>
+        <h4>Add student (optional)</h4>
         <form id="new-student-form" class="row">
           <input id="ns-name" placeholder="Full name" required />
           <input id="ns-class" placeholder="Class (e.g., 8A)" required />
           <input id="ns-card" placeholder="Card UID (optional)" />
           <button type="submit">Create</button>
         </form>
+        <p class="muted">Útil si aún no se registran. Cuando se registren, podrás enlazar su cuenta a esta ficha o crear una nueva.</p>
       </div>
 
-      <!-- Asignación por alumno (sin tarjeta) -->
+      <!-- D) Asignación por alumno (sin tarjeta) -->
       <div class="card" style="margin-top:12px">
-        <h4>Asignar por alumno (sin tarjeta)</h4>
+        <h4>Asignar por alumno</h4>
         <div class="row" style="margin-bottom:8px">
           <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
-          <input id="search-name" placeholder="Buscar nombre" />
-          <button id="reload-students" type="button">Cargar alumnos</button>
-        </div>
-        <div id="students-list"></div>
-      </div>
+          <input id="search-name" pla
 
-      <!-- Últimas transacciones -->
-      <div style="margin-top:12px">
-        <strong>Latest transactions</strong>
-        <table id="tx-table">
-          <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- PANEL STUDENT -->
-    <section id="student-panel" class="card">
-      <h3>My balance</h3>
-      <div id="student-info" class="muted"></div>
-      <h4>Current balance: <span id="balance">—</span> points</h4>
-      <div>
-        <strong>My last movements</strong>
-        <table id="mytx-table">
-          <thead><tr><th>Date</th><th>Δ</th><th>Reason</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </section>
-
-<!-- Supabase JS v2 (UMD) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-
-<script>
-  // ✅ Defínelas explícitamente en window para que cualquier script las vea
-  window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
-  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
-</script>
-
-<script src="./app.js"></script>
-
-</body>
-</html>
 
