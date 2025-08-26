@@ -123,6 +123,50 @@
         <h4>Asignar por alumno</h4>
         <div class="row" style="margin-bottom:8px">
           <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
-          <input id="search-name" pla
+          <input id="search-name" placeholder="Buscar nombre" />
+          <button id="reload-students" type="button">Cargar alumnos</button>
+        </div>
+        <div id="students-list"></div>
+        <div class="row" style="margin-top:8px">
+          <button type="button" data-quick="+1">+1</button>
+          <button type="button" data-quick="+2">+2</button>
+          <button type="button" data-quick="+3">+3</button>
+          <button type="button" data-quick="+4">+4</button>
+        </div>
+      </div>
+    </section>
 
+    <!-- STUDENT -->
+    <section id="student-panel" class="card">
+      <h3>My points</h3>
+      <div id="student-info" class="muted"></div>
+      <h4>My balance: <span id="balance">—</span> points</h4>
 
+      <div style="margin-top:10px">
+        <strong>My last movements</strong>
+        <table id="mytx-table"><thead>
+          <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
+        </thead><tbody></tbody></table>
+      </div>
+
+      <div style="margin-top:16px">
+        <h3>My team</h3>
+        <div id="team-info" class="muted"></div>
+        <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
+        <div>
+          <strong>Team members</strong>
+          <ul id="my-team-members"></ul>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- Supabase JS v2 (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+    const SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
+  </script>
+  <script src="./app.js"></script>
+</body>
+</html>
