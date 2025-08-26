@@ -339,7 +339,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
   }
 });
 
-/// --------- Alta de ALUMNO (record only) ---------
+// --------- Alta de ALUMNO (record only) ---------
 (function wireRecordOnlyForm(){
   const form = el('new-student-form');
   if (!form) { console.warn('[record-only] form not found'); return; }
