@@ -339,6 +339,56 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
   }
 });
 
+// --------- Alta de ALUMNO (record only) ---------
+(function wireRecordOnlyForm(){
+  const form = el('new-student-form');
+  const btn  = el('ns-create-btn');
+  if (!form || !btn) return;
+
+  // Asegura que el submit dispare aunque el navegador no lo haga al click
+  btn.addEventListener('click', (e) => {
+    if (form.requestSubmit) form.requestSubmit(); else form.submit();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name  = (el('ns-name')?.value  || '').trim();
+    const klass = (el('ns-class')?.value || '').trim();   // opcional
+    const card  = (el('ns-card')?.value  || '').trim();   // opcional
+    if (!name) { alert('Name is required.'); return; }
+
+    try {
+      const { data: inserted, error: e1 } = await sb
+        .from('students')
+        .insert([{ name, class: klass || null }])
+        .select('id')
+        .single();
+      if (e1) throw e1;
+
+      if (card) {
+        const { error: e2 } = await sb
+          .from('cards')
+          .upsert(
+            { student_id: inserted.id, card_uid: card, active: true },
+            { onConflict: 'card_uid' }
+          );
+        if (e2) throw e2;
+      }
+
+      el('ns-name').value = '';
+      el('ns-class').value = '';
+      el('ns-card').value  = '';
+
+      await loadTeacher();
+      alert('Student created.');
+    } catch (err) {
+      console.error('record-only insert failed:', err);
+      alert(err?.message || 'Insert failed');
+    }
+  });
+})();
+
 // ---------- Otorgar por identificador (UID/token) ----------
 el('award-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
