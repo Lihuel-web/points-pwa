@@ -1,9 +1,9 @@
 // app.js
 
 // --- Supabase client (UMD) ---
-// Lee SUPABASE_URL/ANON_KEY desde window.* (evita ReferenceError si no hay const globales)
 const { createClient } = supabase;
 
+// Lee desde window y valida
 const SUPA_URL = String((window && window.SUPABASE_URL) || '').trim();
 const SUPA_KEY = String((window && window.SUPABASE_ANON_KEY) || '').trim();
 
@@ -63,25 +63,6 @@ el('login-form')?.addEventListener('submit', async (e) => {
   refreshUI();
 });
 
-// soporte opcional si agregas un formulario de registro en tu index.html
-el('signup-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = el('su-email').value.trim();
-  const password = el('su-password').value;
-  const name = (el('su-name')?.value || '').trim();
-  const klass = (el('su-class')?.value || '').trim();
-
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if (error) return alert(error.message);
-
-  if (data?.user?.id && (name || klass)) {
-    await sb.from('students')
-      .update({ name: name || null, class: klass || null })
-      .eq('auth_user_id', data.user.id);
-  }
-  alert('Account created. Check your email if confirmation is required, then log in.');
-});
-
 el('logout')?.addEventListener('click', async () => {
   await sb.auth.signOut();
   refreshUI();
@@ -116,15 +97,15 @@ async function refreshUI() {
     return;
   }
   const role = profile?.role || 'student';
-  if (roleBadge) roleBadge.textContent = role.toUpperCase();
+  roleBadge && (roleBadge.textContent = role.toUpperCase());
 
   if (role === 'teacher') {
-    if (teacherPanel) teacherPanel.style.display = 'block';
-    if (studentPanel) studentPanel.style.display = 'none';
+    teacherPanel && (teacherPanel.style.display = 'block');
+    studentPanel && (studentPanel.style.display = 'none');
     await loadTeacher();
   } else {
-    if (teacherPanel) teacherPanel.style.display = 'none';
-    if (studentPanel) studentPanel.style.display = 'block';
+    teacherPanel && (teacherPanel.style.display = 'none');
+    studentPanel && (studentPanel.style.display = 'block');
     await loadStudent(user.id);
   }
 }
@@ -139,7 +120,6 @@ async function loadStudent(userId) {
     el('student-info') && (el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.');
     el('balance') && (el('balance').textContent = '—');
     const mt = el('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
-    // limpia panel de equipo si existe
     el('team-info') && (el('team-info').textContent = 'No team assigned.');
     el('my-team-balance') && (el('my-team-balance').textContent = '—');
     el('my-team-members') && (el('my-team-members').innerHTML = '');
@@ -167,14 +147,12 @@ async function loadStudent(userId) {
     ).join('');
   }
 
-  // ---- Equipo (si tienes el SQL de equipos) ----
+  // Equipo (si existe el esquema)
   try {
-    const { data: tm, error: tmErr } = await sb
+    const { data: tm } = await sb
       .from('team_members')
       .select('team_id, teams(name,class)')
       .eq('student_id', student.id).maybeSingle();
-
-    if (tmErr) throw tmErr;
 
     if (!tm?.team_id) {
       el('team-info') && (el('team-info').textContent = 'No team assigned.');
@@ -201,9 +179,8 @@ async function loadStudent(userId) {
         `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
       ).join('');
     }
-  } catch (err) {
-    // si no existe el esquema de equipos, ignora silenciosamente
-    // console.warn('Teams not configured yet:', err?.message);
+  } catch {
+    // si no existen las tablas/vistas de equipos, ignorar
   }
 }
 
@@ -223,13 +200,13 @@ async function loadTeacher() {
       <td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`).join('');
   }
 
-  await loadTeamsUI();   // no hace nada si la UI de equipos no existe
+  await loadTeamsUI();
   await loadStudentsList();
 }
 
-// --- Gestión de equipos (protegido por existencia de elementos) ---
+// --- Gestión de equipos ---
 async function loadTeamsUI() {
-  if (!el('team-select')) return; // UI de equipos no presente en tu index.html
+  if (!el('team-select')) return;
   try {
     const { data: teams } = await sb
       .from('teams').select('id,name,class').order('name', { ascending: true });
@@ -244,8 +221,8 @@ async function loadTeamsUI() {
       `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
 
     await refreshTeamDetails();
-  } catch (err) {
-    // esquema de equipos no activo, no hacemos nada
+  } catch {
+    // RLS impide lectura si no eres teacher
   }
 }
 
@@ -253,8 +230,8 @@ async function refreshTeamDetails() {
   if (!el('team-select')) return;
   const teamId = parseInt(el('team-select').value || '0', 10);
   if (!teamId) {
-    el('team-members').innerHTML = '';
-    el('team-balance').textContent = '—';
+    el('team-members') && (el('team-members').innerHTML = '');
+    el('team-balance') && (el('team-balance').textContent = '—');
     return;
   }
   try {
@@ -271,8 +248,8 @@ async function refreshTeamDetails() {
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
     el('team-balance').textContent = tbal?.points ?? 0;
-  } catch (err) {
-    // sin esquema, ignorar
+  } catch {
+    // ignora
   }
 }
 
@@ -304,7 +281,7 @@ el('assign-member')?.addEventListener('click', async () => {
   const teamId = parseInt(el('team-select').value || '0', 10);
   const studentId = parseInt(el('student-pool').value || '0', 10);
   if (!teamId || !studentId) return;
-  await sb.from('team_members').delete().eq('student_id', studentId); // mueve si estaba en otro equipo
+  await sb.from('team_members').delete().eq('student_id', studentId);
   const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
   if (error) return alert(error.message);
   await refreshTeamDetails();
@@ -319,6 +296,47 @@ el('remove-member')?.addEventListener('click', async () => {
   const { error } = await sb.from('team_members').delete().match({ team_id: teamId, student_id: studentId });
   if (error) return alert(error.message);
   await refreshTeamDetails();
+});
+
+// ---------- Edge Function helper ----------
+async function callEdge(fnName, payload) {
+  const { data: { session} } = await sb.auth.getSession();
+  const resp = await fetch(`${SUPA_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`${fnName} failed: ${resp.status} ${text}`);
+  }
+  return await resp.json();
+}
+
+// ---------- Crear cuenta de estudiante (solo teacher) ----------
+el('create-student-account')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = el('ct-name').value.trim();
+  const klass = (el('ct-class').value || '').trim();
+  const email = el('ct-email').value.trim();
+  const pass = el('ct-pass').value;
+  if (!name || !email || pass.length < 6) return alert('Completa nombre, email y password ≥6.');
+
+  try {
+    const r = await callEdge('admin_create_student', { name, klass, email, password: pass });
+    el('ct-name').value = '';
+    el('ct-class').value = '';
+    el('ct-email').value = '';
+    el('ct-pass').value = '';
+    await loadTeacher();
+    alert(`Account created: ${r?.student?.name || name}`);
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
 });
 
 // ---------- Otorgar por identificador (UID/token) ----------
@@ -342,7 +360,6 @@ el('award-form')?.addEventListener('submit', async (e) => {
     return;
   }
 
-  // Limpieza + re-enfoque si Scan mode está activo
   const scanToggle = el('scan-mode');
   el('identifier').value = '';
   if (scanToggle?.checked) {
@@ -355,43 +372,13 @@ el('award-form')?.addEventListener('submit', async (e) => {
 // ---------- Botones rápidos (+1..+4 sólo positivos) ----------
 document.querySelectorAll('[data-quick]')?.forEach(btn => {
   btn.addEventListener('click', () => {
-    const v = btn.getAttribute('data-quick'); // ej. "+1", "+2", "+3", "+4"
+    const v = btn.getAttribute('data-quick'); // "+1", "+2", "+3", "+4"
     const deltaInput = el('delta');
     if (deltaInput) deltaInput.value = v;
   });
 });
 
-// --------- Alta de ALUMNO (sin login) ---------
-el('new-student-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = el('ns-name').value.trim();
-  const klass = el('ns-class').value.trim();
-  const card = (el('ns-card').value || '').trim();
-
-  if (!name || !klass) return alert('Name and class are required.');
-
-  const { data: inserted, error: e1 } = await sb
-    .from('students')
-    .insert([{ name, class: klass }])
-    .select('id')
-    .single();
-  if (e1) return alert(e1.message);
-
-  if (card) {
-    const { error: e2 } = await sb
-      .from('cards')
-      .upsert({ student_id: inserted.id, card_uid: card, active: true }, { onConflict: 'card_uid' });
-    if (e2) return alert(e2.message);
-  }
-
-  el('ns-name').value = '';
-  el('ns-class').value = '';
-  el('ns-card').value = '';
-  await loadTeacher();
-  alert('Student created.');
-});
-
-// --------- Asignación por ALUMNO (sin tarjeta) ---------
+// --------- Lista de alumnos + asignación de puntos ---------
 el('reload-students')?.addEventListener('click', loadStudentsList);
 el('class-filter')?.addEventListener('change', loadStudentsList);
 el('search-name')?.addEventListener('input', () => {
@@ -418,7 +405,6 @@ async function loadStudentsList() {
     return;
   }
 
-  // balances
   const balances = {};
   const ids = students.map(s => s.id);
   if (ids.length > 0) {
@@ -510,7 +496,6 @@ async function loadStudentsList() {
   }
   setInterval(keepFocus, 500);
 
-  // Auto-submit en Enter (para HID que mande '\n')
   idInput.addEventListener('keydown', (e) => {
     if (!scanToggle?.checked) return;
     if (e.key === 'Enter') {
@@ -522,4 +507,3 @@ async function loadStudentsList() {
 
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
-
