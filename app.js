@@ -80,13 +80,13 @@ el('change-pass')?.addEventListener('click', async () => {
 async function refreshUI() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) {
-    authSec && (authSec.style.display = 'block');
-    authedSec && (authedSec.style.display = 'none');
+    if (authSec) authSec.style.display = 'block';
+    if (authedSec) authedSec.style.display = 'none';
     return;
   }
-  authSec && (authSec.style.display = 'none');
-  authedSec && (authedSec.style.display = 'block');
-  whoami && (whoami.textContent = `${user.email}`);
+  if (authSec) authSec.style.display = 'none';
+  if (authedSec) authedSec.style.display = 'block';
+  if (whoami) whoami.textContent = `${user.email}`;
 
   const { data: profile, error } = await sb
     .from('profiles').select('role')
@@ -97,15 +97,15 @@ async function refreshUI() {
     return;
   }
   const role = profile?.role || 'student';
-  roleBadge && (roleBadge.textContent = role.toUpperCase());
+  if (roleBadge) roleBadge.textContent = role.toUpperCase();
 
   if (role === 'teacher') {
-    teacherPanel && (teacherPanel.style.display = 'block');
-    studentPanel && (studentPanel.style.display = 'none');
+    if (teacherPanel) teacherPanel.style.display = 'block';
+    if (studentPanel) studentPanel.style.display = 'none';
     await loadTeacher();
   } else {
-    teacherPanel && (teacherPanel.style.display = 'none');
-    studentPanel && (studentPanel.style.display = 'block');
+    if (teacherPanel) teacherPanel.style.display = 'none';
+    if (studentPanel) studentPanel.style.display = 'block';
     await loadStudent(user.id);
   }
 }
@@ -117,22 +117,22 @@ async function loadStudent(userId) {
     .eq('auth_user_id', userId).maybeSingle();
 
   if (e1 || !student) {
-    el('student-info') && (el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.');
-    el('balance') && (el('balance').textContent = '—');
+    if (el('student-info')) el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.';
+    if (el('balance')) el('balance').textContent = '—';
     const mt = el('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
-    el('team-info') && (el('team-info').textContent = 'No team assigned.');
-    el('my-team-balance') && (el('my-team-balance').textContent = '—');
-    el('my-team-members') && (el('my-team-members').innerHTML = '');
+    if (el('team-info')) el('team-info').textContent = 'No team assigned.';
+    if (el('my-team-balance')) el('my-team-balance').textContent = '—';
+    if (el('my-team-members')) el('my-team-members').innerHTML = '';
     return;
   }
 
-  el('student-info') && (el('student-info').textContent = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`);
+  if (el('student-info')) el('student-info').textContent = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`;
 
   // balance individual
   const { data: bal } = await sb
     .from('balances').select('points')
     .eq('student_id', student.id).maybeSingle();
-  el('balance') && (el('balance').textContent = bal?.points ?? 0);
+  if (el('balance')) el('balance').textContent = bal?.points ?? 0;
 
   // movimientos individuales
   const { data: txs } = await sb
@@ -155,17 +155,17 @@ async function loadStudent(userId) {
       .eq('student_id', student.id).maybeSingle();
 
     if (!tm?.team_id) {
-      el('team-info') && (el('team-info').textContent = 'No team assigned.');
-      el('my-team-balance') && (el('my-team-balance').textContent = '—');
-      el('my-team-members') && (el('my-team-members').innerHTML = '');
+      if (el('team-info')) el('team-info').textContent = 'No team assigned.';
+      if (el('my-team-balance')) el('my-team-balance').textContent = '—';
+      if (el('my-team-members')) el('my-team-members').innerHTML = '';
       return;
     }
 
-    el('team-info') && (el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
+    if (el('team-info')) el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`;
 
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
-    el('my-team-balance') && (el('my-team-balance').textContent = tbal?.points ?? 0);
+    if (el('my-team-balance')) el('my-team-balance').textContent = tbal?.points ?? 0;
 
     const { data: members } = await sb
       .from('team_member_points')
@@ -230,8 +230,8 @@ async function refreshTeamDetails() {
   if (!el('team-select')) return;
   const teamId = parseInt(el('team-select').value || '0', 10);
   if (!teamId) {
-    el('team-members') && (el('team-members').innerHTML = '');
-    el('team-balance') && (el('team-balance').textContent = '—');
+    if (el('team-members')) el('team-members').innerHTML = '';
+    if (el('team-balance')) el('team-balance').textContent = '—';
     return;
   }
   try {
@@ -342,17 +342,28 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
 // --------- Alta de ALUMNO (record only) ---------
 (function wireRecordOnlyForm(){
   const form = el('new-student-form');
-  if (!form) { console.warn('[record-only] form not found'); return; }
+  if (!form) return;
+
+  // evita enganchar dos veces si app.js se evalúa más de una vez
+  if (form.dataset.wired === '1') return;
+  form.dataset.wired = '1';
+
+  let busy = false;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (busy) return;
+    busy = true;
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn?.setAttribute('disabled', 'disabled');
+
     const name  = (el('ns-name')?.value  || '').trim();
     const klass = (el('ns-class')?.value || '').trim();   // opcional
     const card  = (el('ns-card')?.value  || '').trim();   // opcional
-    if (!name) { alert('Name is required.'); return; }
+    if (!name) { alert('Name is required.'); submitBtn?.removeAttribute('disabled'); busy = false; return; }
 
     try {
-      // 1) Inserta fila en students
       const { data: inserted, error: e1 } = await sb
         .from('students')
         .insert([{ name, class: klass || null }])
@@ -360,7 +371,6 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         .single();
       if (e1) throw e1;
 
-      // 2) Si viene card, upsert en cards
       if (card) {
         const { error: e2 } = await sb
           .from('cards')
@@ -371,7 +381,6 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         if (e2) throw e2;
       }
 
-      // Limpieza + refresco
       el('ns-name').value = '';
       el('ns-class').value = '';
       el('ns-card').value  = '';
@@ -380,10 +389,12 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     } catch (err) {
       console.error('record-only insert failed:', err);
       alert(err?.message || 'Insert failed');
+    } finally {
+      busy = false;
+      submitBtn?.removeAttribute('disabled');
     }
   });
 })();
-
 
 // ---------- Otorgar por identificador (UID/token) ----------
 el('award-form')?.addEventListener('submit', async (e) => {
@@ -514,25 +525,24 @@ async function loadStudentsList() {
     });
   });
 
- // borrar alumno (también elimina Auth user)
-container.querySelectorAll('button[data-delete]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const studentId = parseInt(btn.getAttribute('data-delete'), 10);
-    const name = btn.getAttribute('data-name') || 'this student';
-    const confirmText = prompt(`Type DELETE to remove ${name} (Auth account + cards + transactions). This cannot be undone.`);
-    if (confirmText !== 'DELETE') return;
-
-    try {
-      await callEdge('admin_delete_student', { student_id: studentId });
-      await loadTeacher();
-      alert('Student deleted (Auth + data).');
-    } catch (err) {
-      console.error(err);
-      alert(err?.message || 'Delete failed');
-    }
+  // borrar alumno (Auth + datos)
+  container.querySelectorAll('button[data-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const studentId = parseInt(btn.getAttribute('data-delete'), 10);
+      const name = btn.getAttribute('data-name') || 'this student';
+      const confirmText = prompt(`Type DELETE to remove ${name} (Auth account + cards + transactions). This cannot be undone.`);
+      if (confirmText !== 'DELETE') return;
+      try {
+        await callEdge('admin_delete_student', { student_id: studentId });
+        await loadTeacher();
+        alert('Student deleted (Auth + data).');
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || 'Delete failed');
+      }
+    });
   });
-});
-
+}
 
 // --- Scan mode: focus persistente + auto-submit en Enter ---
 (function setupScanMode(){
@@ -558,3 +568,4 @@ container.querySelectorAll('button[data-delete]').forEach(btn => {
 
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
+
