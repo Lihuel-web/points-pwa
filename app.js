@@ -333,10 +333,16 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     el('ct-pass').value = '';
     await loadTeacher();
     alert(`Account created: ${r?.student?.name || name}`);
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
+} catch (err) {
+  console.error(err);
+  const msg = String(err?.message || "");
+  if (msg.includes(" 409 ") || /already been registered/i.test(msg)) {
+    alert("Ese email ya está registrado. Usa otro o borra la cuenta existente.");
+  } else {
+    alert(msg);
   }
+}
+
 });
 
 // --------- Alta de ALUMNO (record only) ---------
@@ -448,7 +454,7 @@ async function loadStudentsList() {
   const q = (el('search-name')?.value || '').trim().toLowerCase();
 
   let query = sb.from('students').select('id,name,class');
-  if (cls) query = query.ilike('class', cls);
+ if (cls) query = query.ilike('class', `${cls}%`); // o .eq('class', cls) si quieres coincidencia exacta
   if (q) query = query.ilike('name', `%${q}%`);
   query = query.order('class', { ascending: true }).order('name', { ascending: true });
 
