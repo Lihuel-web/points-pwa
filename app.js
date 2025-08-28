@@ -433,11 +433,11 @@ el('award-form')?.addEventListener('submit', async (e) => {
 });
 
 // ---------- Botones rápidos (+1..+4 sólo positivos) ----------
-document.querySelectorAll('[data-quick]')?.forEach(btn => {
+document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
-    const v = btn.getAttribute('data-quick'); // "+1", "+2", "+3", "+4"
+    const n = parseInt(btn.getAttribute('data-quick'), 10); // "+1" -> 1
     const deltaInput = el('delta');
-    if (deltaInput) deltaInput.value = v;
+    if (Number.isFinite(n) && deltaInput) deltaInput.value = String(n);
   });
 });
 
