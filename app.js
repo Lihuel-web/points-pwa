@@ -44,7 +44,7 @@ async function handleRecoveryFromHash() {
   }
 }
 
-// --------- Utilidades UI ---------
+// --------- Utilidades UI / NFC ---------
 const el = (id) => document.getElementById(id);
 const authSec = el('auth');
 const authedSec = el('authed');
@@ -52,6 +52,42 @@ const teacherPanel = el('teacher-panel');
 const studentPanel = el('student-panel');
 const whoami = el('whoami');
 const roleBadge = el('role-badge');
+
+/** Normaliza cualquier UID a HEX mayúsculas sin separadores */
+function normalizeUID(s) {
+  return (s || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+}
+
+/** Filtro anti-repetición local (mitiga CR+LF o rebotes muy rápidos) */
+let lastScan = { id: '', t: 0 };
+function isDuplicateScan(id, ms = 600) {
+  const now = Date.now();
+  if (lastScan.id === id && (now - lastScan.t) < ms) return true;
+  lastScan = { id, t: now };
+  return false;
+}
+
+/**
+ * Algunos lectores pueden volcar 2+ UIDs pegados si se “duerme” BT (p.ej. "53AE...0001 5322F8...0001" sin separador).
+ * Este helper intenta segmentar si ve un bloque largo *exactamente* divisible por 14 (7 bytes * 2 hex) — el patrón
+ * que muestras en tus capturas. Si no aplica, devuelve el UID único.
+ */
+function splitPossibleMultiUID(raw) {
+  const canon = normalizeUID(raw);
+  if (!canon) return [];
+  // Longitudes típicas de UID NFC: 8, 14, 16, 20 (bytes 4,7,8,10). Si viene múltiple sin separador, se verá como 28, 32, 40...
+  const lens = [8, 14, 16, 20];
+  for (const L of lens) {
+    if (canon.length > L && canon.length % L === 0) {
+      // Divide en bloques de tamaño L y devuelve los no vacíos
+      const chunks = [];
+      for (let i = 0; i < canon.length; i += L) chunks.push(canon.slice(i, i + L));
+      // Heurística: si todos los chunks son HEX válidos, acepta la división
+      if (chunks.every(c => /^[0-9A-F]+$/.test(c))) return chunks;
+    }
+  }
+  return [canon];
+}
 
 // ---------- Auth ----------
 el('login-form')?.addEventListener('submit', async (e) => {
@@ -333,16 +369,15 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     el('ct-pass').value = '';
     await loadTeacher();
     alert(`Account created: ${r?.student?.name || name}`);
-} catch (err) {
-  console.error(err);
-  const msg = String(err?.message || "");
-  if (msg.includes(" 409 ") || /already been registered/i.test(msg)) {
-    alert("Ese email ya está registrado. Usa otro o borra la cuenta existente.");
-  } else {
-    alert(msg);
+  } catch (err) {
+    console.error(err);
+    const msg = String(err?.message || "");
+    if (msg.includes(" 409 ") || /already been registered/i.test(msg)) {
+      alert("Ese email ya está registrado. Usa otro o borra la cuenta existente.");
+    } else {
+      alert(msg);
+    }
   }
-}
-
 });
 
 // --------- Alta de ALUMNO (record only) ---------
@@ -366,7 +401,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
 
     const name  = (el('ns-name')?.value  || '').trim();
     const klass = (el('ns-class')?.value || '').trim();   // opcional
-    const card  = (el('ns-card')?.value  || '').trim();   // opcional
+    const cardRaw  = (el('ns-card')?.value  || '').trim();   // opcional
     if (!name) { alert('Name is required.'); submitBtn?.removeAttribute('disabled'); busy = false; return; }
 
     try {
@@ -377,7 +412,8 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         .single();
       if (e1) throw e1;
 
-      if (card) {
+      if (cardRaw) {
+        const card = normalizeUID(cardRaw);
         const { error: e2 } = await sb
           .from('cards')
           .upsert(
@@ -405,24 +441,33 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
 // ---------- Otorgar por identificador (UID/token) ----------
 el('award-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const identifier = el('identifier').value.trim();
+
+  const raw = el('identifier').value;
+  const ids = splitPossibleMultiUID(raw);  // 1 o varios UIDs “pegados”
+  if (ids.length === 0) return;
+
   const delta = parseInt(el('delta').value, 10);
   const reason = el('reason').value.trim() || null;
   const device = el('device')?.value.trim() || 'web-teacher';
 
-  if (!identifier) return;
+  // Procesa secuencialmente — si había 2 UIDs concatenados, asigna a ambos
+  for (const identifier of ids) {
+    if (!identifier) continue;
+    if (isDuplicateScan(identifier)) continue; // filtro local
 
-  const { error } = await sb.rpc('award_points', {
-    _identifier: identifier,
-    _delta: isNaN(delta) ? 1 : delta,
-    _reason: reason,
-    _device_id: device,
-  });
-  if (error) {
-    alert(error.message);
-    return;
+    const { error } = await sb.rpc('award_points', {
+      _identifier: identifier,
+      _delta: Number.isFinite(delta) ? delta : 1,
+      _reason: reason,
+      _device_id: device,
+    });
+    if (error) {
+      alert(error.message);
+      // No abortamos: si venían 2 UIDs y uno falla, intentamos el siguiente
+    }
   }
 
+  // Limpieza de UI
   const scanToggle = el('scan-mode');
   el('identifier').value = '';
   if (scanToggle?.checked) {
@@ -454,7 +499,7 @@ async function loadStudentsList() {
   const q = (el('search-name')?.value || '').trim().toLowerCase();
 
   let query = sb.from('students').select('id,name,class');
- if (cls) query = query.ilike('class', `${cls}%`); // o .eq('class', cls) si quieres coincidencia exacta
+  if (cls) query = query.ilike('class', `${cls}%`); // o .eq('class', cls) si quieres coincidencia exacta
   if (q) query = query.ilike('name', `%${q}%`);
   query = query.order('class', { ascending: true }).order('name', { ascending: true });
 
@@ -518,14 +563,16 @@ async function loadStudentsList() {
     });
   });
 
-  // vincular tarjeta
+  // vincular tarjeta (normaliza)
   container.querySelectorAll('button[data-link-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
-      const card = prompt('Card UID (write or scan later):'); if (!card) return;
+      const raw = prompt('Card UID (write or scan later):'); 
+      if (!raw) return;
+      const card = normalizeUID(raw);
       const { error } = await sb
         .from('cards')
-        .upsert({ student_id: studentId, card_uid: card.trim(), active: true }, { onConflict: 'card_uid' });
+        .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
       if (error) return alert(error.message);
       await loadTeacher();
     });
@@ -574,4 +621,3 @@ async function loadStudentsList() {
 
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
-
