@@ -5,6 +5,7 @@ const { createClient } = supabase;
 // --- Config ---
 const SUPA_URL = String((window && window.SUPABASE_URL) || '').trim();
 const SUPA_KEY = String((window && window.SUPABASE_ANON_KEY) || '').trim();
+const BRIDGE_DEVICE_ID = 'laptop-aula-8A'; // cambia si tu DEVICE_ID del .env es otro
 
 if (!SUPA_URL || !/^https?:\/\//.test(SUPA_URL)) {
   console.error('SUPABASE_URL inválida o vacía:', SUPA_URL);
@@ -102,10 +103,12 @@ async function refreshUI() {
     teacherPanel && (teacherPanel.style.display = 'block');
     studentPanel && (studentPanel.style.display = 'none');
     await loadTeacher();
+    setupRealtimeTeacher();
   } else {
     teacherPanel && (teacherPanel.style.display = 'none');
     studentPanel && (studentPanel.style.display = 'block');
     await loadStudent(user.id);
+    setupRealtimeStudent(user.id);
   }
 }
 
@@ -180,7 +183,14 @@ async function loadStudent(userId) {
 
 // ---------- TEACHER ----------
 async function loadTeacher() {
-  // últimas transacciones
+  await loadLatestTransactions();
+  await loadTeamsUI();
+  await loadStudentsList();
+  await loadTeamsOverview();
+}
+
+// últimas transacciones (solo tabla izquierda)
+async function loadLatestTransactions(){
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
@@ -193,30 +203,25 @@ async function loadTeacher() {
       <td>${t.students?.name ?? t.student_id}</td>
       <td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`).join('');
   }
-
-  await loadTeamsUI();
-  await loadStudentsList();
-  await loadTeamsOverview();
 }
 
 // --- Gestión de equipos (UI CRUD básico) ---
 async function loadTeamsUI() {
   if (!el('team-select')) return;
   try {
-    const { data: teams } = await sb
-      .from('teams').select('id,name,class').order('name', { ascending: true });
-
+    const { data: teams } = await sb.from('teams').select('id,name,class').order('name', { ascending: true });
     const sel = el('team-select');
     sel.innerHTML = (teams || []).map(t =>
       `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
 
-    const { data: students } = await sb
-      .from('students').select('id,name,class').order('name', { ascending: true });
+    const { data: students } = await sb.from('students').select('id,name,class').order('name', { ascending: true });
     el('student-pool').innerHTML = (students || []).map(s =>
       `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
 
     await refreshTeamDetails();
-  } catch {}
+  } catch (e) {
+    console.error('loadTeamsUI', e);
+  }
 }
 
 async function refreshTeamDetails() {
@@ -241,7 +246,9 @@ async function refreshTeamDetails() {
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
     el('team-balance').textContent = tbal?.points ?? 0;
-  } catch {}
+  } catch (e) {
+    console.error('refreshTeamDetails', e);
+  }
 }
 
 el('reload-teams')?.addEventListener('click', loadTeamsUI);
@@ -495,7 +502,7 @@ async function loadStudentsList() {
         _student_id: studentId, _delta: delta, _reason: reason, _device_id: device,
       });
       if (error) return alert(error.message);
-      await loadTeacher();
+      await Promise.all([loadLatestTransactions(), loadStudentsList(), loadTeamsOverview()]);
     });
   });
 
@@ -510,7 +517,7 @@ async function loadStudentsList() {
         .from('cards')
         .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
       if (error) return alert(error.message);
-      await loadTeacher();
+      await Promise.all([loadStudentsList(), loadLatestTransactions(), loadTeamsOverview()]);
     });
   });
 
@@ -525,7 +532,7 @@ async function loadStudentsList() {
         .update({ student_id: null, active: false })
         .eq('card_uid', uid);
       if (error) return alert(error.message);
-      await loadTeacher();
+      await Promise.all([loadStudentsList(), loadTeamsOverview()]);
       alert('Card unlinked.');
     });
   });
@@ -539,7 +546,7 @@ async function loadStudentsList() {
       if (confirmText !== 'DELETE') return;
       try {
         await callEdge('admin_delete_student', { student_id: studentId });
-        await loadTeacher();
+        await Promise.all([loadStudentsList(), loadLatestTransactions(), loadTeamsOverview()]);
         alert('Student deleted (Auth + data).');
       } catch (err) {
         console.error(err);
@@ -556,11 +563,17 @@ async function loadTeamsOverview(){
   box.textContent = 'Loading…';
 
   try {
-    const [{ data: teams }, { data: totals }, { data: rows }] = await Promise.all([
+    const [{ data: teams, error: e1 }, { data: totals, error: e2 }, { data: rows, error: e3 }] = await Promise.all([
       sb.from('teams').select('id,name,class').order('name', { ascending:true }),
       sb.from('team_balances').select('team_id,points'),
       sb.from('team_member_points').select('team_id,student_id,name,class,points').order('team_id', { ascending:true }).order('name', { ascending:true })
     ]);
+
+    if (e1 || e2 || e3) {
+      console.error('overview errors', e1, e2, e3);
+      box.textContent = 'Error loading overview (RLS/permissions?)';
+      return;
+    }
 
     const tmap = new Map();
     (teams || []).forEach(t => tmap.set(t.id, { ...t, total: 0, members: [] }));
@@ -587,7 +600,7 @@ async function loadTeamsOverview(){
     box.innerHTML = html || '<p class="muted">No teams yet.</p>';
   } catch (e){
     console.error(e);
-    box.textContent = 'Error loading overview (RLS/permissions?)';
+    box.textContent = 'Error loading overview (network/permissions)';
   }
 }
 
@@ -596,17 +609,72 @@ async function loadTeamsOverview(){
   const input = el('uid-viewer');
   const out = el('uid-output');
   const clearBtn = el('uid-clear');
-  if (!input || !out) return;
+  if (!out) return;
 
-  function render(){
-    const parts = extractUIDs(input.value);
-    if (!parts.length){ out.textContent = ''; return; }
-    out.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+  // 1) Manual (HID/teclado) — opcional:
+  if (input) {
+    function render(){
+      const parts = extractUIDs(input.value);
+      out.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+    }
+    input.addEventListener('input', render);
+    clearBtn?.addEventListener('click', () => { input.value = ''; out.textContent=''; });
   }
 
-  input.addEventListener('input', render);
-  clearBtn?.addEventListener('click', () => { input.value = ''; out.textContent=''; });
+  // 2) Live desde bridge (SPP) vía bridge_status + Realtime:
+  try {
+    const ch = sb.channel('live-uid')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'bridge_status',
+        filter: `device_id=eq.${BRIDGE_DEVICE_ID}`
+      }, (payload) => {
+        const uid = normalizeUID(payload?.new?.last_uid || '');
+        if (!uid) return;
+        const node = document.createElement('div');
+        node.textContent = uid;
+        out.prepend(node);
+      })
+      .subscribe();
+  } catch (e) {
+    console.error('realtime live-uid', e);
+  }
 })();
+
+// ---------- Realtime (auto-refresh tras transacciones) ----------
+function setupRealtimeTeacher(){
+  try {
+    sb.channel('rt-tx')
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'transactions' }, async () => {
+        await Promise.all([loadLatestTransactions(), loadTeamsOverview(), loadStudentsList()]);
+      })
+      .subscribe();
+  } catch (e) {
+    console.error('realtime teacher', e);
+  }
+
+  // Fallback polling si Realtime no llega (cada 6s)
+  setInterval(() => {
+    loadLatestTransactions();
+    loadTeamsOverview();
+  }, 6000);
+}
+
+function setupRealtimeStudent(userId){
+  try {
+    sb.channel('rt-tx-student')
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'transactions' }, async () => {
+        await loadStudent(userId);
+      })
+      .subscribe();
+  } catch (e) {
+    console.error('realtime student', e);
+  }
+
+  // Fallback polling
+  setInterval(() => loadStudent(userId), 6000);
+}
 
 // -------- Arranque --------
 handleRecoveryFromHash().finally(refreshUI);
