@@ -3,46 +3,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Points Control — Westhill</title>
+  <title>Points Control</title>
+
+  <!-- Estilo compacto original + clases nuevas -->
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 980px }
+    form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+    .muted { color:#666 }
+    .small { font-size:12px }
+    .tag { font-size: 12px; padding: 2px 8px; border:1px solid #ccc; border-radius: 999px; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; background:#fff }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #ccc }
+    table { width:100%; border-collapse: collapse; margin-top:8px }
+    th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
+    .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
+    @media (max-width: 900px){ .split { grid-template-columns: 1fr; } }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
+    @media (max-width: 900px){ .grid2 { grid-template-columns: 1fr; } }
+    .scrollbox { max-height: 300px; overflow:auto; border:1px solid #eee; border-radius:8px; padding: 6px }
+    /* Fallback crítico: aunque falle el CSS externo, estas secciones quedan ocultas */
+    #authed, #teacher-panel, #student-panel { display:none; }
+    .hidden { display:none !important; }
+  </style>
+
+  <!-- Si creas un CSS externo, puedes enlazarlo; es opcional -->
+  <!-- <link rel="stylesheet" href="./westhill.css"> -->
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./westhill.css">
-  <meta name="color-scheme" content="light only">
 </head>
 <body>
-  <header class="topbar">
-    <h1>Points Control</h1>
-    <div class="school">Westhill</div>
-  </header>
+  <h1>Points Control</h1>
 
   <!-- LOGIN -->
   <section id="auth">
     <div class="card">
       <h3>Login</h3>
-      <form id="login-form" class="row">
-        <input id="email" type="email" placeholder="Email" required autocomplete="username" />
-        <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password" />
-        <button type="submit" class="btn primary">Entrar</button>
+      <form id="login-form">
+        <div class="row">
+          <input id="email" type="email" placeholder="Email" required autocomplete="username" />
+          <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password" />
+          <button type="submit">Enter</button>
+        </div>
       </form>
       <p class="muted">El registro está deshabilitado. Pide tu cuenta al profesor.</p>
     </div>
   </section>
 
   <!-- APP AUTENTICADA -->
-  <section id="authed" class="hidden">
-    <div class="row bar">
+  <section id="authed">
+    <div class="row">
       <div id="whoami" class="muted"></div>
       <span id="role-badge" class="tag"></span>
-      <div class="spacer"></div>
-      <button id="logout" class="btn">Logout</button>
-      <button id="change-pass" class="btn">Change password</button>
+      <button id="logout">Logout</button>
+      <button id="change-pass">Change password</button>
     </div>
 
     <!-- TEACHER -->
-    <section id="teacher-panel" class="card hidden">
+    <section id="teacher-panel" class="card">
       <h3>Teacher Panel</h3>
 
-      <div class="grid2">
-        <!-- Últimas transacciones -->
+      <div class="split">
+        <!-- Últimas transacciones (con scroll) -->
         <div class="card">
           <h4>Latest transactions</h4>
           <div id="tx-table-wrapper" class="scrollbox">
@@ -52,59 +74,56 @@
           </div>
         </div>
 
-        <!-- Gestión de equipos -->
+        <!-- Equipos -->
         <div class="card">
           <h4>Teams</h4>
-
           <form id="new-team-form" class="row">
             <input id="team-name" placeholder="Team name (e.g., Team_1)" required />
             <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
             <select id="team-scope">
               <option value="global">Global</option>
-              <option value="local">Local (elige su Global abajo)</option>
+              <option value="local">Local (elige su Global)</option>
             </select>
             <select id="parent-global" title="Parent global (para locales)"></select>
-            <button type="submit" class="btn primary">Create team</button>
+            <button type="submit">Create team</button>
           </form>
 
           <div class="row">
             <select id="team-select"></select>
-            <button id="reload-teams" type="button" class="btn">Reload</button>
-            <button id="delete-team" type="button" class="btn danger">Delete team</button>
+            <button id="reload-teams" type="button">Reload</button>
+            <button id="delete-team" type="button">Delete team</button>
           </div>
 
           <div class="row">
             <select id="student-pool"></select>
-            <button id="assign-member" type="button" class="btn">Assign to team</button>
-            <button id="remove-member" type="button" class="btn">Remove from team</button>
+            <button id="assign-member" type="button">Assign to team</button>
+            <button id="remove-member" type="button">Remove from team</button>
           </div>
 
-          <div class="row">
+          <div style="margin-top:8px">
             <strong>Team members</strong>
+            <ul id="team-members"></ul>
           </div>
-          <ul id="team-members" class="list"></ul>
 
-          <div class="row">
+          <div style="margin-top:8px">
             <strong>Team balance:</strong> <span id="team-balance">—</span> pts
           </div>
         </div>
       </div>
 
-      <!-- Vincular tarjetas -->
+      <!-- Vincular/desvincular tarjetas -->
       <div class="card">
         <h4>Cards (link / unlink)</h4>
-
         <div class="grid2">
           <div>
             <h5>To student</h5>
             <div class="row">
               <select id="card-student"></select>
               <input id="card-uid-stu" placeholder="Card UID (scan/paste)" />
-              <button id="link-card-student" class="btn primary" type="button">Link</button>
-              <button id="unlink-card-student" class="btn" type="button" title="Set inactive">Unlink</button>
+              <button id="link-card-student" type="button">Link</button>
+              <button id="unlink-card-student" type="button" title="Set inactive">Unlink</button>
             </div>
           </div>
-
           <div>
             <h5>To team</h5>
             <div class="row">
@@ -114,8 +133,8 @@
               </select>
               <select id="card-team"></select>
               <input id="card-uid-team" placeholder="Card UID (scan/paste)" />
-              <button id="link-card-team" class="btn primary" type="button">Link</button>
-              <button id="unlink-card-team" class="btn" type="button" title="Set inactive">Unlink</button>
+              <button id="link-card-team" type="button">Link</button>
+              <button id="unlink-card-team" type="button" title="Set inactive">Unlink</button>
             </div>
           </div>
         </div>
@@ -131,7 +150,7 @@
           <select id="adjust-pool-team" required></select>
           <input id="adjust-pool-delta" type="number" placeholder="Δ (e.g., 5 or -3)" required />
           <input id="adjust-pool-reason" placeholder="Reason (optional)" />
-          <button type="submit" class="btn primary">Apply to pool</button>
+          <button type="submit">Apply to pool</button>
         </form>
 
         <div class="row"><strong>Local spend</strong></div>
@@ -139,7 +158,7 @@
           <select id="adjust-local-team" required></select>
           <input id="adjust-local-amount" type="number" placeholder="Spend (e.g., 2)" required />
           <input id="adjust-local-reason" placeholder="Reason (optional)" />
-          <button type="submit" class="btn primary">Apply spend</button>
+          <button type="submit">Apply spend</button>
         </form>
       </div>
 
@@ -149,7 +168,7 @@
         <div class="grid2">
           <div>
             <h5>Global pools</h5>
-            <div class="scrollbox" style="max-height:280px">
+            <div class="scrollbox">
               <table id="pool-table"><thead>
                 <tr><th>Pool</th><th>Points</th></tr>
               </thead><tbody></tbody></table>
@@ -158,7 +177,7 @@
           <div>
             <h5>Local summary (selected pool)</h5>
             <div id="local-title" class="muted">—</div>
-            <div class="scrollbox" style="max-height:280px">
+            <div class="scrollbox">
               <table id="local-table"><thead>
                 <tr><th>Local team</th><th>Spent</th><th>Pool remaining</th></tr>
               </thead><tbody></tbody></table>
@@ -167,33 +186,33 @@
         </div>
       </div>
 
-      <!-- Asignar por alumno -->
+      <!-- Asignar por alumno (con scroll) -->
       <div class="card">
         <h4>Asignar por alumno</h4>
-        <div class="row">
+        <div class="row" style="margin-bottom:8px">
           <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
           <input id="search-name" placeholder="Buscar nombre" />
-          <button id="reload-students" type="button" class="btn">Cargar alumnos</button>
+          <button id="reload-students" type="button">Cargar alumnos</button>
         </div>
         <div id="students-list" class="scrollbox"></div>
-        <div class="row">
-          <button type="button" data-quick="+1" class="btn">+1</button>
-          <button type="button" data-quick="+2" class="btn">+2</button>
-          <button type="button" data-quick="+3" class="btn">+3</button>
-          <button type="button" data-quick="+4" class="btn">+4</button>
+        <div class="row" style="margin-top:8px">
+          <button type="button" data-quick="+1">+1</button>
+          <button type="button" data-quick="+2">+2</button>
+          <button type="button" data-quick="+3">+3</button>
+          <button type="button" data-quick="+4">+4</button>
         </div>
       </div>
     </section>
 
     <!-- STUDENT -->
-    <section id="student-panel" class="card hidden">
+    <section id="student-panel" class="card">
       <h3>My points</h3>
       <div id="student-info" class="muted"></div>
       <h4>My balance: <span id="balance">—</span> points</h4>
 
       <div style="margin-top:10px">
         <strong>My last movements</strong>
-        <div class="scrollbox" style="max-height:280px">
+        <div class="scrollbox">
           <table id="mytx-table"><thead>
             <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
           </thead><tbody></tbody></table>
@@ -204,9 +223,9 @@
         <h3>My team</h3>
         <div id="team-info" class="muted"></div>
         <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
-        <div class="scrollbox" style="max-height:260px">
+        <div class="scrollbox">
           <strong>Team members</strong>
-          <ul id="my-team-members" class="list"></ul>
+          <ul id="my-team-members"></ul>
         </div>
       </div>
     </section>
@@ -214,7 +233,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    // === Mantén tus credenciales aquí ===
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
   </script>
