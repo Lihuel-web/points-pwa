@@ -1,11 +1,10 @@
 // app.js
-
 const { createClient } = supabase;
 
 // --- Config ---
 const SUPA_URL = String((window && window.SUPABASE_URL) || '').trim();
 const SUPA_KEY = String((window && window.SUPABASE_ANON_KEY) || '').trim();
-const BRIDGE_DEVICE_ID = 'laptop-aula-8A'; // cambia si tu DEVICE_ID del .env es otro
+const BRIDGE_DEVICE_ID = 'laptop-aula-8A'; // si tu DEVICE_ID en .env es otro, cámbialo aquí
 
 if (!SUPA_URL || !/^https?:\/\//.test(SUPA_URL)) {
   console.error('SUPABASE_URL inválida o vacía:', SUPA_URL);
@@ -18,7 +17,7 @@ if (!SUPA_KEY) {
 
 const sb = createClient(SUPA_URL, SUPA_KEY);
 
-// -------- Password recovery desde link de email --------
+// -------- Password recovery --------
 async function handleRecoveryFromHash() {
   const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
   const params = new URLSearchParams(hash);
@@ -125,6 +124,11 @@ async function loadStudent(userId) {
     el('team-info') && (el('team-info').textContent = 'No team assigned.');
     el('my-team-balance') && (el('my-team-balance').textContent = '—');
     el('my-team-members') && (el('my-team-members').innerHTML = '');
+    el('pool-gname') && (el('pool-gname').textContent = '—');
+    el('pool-lname') && (el('pool-lname').textContent = '—');
+    el('pool-earned') && (el('pool-earned').textContent = '0');
+    el('pool-spent') && (el('pool-spent').textContent = '0');
+    el('pool-remaining') && (el('pool-remaining').textContent = '0');
     return;
   }
 
@@ -156,29 +160,25 @@ async function loadStudent(userId) {
     if (!tm?.team_id) {
       el('team-info') && (el('team-info').textContent = 'No team assigned.');
       el('my-team-balance') && (el('my-team-balance').textContent = '—');
-      el('my-team-members') && (el('my-team-members').innerHTML = '');
-      return;
-    }
-
-    el('team-info') && (el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
-
-    const { data: tbal } = await sb
-      .from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
-    el('my-team-balance') && (el('my-team-balance').textContent = tbal?.points ?? 0);
-
-    const { data: members } = await sb
-      .from('team_member_points')
-      .select('student_id,name,class,points')
-      .eq('team_id', tm.team_id)
-      .order('name', { ascending: true });
-
-    const ul = el('my-team-members');
-    if (ul) {
-      ul.innerHTML = (members || []).map(m =>
-        `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
-      ).join('');
+    } else {
+      el('team-info') && (el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
+      const { data: tbal } = await sb
+        .from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
+      el('my-team-balance') && (el('my-team-balance').textContent = tbal?.points ?? 0);
     }
   } catch {}
+
+  // Global pool (RPC)
+  try {
+    const { data: poolJson } = await sb.rpc('get_my_team_pool');
+    if (poolJson?.ok) {
+      el('pool-gname') && (el('pool-gname').textContent = poolJson.global_team || '—');
+      el('pool-lname') && (el('pool-lname').textContent = `${poolJson.local_team || '—'} (${poolJson.class || '—'})`);
+      el('pool-earned') && (el('pool-earned').textContent = poolJson.earned ?? 0);
+      el('pool-spent') && (el('pool-spent').textContent = poolJson.spent ?? 0);
+      el('pool-remaining') && (el('pool-remaining').textContent = poolJson.remaining ?? 0);
+    }
+  } catch(e) { console.error('get_my_team_pool', e); }
 }
 
 // ---------- TEACHER ----------
@@ -189,12 +189,12 @@ async function loadTeacher() {
   await loadTeamsOverview();
 }
 
-// últimas transacciones (solo tabla izquierda)
+// últimas transacciones
 async function loadLatestTransactions(){
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
-    .order('created_at', { ascending: false }).limit(30);
+    .order('created_at', { ascending: false }).limit(50);
 
   const tbody = el('tx-table')?.querySelector('tbody');
   if (tbody) {
@@ -205,18 +205,42 @@ async function loadLatestTransactions(){
   }
 }
 
-// --- Gestión de equipos (UI CRUD básico) ---
+// --- Gestión de equipos ---
 async function loadTeamsUI() {
-  if (!el('team-select')) return;
-  try {
-    const { data: teams } = await sb.from('teams').select('id,name,class').order('name', { ascending: true });
-    const sel = el('team-select');
-    sel.innerHTML = (teams || []).map(t =>
-      `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
+  const scopeSel = el('team-scope');
+  const parentSel = el('parent-global');
+  if (scopeSel && parentSel) {
+    parentSel.disabled = (scopeSel.value !== 'local');
+    scopeSel.addEventListener('change', () => { parentSel.disabled = (scopeSel.value !== 'local'); });
+  }
 
+  try {
+    // Para selects
+    const { data: allTeams } = await sb.from('teams').select('id,name,class,scope,parent_global_id').order('name', { ascending: true });
+
+    // team-select
+    const sel = el('team-select');
+    if (sel) {
+      sel.innerHTML = (allTeams || []).map(t =>
+        `<option value="${t.id}">${t.name} [${t.scope}] (${t.class ?? '—'})</option>`).join('');
+    }
+
+    // student pool
     const { data: students } = await sb.from('students').select('id,name,class').order('name', { ascending: true });
-    el('student-pool').innerHTML = (students || []).map(s =>
-      `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
+    el('student-pool') && (el('student-pool').innerHTML = (students || []).map(s =>
+      `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join(''));
+
+    // parent-global (solo GLOBALS)
+    if (el('parent-global')) {
+      const globals = (allTeams || []).filter(t => t.scope === 'global');
+      el('parent-global').innerHTML = globals.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+
+    // team-for-card
+    if (el('team-for-card')) {
+      el('team-for-card').innerHTML = (allTeams || []).map(t =>
+        `<option value="${t.id}" data-scope="${t.scope}">${t.name} [${t.scope}] (${t.class ?? '—'})</option>`).join('');
+    }
 
     await refreshTeamDetails();
   } catch (e) {
@@ -225,8 +249,9 @@ async function loadTeamsUI() {
 }
 
 async function refreshTeamDetails() {
-  if (!el('team-select')) return;
-  const teamId = parseInt(el('team-select').value || '0', 10);
+  const sel = el('team-select');
+  if (!sel) return;
+  const teamId = parseInt(sel.value || '0', 10);
   if (!teamId) {
     el('team-members') && (el('team-members').innerHTML = '');
     el('team-balance') && (el('team-balance').textContent = '—');
@@ -239,13 +264,13 @@ async function refreshTeamDetails() {
       .eq('team_id', teamId)
       .order('name', { ascending: true });
 
-    el('team-members').innerHTML = (members || []).map(m =>
+    el('team-members') && (el('team-members').innerHTML = (members || []).map(m =>
       `<li data-student="${m.student_id}">${m.name} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
-    ).join('');
+    ).join(''));
 
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
-    el('team-balance').textContent = tbal?.points ?? 0;
+    el('team-balance') && (el('team-balance').textContent = tbal?.points ?? 0);
   } catch (e) {
     console.error('refreshTeamDetails', e);
   }
@@ -257,9 +282,13 @@ el('team-select')?.addEventListener('change', refreshTeamDetails);
 el('new-team-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = el('team-name').value.trim();
-  const klass = (el('team-class').value || '').trim();
+  const klass = (el('team-class').value || '').trim() || null;
+  const scope = el('team-scope').value;
+  const parent = el('parent-global').value || null;
   if (!name) return alert('Team name is required.');
-  const { error } = await sb.from('teams').insert([{ name, class: klass || null }]);
+  if (scope === 'local' && !parent) return alert('Parent global requerido para equipo LOCAL.');
+  const payload = { name, class: klass, scope, parent_global_id: scope === 'local' ? parseInt(parent,10) : null };
+  const { error } = await sb.from('teams').insert([payload]);
   if (error) return alert(error.message);
   el('team-name').value = ''; el('team-class').value = '';
   await loadTeamsUI();
@@ -279,7 +308,7 @@ el('assign-member')?.addEventListener('click', async () => {
   const teamId = parseInt(el('team-select').value || '0', 10);
   const studentId = parseInt(el('student-pool').value || '0', 10);
   if (!teamId || !studentId) return;
-  await sb.from('team_members').delete().eq('student_id', studentId);
+  // Permite MULTI-membresía: ya NO borramos otras membresías
   const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
   if (error) return alert(error.message);
   await refreshTeamDetails();
@@ -295,6 +324,29 @@ el('remove-member')?.addEventListener('click', async () => {
   if (error) return alert(error.message);
   await refreshTeamDetails();
 });
+
+// --- Team cards: link earn/spend ---
+async function linkTeamCard(role){
+  const sel = el('team-for-card');
+  if (!sel) return;
+  const teamId = parseInt(sel.value, 10);
+  const scope = sel.selectedOptions?.[0]?.dataset?.scope || 'local';
+  const raw = prompt(`Scan/paste UID para ${role.toUpperCase()}:`); if (!raw) return;
+  const uid = normalizeUID(raw);
+  if (!uid) return alert('UID inválido.');
+
+  if (role === 'team_earn' && scope !== 'global') return alert('La tarjeta EARN debe ligarse a un equipo GLOBAL.');
+  if (role === 'team_spend' && scope !== 'local')  return alert('La tarjeta SPEND debe ligarse a un equipo LOCAL.');
+
+  const { error } = await sb.from('cards').upsert(
+    { team_id: teamId, card_uid: uid, card_role: role, active: true },
+    { onConflict: 'card_uid' }
+  );
+  if (error) return alert(error.message);
+  alert('Card linked.');
+}
+el('link-earn')?.addEventListener('click', () => linkTeamCard('team_earn'));
+el('link-spend')?.addEventListener('click', () => linkTeamCard('team_spend'));
 
 // ---------- Edge Function helper ----------
 async function callEdge(fnName, payload) {
@@ -314,34 +366,6 @@ async function callEdge(fnName, payload) {
   return await resp.json();
 }
 
-// ---------- Crear cuenta de estudiante ----------
-el('create-student-account')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = el('ct-name').value.trim();
-  const klass = (el('ct-class').value || '').trim();
-  const email = el('ct-email').value.trim();
-  const pass = el('ct-pass').value;
-  if (!name || !email || pass.length < 6) return alert('Completa nombre, email y password ≥6.');
-
-  try {
-    const r = await callEdge('admin_create_student', { name, klass, email, password: pass });
-    el('ct-name').value = '';
-    el('ct-class').value = '';
-    el('ct-email').value = '';
-    el('ct-pass').value = '';
-    await loadTeacher();
-    alert(`Account created: ${r?.student?.name || name}`);
-  } catch (err) {
-    console.error(err);
-    const msg = String(err?.message || "");
-    if (msg.includes(" 409 ") || /already been registered/i.test(msg)) {
-      alert("Ese email ya está registrado. Usa otro o borra la cuenta existente.");
-    } else {
-      alert(msg);
-    }
-  }
-});
-
 // --------- Alta de ALUMNO (record only) ---------
 (function wireRecordOnlyForm(){
   const form = el('new-student-form');
@@ -350,7 +374,6 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
   form.dataset.wired = '1';
 
   let busy = false;
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (busy) return;
@@ -360,8 +383,8 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     submitBtn?.setAttribute('disabled', 'disabled');
 
     const name  = (el('ns-name')?.value  || '').trim();
-    const klass = (el('ns-class')?.value || '').trim();
-    const raw   = (el('ns-card')?.value  || '').trim();
+    const klass = (el('ns-class')?.value || '').trim();   // opcional
+    const raw   = (el('ns-card')?.value  || '').trim();   // opcional
     const card  = normalizeUID(raw);
     if (!name) { alert('Name is required.'); submitBtn?.removeAttribute('disabled'); busy = false; return; }
 
@@ -376,10 +399,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
       if (card) {
         const { error: e2 } = await sb
           .from('cards')
-          .upsert(
-            { student_id: inserted.id, card_uid: card, active: true },
-            { onConflict: 'card_uid' }
-          );
+          .upsert({ student_id: inserted.id, card_uid: card, card_role: 'student', active: true }, { onConflict: 'card_uid' });
         if (e2) throw e2;
       }
 
@@ -506,7 +526,7 @@ async function loadStudentsList() {
     });
   });
 
-  // vincular tarjeta (normaliza)
+  // vincular tarjeta alumno
   container.querySelectorAll('button[data-link-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
@@ -515,13 +535,13 @@ async function loadStudentsList() {
       if (!card) return alert('UID inválido.');
       const { error } = await sb
         .from('cards')
-        .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
+        .upsert({ student_id: studentId, card_uid: card, card_role: 'student', active: true }, { onConflict: 'card_uid' });
       if (error) return alert(error.message);
       await Promise.all([loadStudentsList(), loadLatestTransactions(), loadTeamsOverview()]);
     });
   });
 
-  // desvincular tarjeta -> inactive + sin alumno
+  // desvincular tarjeta alumno
   container.querySelectorAll('button[data-unlink-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const raw = prompt('UID to unlink (scan or paste):'); if (!raw) return;
@@ -529,7 +549,7 @@ async function loadStudentsList() {
       if (!uid) return alert('UID inválido.');
       const { error } = await sb
         .from('cards')
-        .update({ student_id: null, active: false })
+        .update({ student_id: null, team_id: null, active: false, card_role: 'student' })
         .eq('card_uid', uid);
       if (error) return alert(error.message);
       await Promise.all([loadStudentsList(), loadTeamsOverview()]);
@@ -537,7 +557,7 @@ async function loadStudentsList() {
     });
   });
 
-  // borrar alumno (Auth + datos)
+  // borrar alumno
   container.querySelectorAll('button[data-delete]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-delete'), 10);
@@ -556,48 +576,56 @@ async function loadStudentsList() {
   });
 }
 
-// ---------- Teams overview ----------
+// ---------- Teams overview (global pool) ----------
 async function loadTeamsOverview(){
   const box = el('teams-overview');
   if (!box) return;
   box.textContent = 'Loading…';
 
   try {
-    const [{ data: teams, error: e1 }, { data: totals, error: e2 }, { data: rows, error: e3 }] = await Promise.all([
-      sb.from('teams').select('id,name,class').order('name', { ascending:true }),
-      sb.from('team_balances').select('team_id,points'),
-      sb.from('team_member_points').select('team_id,student_id,name,class,points').order('team_id', { ascending:true }).order('name', { ascending:true })
+    const [{ data: globals }, { data: pool }, { data: spend }, { data: remain }] = await Promise.all([
+      sb.from('teams').select('id,name').eq('scope','global').order('name', { ascending:true }),
+      sb.from('team_pool_balances').select('pool_team_id,points'),
+      sb.from('team_local_spend').select('pool_team_id,local_team_id,spent'),
+      sb.from('team_local_remaining').select('pool_team_id,local_team_id,remaining')
     ]);
 
-    if (e1 || e2 || e3) {
-      console.error('overview errors', e1, e2, e3);
-      box.textContent = 'Error loading overview (RLS/permissions?)';
-      return;
-    }
-
-    const tmap = new Map();
-    (teams || []).forEach(t => tmap.set(t.id, { ...t, total: 0, members: [] }));
-    (totals || []).forEach(tb => {
-      if (tmap.has(tb.team_id)) tmap.get(tb.team_id).total = tb.points ?? 0;
+    const mapPool = new Map((pool||[]).map(x => [x.pool_team_id, x.points||0]));
+    const byPool = new Map(); // pool_team_id -> { locals: Map(local_id -> {spent, remaining}) }
+    (spend||[]).forEach(s => {
+      if (!byPool.has(s.pool_team_id)) byPool.set(s.pool_team_id, new Map());
+      if (!byPool.get(s.pool_team_id).has(s.local_team_id)) byPool.get(s.pool_team_id).set(s.local_team_id, {spent:0, remaining:0});
+      byPool.get(s.pool_team_id).get(s.local_team_id).spent = s.spent||0;
     });
-    (rows || []).forEach(r => {
-      if (tmap.has(r.team_id)) tmap.get(r.team_id).members.push(r);
+    (remain||[]).forEach(r => {
+      if (!byPool.has(r.pool_team_id)) byPool.set(r.pool_team_id, new Map());
+      if (!byPool.get(r.pool_team_id).has(r.local_team_id)) byPool.get(r.pool_team_id).set(r.local_team_id, {spent:0, remaining:0});
+      byPool.get(r.pool_team_id).get(r.local_team_id).remaining = r.remaining||0;
     });
 
-    const html = Array.from(tmap.values()).map(t => `
-      <div class="team-box">
-        <div class="team-header">
-          <div><strong>${t.name}</strong> <span class="muted">(${t.class ?? '—'})</span></div>
-          <div><strong>${t.total ?? 0}</strong> pts</div>
+    // Para nombres de locales:
+    const { data: locals } = await sb.from('teams').select('id,name,class,parent_global_id').eq('scope','local');
+
+    const html = (globals||[]).map(g => {
+      const earned = mapPool.get(g.id) ?? 0;
+      const rows = [];
+      (locals||[]).filter(l => l.parent_global_id === g.id).forEach(l => {
+        const stat = byPool.get(g.id)?.get(l.id) || {spent:0, remaining:earned};
+        rows.push(`<li>${l.name} <span class="muted">(${l.class ?? '—'})</span> — spent <strong>${stat.spent}</strong>, remaining <strong>${stat.remaining}</strong></li>`);
+      });
+      return `
+        <div class="team-box">
+          <div class="team-header">
+            <div><strong>${g.name}</strong> <span class="muted">[GLOBAL]</span></div>
+            <div>earned: <strong>${earned}</strong></div>
+          </div>
+          <ul>${rows.join('') || '<li class="muted">No local teams linked.</li>'}</ul>
         </div>
-        <ul>
-          ${t.members.map(m => `<li>${m.name} <span class="muted">(${m.class ?? '—'})</span> — <strong>${m.points ?? 0}</strong> pts</li>`).join('')}
-        </ul>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     box.classList.remove('muted');
-    box.innerHTML = html || '<p class="muted">No teams yet.</p>';
+    box.innerHTML = html || '<p class="muted">No global teams yet.</p>';
   } catch (e){
     console.error(e);
     box.textContent = 'Error loading overview (network/permissions)';
@@ -611,7 +639,7 @@ async function loadTeamsOverview(){
   const clearBtn = el('uid-clear');
   if (!out) return;
 
-  // 1) Manual (HID/teclado) — opcional:
+  // Manual (HID)
   if (input) {
     function render(){
       const parts = extractUIDs(input.value);
@@ -621,9 +649,9 @@ async function loadTeamsOverview(){
     clearBtn?.addEventListener('click', () => { input.value = ''; out.textContent=''; });
   }
 
-  // 2) Live desde bridge (SPP) vía bridge_status + Realtime:
+  // Live (SPP) — via bridge_status + Realtime
   try {
-    const ch = sb.channel('live-uid')
+    sb.channel('live-uid')
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -642,7 +670,7 @@ async function loadTeamsOverview(){
   }
 })();
 
-// ---------- Realtime (auto-refresh tras transacciones) ----------
+// ---------- Realtime (auto-refresh) ----------
 function setupRealtimeTeacher(){
   try {
     sb.channel('rt-tx')
@@ -650,11 +678,17 @@ function setupRealtimeTeacher(){
         await Promise.all([loadLatestTransactions(), loadTeamsOverview(), loadStudentsList()]);
       })
       .subscribe();
+
+    sb.channel('rt-pool')
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'team_pool_tx' }, async () => {
+        await loadTeamsOverview();
+      })
+      .subscribe();
   } catch (e) {
     console.error('realtime teacher', e);
   }
 
-  // Fallback polling si Realtime no llega (cada 6s)
+  // Fallback polling
   setInterval(() => {
     loadLatestTransactions();
     loadTeamsOverview();
@@ -665,6 +699,12 @@ function setupRealtimeStudent(userId){
   try {
     sb.channel('rt-tx-student')
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'transactions' }, async () => {
+        await loadStudent(userId);
+      })
+      .subscribe();
+
+    sb.channel('rt-pool-student')
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'team_pool_tx' }, async () => {
         await loadStudent(userId);
       })
       .subscribe();
