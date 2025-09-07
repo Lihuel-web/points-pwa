@@ -1,9 +1,8 @@
 // app.js
 
-// --- Supabase client (UMD) ---
 const { createClient } = supabase;
 
-// Lee desde window y valida
+// --- Config ---
 const SUPA_URL = String((window && window.SUPABASE_URL) || '').trim();
 const SUPA_KEY = String((window && window.SUPABASE_ANON_KEY) || '').trim();
 
@@ -44,7 +43,7 @@ async function handleRecoveryFromHash() {
   }
 }
 
-// --------- Utilidades UI / NFC ---------
+// --------- Utilidades UI ---------
 const el = (id) => document.getElementById(id);
 const authSec = el('auth');
 const authedSec = el('authed');
@@ -52,42 +51,6 @@ const teacherPanel = el('teacher-panel');
 const studentPanel = el('student-panel');
 const whoami = el('whoami');
 const roleBadge = el('role-badge');
-
-/** Normaliza cualquier UID a HEX mayúsculas sin separadores */
-function normalizeUID(s) {
-  return (s || '').toUpperCase().replace(/[^0-9A-F]/g, '');
-}
-
-/** Filtro anti-repetición local (mitiga CR+LF o rebotes muy rápidos) */
-let lastScan = { id: '', t: 0 };
-function isDuplicateScan(id, ms = 600) {
-  const now = Date.now();
-  if (lastScan.id === id && (now - lastScan.t) < ms) return true;
-  lastScan = { id, t: now };
-  return false;
-}
-
-/**
- * Algunos lectores pueden volcar 2+ UIDs pegados si se “duerme” BT (p.ej. "53AE...0001 5322F8...0001" sin separador).
- * Este helper intenta segmentar si ve un bloque largo *exactamente* divisible por 14 (7 bytes * 2 hex) — el patrón
- * que muestras en tus capturas. Si no aplica, devuelve el UID único.
- */
-function splitPossibleMultiUID(raw) {
-  const canon = normalizeUID(raw);
-  if (!canon) return [];
-  // Longitudes típicas de UID NFC: 8, 14, 16, 20 (bytes 4,7,8,10). Si viene múltiple sin separador, se verá como 28, 32, 40...
-  const lens = [8, 14, 16, 20];
-  for (const L of lens) {
-    if (canon.length > L && canon.length % L === 0) {
-      // Divide en bloques de tamaño L y devuelve los no vacíos
-      const chunks = [];
-      for (let i = 0; i < canon.length; i += L) chunks.push(canon.slice(i, i + L));
-      // Heurística: si todos los chunks son HEX válidos, acepta la división
-      if (chunks.every(c => /^[0-9A-F]+$/.test(c))) return chunks;
-    }
-  }
-  return [canon];
-}
 
 // ---------- Auth ----------
 el('login-form')?.addEventListener('submit', async (e) => {
@@ -116,13 +79,13 @@ el('change-pass')?.addEventListener('click', async () => {
 async function refreshUI() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) {
-    if (authSec) authSec.style.display = 'block';
-    if (authedSec) authedSec.style.display = 'none';
+    authSec && (authSec.style.display = 'block');
+    authedSec && (authedSec.style.display = 'none');
     return;
   }
-  if (authSec) authSec.style.display = 'none';
-  if (authedSec) authedSec.style.display = 'block';
-  if (whoami) whoami.textContent = `${user.email}`;
+  authSec && (authSec.style.display = 'none');
+  authedSec && (authedSec.style.display = 'block');
+  whoami && (whoami.textContent = `${user.email}`);
 
   const { data: profile, error } = await sb
     .from('profiles').select('role')
@@ -133,15 +96,15 @@ async function refreshUI() {
     return;
   }
   const role = profile?.role || 'student';
-  if (roleBadge) roleBadge.textContent = role.toUpperCase();
+  roleBadge && (roleBadge.textContent = role.toUpperCase());
 
   if (role === 'teacher') {
-    if (teacherPanel) teacherPanel.style.display = 'block';
-    if (studentPanel) studentPanel.style.display = 'none';
+    teacherPanel && (teacherPanel.style.display = 'block');
+    studentPanel && (studentPanel.style.display = 'none');
     await loadTeacher();
   } else {
-    if (teacherPanel) teacherPanel.style.display = 'none';
-    if (studentPanel) studentPanel.style.display = 'block';
+    teacherPanel && (teacherPanel.style.display = 'none');
+    studentPanel && (studentPanel.style.display = 'block');
     await loadStudent(user.id);
   }
 }
@@ -153,24 +116,22 @@ async function loadStudent(userId) {
     .eq('auth_user_id', userId).maybeSingle();
 
   if (e1 || !student) {
-    if (el('student-info')) el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.';
-    if (el('balance')) el('balance').textContent = '—';
+    el('student-info') && (el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.');
+    el('balance') && (el('balance').textContent = '—');
     const mt = el('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
-    if (el('team-info')) el('team-info').textContent = 'No team assigned.';
-    if (el('my-team-balance')) el('my-team-balance').textContent = '—';
-    if (el('my-team-members')) el('my-team-members').innerHTML = '';
+    el('team-info') && (el('team-info').textContent = 'No team assigned.');
+    el('my-team-balance') && (el('my-team-balance').textContent = '—');
+    el('my-team-members') && (el('my-team-members').innerHTML = '');
     return;
   }
 
-  if (el('student-info')) el('student-info').textContent = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`;
+  el('student-info') && (el('student-info').textContent = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`);
 
-  // balance individual
   const { data: bal } = await sb
     .from('balances').select('points')
     .eq('student_id', student.id).maybeSingle();
-  if (el('balance')) el('balance').textContent = bal?.points ?? 0;
+  el('balance') && (el('balance').textContent = bal?.points ?? 0);
 
-  // movimientos individuales
   const { data: txs } = await sb
     .from('transactions').select('delta,reason,created_at')
     .eq('student_id', student.id)
@@ -183,7 +144,6 @@ async function loadStudent(userId) {
     ).join('');
   }
 
-  // Equipo (si existe el esquema)
   try {
     const { data: tm } = await sb
       .from('team_members')
@@ -191,17 +151,17 @@ async function loadStudent(userId) {
       .eq('student_id', student.id).maybeSingle();
 
     if (!tm?.team_id) {
-      if (el('team-info')) el('team-info').textContent = 'No team assigned.';
-      if (el('my-team-balance')) el('my-team-balance').textContent = '—';
-      if (el('my-team-members')) el('my-team-members').innerHTML = '';
+      el('team-info') && (el('team-info').textContent = 'No team assigned.');
+      el('my-team-balance') && (el('my-team-balance').textContent = '—');
+      el('my-team-members') && (el('my-team-members').innerHTML = '');
       return;
     }
 
-    if (el('team-info')) el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`;
+    el('team-info') && (el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
 
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
-    if (el('my-team-balance')) el('my-team-balance').textContent = tbal?.points ?? 0;
+    el('my-team-balance') && (el('my-team-balance').textContent = tbal?.points ?? 0);
 
     const { data: members } = await sb
       .from('team_member_points')
@@ -215,9 +175,7 @@ async function loadStudent(userId) {
         `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
       ).join('');
     }
-  } catch {
-    // si no existen las tablas/vistas de equipos, ignorar
-  }
+  } catch {}
 }
 
 // ---------- TEACHER ----------
@@ -238,9 +196,10 @@ async function loadTeacher() {
 
   await loadTeamsUI();
   await loadStudentsList();
+  await loadTeamsOverview();
 }
 
-// --- Gestión de equipos ---
+// --- Gestión de equipos (UI CRUD básico) ---
 async function loadTeamsUI() {
   if (!el('team-select')) return;
   try {
@@ -257,17 +216,15 @@ async function loadTeamsUI() {
       `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
 
     await refreshTeamDetails();
-  } catch {
-    // RLS impide lectura si no eres teacher
-  }
+  } catch {}
 }
 
 async function refreshTeamDetails() {
   if (!el('team-select')) return;
   const teamId = parseInt(el('team-select').value || '0', 10);
   if (!teamId) {
-    if (el('team-members')) el('team-members').innerHTML = '';
-    if (el('team-balance')) el('team-balance').textContent = '—';
+    el('team-members') && (el('team-members').innerHTML = '');
+    el('team-balance') && (el('team-balance').textContent = '—');
     return;
   }
   try {
@@ -284,9 +241,7 @@ async function refreshTeamDetails() {
     const { data: tbal } = await sb
       .from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
     el('team-balance').textContent = tbal?.points ?? 0;
-  } catch {
-    // ignora
-  }
+  } catch {}
 }
 
 el('reload-teams')?.addEventListener('click', loadTeamsUI);
@@ -352,7 +307,7 @@ async function callEdge(fnName, payload) {
   return await resp.json();
 }
 
-// ---------- Crear cuenta de estudiante (solo teacher) ----------
+// ---------- Crear cuenta de estudiante ----------
 el('create-student-account')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = el('ct-name').value.trim();
@@ -384,8 +339,6 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
 (function wireRecordOnlyForm(){
   const form = el('new-student-form');
   if (!form) return;
-
-  // evita enganchar dos veces si app.js se evalúa más de una vez
   if (form.dataset.wired === '1') return;
   form.dataset.wired = '1';
 
@@ -400,8 +353,9 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
     submitBtn?.setAttribute('disabled', 'disabled');
 
     const name  = (el('ns-name')?.value  || '').trim();
-    const klass = (el('ns-class')?.value || '').trim();   // opcional
-    const cardRaw  = (el('ns-card')?.value  || '').trim();   // opcional
+    const klass = (el('ns-class')?.value || '').trim();
+    const raw   = (el('ns-card')?.value  || '').trim();
+    const card  = normalizeUID(raw);
     if (!name) { alert('Name is required.'); submitBtn?.removeAttribute('disabled'); busy = false; return; }
 
     try {
@@ -412,8 +366,7 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
         .single();
       if (e1) throw e1;
 
-      if (cardRaw) {
-        const card = normalizeUID(cardRaw);
+      if (card) {
         const { error: e2 } = await sb
           .from('cards')
           .upsert(
@@ -438,55 +391,37 @@ el('create-student-account')?.addEventListener('submit', async (e) => {
   });
 })();
 
-// ---------- Otorgar por identificador (UID/token) ----------
-el('award-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const raw = el('identifier').value;
-  const ids = splitPossibleMultiUID(raw);  // 1 o varios UIDs “pegados”
-  if (ids.length === 0) return;
-
-  const delta = parseInt(el('delta').value, 10);
-  const reason = el('reason').value.trim() || null;
-  const device = el('device')?.value.trim() || 'web-teacher';
-
-  // Procesa secuencialmente — si había 2 UIDs concatenados, asigna a ambos
-  for (const identifier of ids) {
-    if (!identifier) continue;
-    if (isDuplicateScan(identifier)) continue; // filtro local
-
-    const { error } = await sb.rpc('award_points', {
-      _identifier: identifier,
-      _delta: Number.isFinite(delta) ? delta : 1,
-      _reason: reason,
-      _device_id: device,
-    });
-    if (error) {
-      alert(error.message);
-      // No abortamos: si venían 2 UIDs y uno falla, intentamos el siguiente
+// ---------- Normalización ----------
+function normalizeUID(s){
+  return (s || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+}
+function extractUIDs(raw){
+  const canon = normalizeUID(raw);
+  if (!canon) return [];
+  const lens = [8,14,16,20];
+  for (const L of lens){
+    if (canon.length === L) return [canon];
+    if (canon.length > L && canon.length % L === 0){
+      const out = [];
+      for (let i=0;i<canon.length;i+=L) out.push(canon.slice(i,i+L));
+      return out;
     }
   }
+  const m = canon.match(/[0-9A-F]{8,}/g);
+  if (m && m.length) return m;
+  return [canon];
+}
 
-  // Limpieza de UI
-  const scanToggle = el('scan-mode');
-  el('identifier').value = '';
-  if (scanToggle?.checked) {
-    el('reason').value = '';
-    setTimeout(() => el('identifier').focus(), 0);
-  }
-  loadTeacher();
-});
-
-// ---------- Botones rápidos (+1..+4 sólo positivos) ----------
+// ---------- Botones rápidos (+1..+4) ----------
 document.querySelectorAll('[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
-    const n = parseInt(btn.getAttribute('data-quick'), 10); // "+1" -> 1
+    const n = parseInt(btn.getAttribute('data-quick'), 10);
     const deltaInput = el('delta');
     if (Number.isFinite(n) && deltaInput) deltaInput.value = String(n);
   });
 });
 
-// --------- Lista de alumnos + asignación de puntos ---------
+// --------- Lista de alumnos + (link/unlink) ---------
 el('reload-students')?.addEventListener('click', loadStudentsList);
 el('class-filter')?.addEventListener('change', loadStudentsList);
 el('search-name')?.addEventListener('input', () => {
@@ -499,7 +434,7 @@ async function loadStudentsList() {
   const q = (el('search-name')?.value || '').trim().toLowerCase();
 
   let query = sb.from('students').select('id,name,class');
-  if (cls) query = query.ilike('class', `${cls}%`); // o .eq('class', cls) si quieres coincidencia exacta
+  if (cls) query = query.ilike('class', `${cls}%`);
   if (q) query = query.ilike('name', `%${q}%`);
   query = query.order('class', { ascending: true }).order('name', { ascending: true });
 
@@ -534,6 +469,7 @@ async function loadStudentsList() {
             <button data-award="+4" data-student="${s.id}">+4</button>
             <button data-award="custom" data-student="${s.id}">Custom…</button>
             <button data-link-card="${s.id}">Link card…</button>
+            <button data-unlink-card="${s.id}">Unlink card…</button>
             <button data-delete="${s.id}" data-name="${s.name}">Delete</button>
           </div>
         </div>
@@ -541,7 +477,7 @@ async function loadStudentsList() {
     `;
   }).join('');
 
-  // otorgar por alumno
+  // otorgar por alumno (RPC by student)
   container.querySelectorAll('button[data-award]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-student'), 10);
@@ -567,14 +503,30 @@ async function loadStudentsList() {
   container.querySelectorAll('button[data-link-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
-      const raw = prompt('Card UID (write or scan later):'); 
-      if (!raw) return;
-      const card = normalizeUID(raw);
+      const raw = prompt('Card UID (scan now or paste):'); if (!raw) return;
+      const card = normalizeUID(raw.trim());
+      if (!card) return alert('UID inválido.');
       const { error } = await sb
         .from('cards')
         .upsert({ student_id: studentId, card_uid: card, active: true }, { onConflict: 'card_uid' });
       if (error) return alert(error.message);
       await loadTeacher();
+    });
+  });
+
+  // desvincular tarjeta -> inactive + sin alumno
+  container.querySelectorAll('button[data-unlink-card]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const raw = prompt('UID to unlink (scan or paste):'); if (!raw) return;
+      const uid = normalizeUID(raw.trim());
+      if (!uid) return alert('UID inválido.');
+      const { error } = await sb
+        .from('cards')
+        .update({ student_id: null, active: false })
+        .eq('card_uid', uid);
+      if (error) return alert(error.message);
+      await loadTeacher();
+      alert('Card unlinked.');
     });
   });
 
@@ -597,26 +549,63 @@ async function loadStudentsList() {
   });
 }
 
-// --- Scan mode: focus persistente + auto-submit en Enter ---
-(function setupScanMode(){
-  const scanToggle = document.getElementById('scan-mode');
-  const idInput = document.getElementById('identifier');
-  const awardForm = document.getElementById('award-form');
-  if (!scanToggle || !idInput || !awardForm) return;
+// ---------- Teams overview ----------
+async function loadTeamsOverview(){
+  const box = el('teams-overview');
+  if (!box) return;
+  box.textContent = 'Loading…';
 
-  function keepFocus(){
-    if (!scanToggle?.checked) return;
-    if (document.activeElement !== idInput) idInput.focus();
+  try {
+    const [{ data: teams }, { data: totals }, { data: rows }] = await Promise.all([
+      sb.from('teams').select('id,name,class').order('name', { ascending:true }),
+      sb.from('team_balances').select('team_id,points'),
+      sb.from('team_member_points').select('team_id,student_id,name,class,points').order('team_id', { ascending:true }).order('name', { ascending:true })
+    ]);
+
+    const tmap = new Map();
+    (teams || []).forEach(t => tmap.set(t.id, { ...t, total: 0, members: [] }));
+    (totals || []).forEach(tb => {
+      if (tmap.has(tb.team_id)) tmap.get(tb.team_id).total = tb.points ?? 0;
+    });
+    (rows || []).forEach(r => {
+      if (tmap.has(r.team_id)) tmap.get(r.team_id).members.push(r);
+    });
+
+    const html = Array.from(tmap.values()).map(t => `
+      <div class="team-box">
+        <div class="team-header">
+          <div><strong>${t.name}</strong> <span class="muted">(${t.class ?? '—'})</span></div>
+          <div><strong>${t.total ?? 0}</strong> pts</div>
+        </div>
+        <ul>
+          ${t.members.map(m => `<li>${m.name} <span class="muted">(${m.class ?? '—'})</span> — <strong>${m.points ?? 0}</strong> pts</li>`).join('')}
+        </ul>
+      </div>
+    `).join('');
+
+    box.classList.remove('muted');
+    box.innerHTML = html || '<p class="muted">No teams yet.</p>';
+  } catch (e){
+    console.error(e);
+    box.textContent = 'Error loading overview (RLS/permissions?)';
   }
-  setInterval(keepFocus, 500);
+}
 
-  idInput.addEventListener('keydown', (e) => {
-    if (!scanToggle?.checked) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      awardForm.requestSubmit();
-    }
-  });
+// ---------- Scan UID viewer ----------
+(function wireUIDViewer(){
+  const input = el('uid-viewer');
+  const out = el('uid-output');
+  const clearBtn = el('uid-clear');
+  if (!input || !out) return;
+
+  function render(){
+    const parts = extractUIDs(input.value);
+    if (!parts.length){ out.textContent = ''; return; }
+    out.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
+  }
+
+  input.addEventListener('input', render);
+  clearBtn?.addEventListener('click', () => { input.value = ''; out.textContent=''; });
 })();
 
 // -------- Arranque --------
