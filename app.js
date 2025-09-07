@@ -1,23 +1,64 @@
-// app.js
+// app.js — Westhill build (sin Realtime; con polling)
+
 const { createClient } = supabase;
-
-// --- Config ---
-const SUPA_URL = String((window && window.SUPABASE_URL) || '').trim();
-const SUPA_KEY = String((window && window.SUPABASE_ANON_KEY) || '').trim();
-const BRIDGE_DEVICE_ID = 'laptop-aula-8A'; // si tu DEVICE_ID en .env es otro, cámbialo aquí
-
-if (!SUPA_URL || !/^https?:\/\//.test(SUPA_URL)) {
-  console.error('SUPABASE_URL inválida o vacía:', SUPA_URL);
-  alert('Config error: SUPABASE_URL inválida.');
+const SUPA_URL = String(window.SUPABASE_URL || "").trim();
+const SUPA_KEY = String(window.SUPABASE_ANON_KEY || "").trim();
+if (!/^https?:\/\//.test(SUPA_URL) || !SUPA_KEY) {
+  alert("Config error: revisa SUPABASE_URL / SUPABASE_ANON_KEY en index.html"); 
 }
-if (!SUPA_KEY) {
-  console.error('SUPABASE_ANON_KEY vacía.');
-  alert('Config error: falta SUPABASE_ANON_KEY.');
-}
-
 const sb = createClient(SUPA_URL, SUPA_KEY);
 
-// -------- Password recovery --------
+// ======= Helpers UI =======
+const $ = (id) => document.getElementById(id);
+const show = (el, on=true) => el && (el.classList.toggle('hidden', !on));
+const text = (el, t) => el && (el.textContent = t);
+const POLL_MS = 5000; // refresco cada 5s (sin Realtime)
+let _pollHandles = [];
+
+function clearPollers() {
+  _pollHandles.forEach(h => clearInterval(h));
+  _pollHandles = [];
+}
+
+function startPoller(fn, ms=POLL_MS) {
+  const h = setInterval(() => fn().catch(()=>{}), ms);
+  _pollHandles.push(h);
+  return h;
+}
+
+function fmtDate(s) {
+  try { return new Date(s).toLocaleString(); } catch { return s; }
+}
+
+function normalizeUID(s){
+  return (s || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+}
+
+// ======= Auth / Session =======
+$('login-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('email').value.trim();
+  const password = $('password').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return alert(error.message);
+  await refreshUI();
+});
+
+$('logout')?.addEventListener('click', async () => {
+  await sb.auth.signOut();
+  clearPollers();
+  await refreshUI();
+});
+
+$('change-pass')?.addEventListener('click', async () => {
+  const newPass = prompt('New password (min. 6 characters):');
+  if (!newPass) return;
+  const { error } = await sb.auth.updateUser({ password: newPass });
+  if (error) return alert(error.message);
+  alert('Password updated. Sign out and sign back in.');
+});
+
+// Password recovery from magic link
 async function handleRecoveryFromHash() {
   const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
   const params = new URLSearchParams(hash);
@@ -43,111 +84,67 @@ async function handleRecoveryFromHash() {
   }
 }
 
-// --------- Utilidades UI ---------
-const el = (id) => document.getElementById(id);
-const authSec = el('auth');
-const authedSec = el('authed');
-const teacherPanel = el('teacher-panel');
-const studentPanel = el('student-panel');
-const whoami = el('whoami');
-const roleBadge = el('role-badge');
-
-// ---------- Auth ----------
-el('login-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = el('email').value.trim();
-  const password = el('password').value;
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) return alert(error.message);
-  refreshUI();
-});
-
-el('logout')?.addEventListener('click', async () => {
-  await sb.auth.signOut();
-  refreshUI();
-});
-
-el('change-pass')?.addEventListener('click', async () => {
-  const newPass = prompt('New password (min. 6 characters):');
-  if (!newPass) return;
-  const { error } = await sb.auth.updateUser({ password: newPass });
-  if (error) return alert(error.message);
-  alert('Password updated. Sign out and sign back in.');
-});
-
-// ---------- Role-aware UI ----------
+// ======= Role-aware UI =======
 async function refreshUI() {
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) {
-    authSec && (authSec.style.display = 'block');
-    authedSec && (authedSec.style.display = 'none');
-    return;
-  }
-  authSec && (authSec.style.display = 'none');
-  authedSec && (authedSec.style.display = 'block');
-  whoami && (whoami.textContent = `${user.email}`);
+  show($('auth'), !user);
+  show($('authed'), !!user);
+  if (!user) return;
 
-  const { data: profile, error } = await sb
-    .from('profiles').select('role')
-    .eq('id', user.id).maybeSingle();
-  if (error) {
-    console.error(error);
-    alert('Error loading profile/role.');
-    return;
-  }
+  text($('whoami'), user.email || '');
+  const { data: profile, error } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  if (error) { alert('Error loading profile'); return; }
   const role = profile?.role || 'student';
-  roleBadge && (roleBadge.textContent = role.toUpperCase());
+  text($('role-badge'), role.toUpperCase());
 
   if (role === 'teacher') {
-    teacherPanel && (teacherPanel.style.display = 'block');
-    studentPanel && (studentPanel.style.display = 'none');
+    show($('teacher-panel'), true);
+    show($('student-panel'), false);
+    clearPollers();
     await loadTeacher();
-    setupRealtimeTeacher();
+    // Pollers (sin Realtime)
+    startPoller(loadLatestTransactions);
+    startPoller(refreshTeamOverview);
   } else {
-    teacherPanel && (teacherPanel.style.display = 'none');
-    studentPanel && (studentPanel.style.display = 'block');
+    show($('teacher-panel'), false);
+    show($('student-panel'), true);
+    clearPollers();
     await loadStudent(user.id);
-    setupRealtimeStudent(user.id);
+    // Poller simple para tabla personal
+    startPoller(() => loadStudent(user.id));
   }
 }
 
-// ---------- STUDENT ----------
+// ======= STUDENT =======
 async function loadStudent(userId) {
   const { data: student, error: e1 } = await sb
     .from('students').select('id,name,class')
     .eq('auth_user_id', userId).maybeSingle();
 
   if (e1 || !student) {
-    el('student-info') && (el('student-info').textContent = 'Your account is not linked to a student record yet. Ask your teacher.');
-    el('balance') && (el('balance').textContent = '—');
-    const mt = el('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
-    el('team-info') && (el('team-info').textContent = 'No team assigned.');
-    el('my-team-balance') && (el('my-team-balance').textContent = '—');
-    el('my-team-members') && (el('my-team-members').innerHTML = '');
-    el('pool-gname') && (el('pool-gname').textContent = '—');
-    el('pool-lname') && (el('pool-lname').textContent = '—');
-    el('pool-earned') && (el('pool-earned').textContent = '0');
-    el('pool-spent') && (el('pool-spent').textContent = '0');
-    el('pool-remaining') && (el('pool-remaining').textContent = '0');
+    text($('student-info'), 'Your account is not linked to a student record yet. Ask your teacher.');
+    text($('balance'), '—');
+    const mt = $('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
+    text($('team-info'), 'No team assigned.');
+    text($('my-team-balance'), '—');
+    $('my-team-members') && ($('my-team-members').innerHTML = '');
     return;
   }
 
-  el('student-info') && (el('student-info').textContent = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`);
+  text($('student-info'), `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`);
 
-  const { data: bal } = await sb
-    .from('balances').select('points')
-    .eq('student_id', student.id).maybeSingle();
-  el('balance') && (el('balance').textContent = bal?.points ?? 0);
+  const { data: bal } = await sb.from('balances').select('points').eq('student_id', student.id).maybeSingle();
+  text($('balance'), bal?.points ?? 0);
 
   const { data: txs } = await sb
     .from('transactions').select('delta,reason,created_at')
     .eq('student_id', student.id)
     .order('created_at', { ascending: false }).limit(50);
 
-  const mytxBody = el('mytx-table')?.querySelector('tbody');
+  const mytxBody = $('mytx-table')?.querySelector('tbody');
   if (mytxBody) {
     mytxBody.innerHTML = (txs || []).map(t =>
-      `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
+      `<tr><td>${fmtDate(t.created_at)}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
     ).join('');
   }
 
@@ -158,144 +155,124 @@ async function loadStudent(userId) {
       .eq('student_id', student.id).maybeSingle();
 
     if (!tm?.team_id) {
-      el('team-info') && (el('team-info').textContent = 'No team assigned.');
-      el('my-team-balance') && (el('my-team-balance').textContent = '—');
-    } else {
-      el('team-info') && (el('team-info').textContent = `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
-      const { data: tbal } = await sb
-        .from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
-      el('my-team-balance') && (el('my-team-balance').textContent = tbal?.points ?? 0);
+      text($('team-info'), 'No team assigned.');
+      text($('my-team-balance'), '—');
+      $('my-team-members') && ($('my-team-members').innerHTML = '');
+      return;
+    }
+
+    text($('team-info'), `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
+
+    const { data: tbal } = await sb.from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
+    text($('my-team-balance'), tbal?.points ?? 0);
+
+    const { data: members } = await sb
+      .from('team_member_points')
+      .select('student_id,name,class,points')
+      .eq('team_id', tm.team_id)
+      .order('name', { ascending: true });
+
+    const ul = $('my-team-members');
+    if (ul) {
+      ul.innerHTML = (members || []).map(m =>
+        `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
+      ).join('');
     }
   } catch {}
-
-  // Global pool (RPC)
-  try {
-    const { data: poolJson } = await sb.rpc('get_my_team_pool');
-    if (poolJson?.ok) {
-      el('pool-gname') && (el('pool-gname').textContent = poolJson.global_team || '—');
-      el('pool-lname') && (el('pool-lname').textContent = `${poolJson.local_team || '—'} (${poolJson.class || '—'})`);
-      el('pool-earned') && (el('pool-earned').textContent = poolJson.earned ?? 0);
-      el('pool-spent') && (el('pool-spent').textContent = poolJson.spent ?? 0);
-      el('pool-remaining') && (el('pool-remaining').textContent = poolJson.remaining ?? 0);
-    }
-  } catch(e) { console.error('get_my_team_pool', e); }
 }
 
-// ---------- TEACHER ----------
+// ======= TEACHER =======
 async function loadTeacher() {
   await loadLatestTransactions();
   await loadTeamsUI();
-  await loadStudentsList();
-  await loadTeamsOverview();
+  await loadTeamAdjustOptions();
+  await refreshTeamOverview();
 }
 
-// últimas transacciones
-async function loadLatestTransactions(){
+// Últimas transacciones
+async function loadLatestTransactions() {
   const { data: txs } = await sb
     .from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
-    .order('created_at', { ascending: false }).limit(50);
+    .order('created_at', { ascending: false }).limit(30);
 
-  const tbody = el('tx-table')?.querySelector('tbody');
+  const tbody = $('tx-table')?.querySelector('tbody');
   if (tbody) {
     tbody.innerHTML = (txs || []).map(t => `
-      <tr><td>${new Date(t.created_at).toLocaleString()}</td>
+      <tr><td>${fmtDate(t.created_at)}</td>
       <td>${t.students?.name ?? t.student_id}</td>
       <td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`).join('');
   }
 }
 
-// --- Gestión de equipos ---
+// Gestión equipos: carga selects/listas
 async function loadTeamsUI() {
-  const scopeSel = el('team-scope');
-  const parentSel = el('parent-global');
-  if (scopeSel && parentSel) {
-    parentSel.disabled = (scopeSel.value !== 'local');
-    scopeSel.addEventListener('change', () => { parentSel.disabled = (scopeSel.value !== 'local'); });
-  }
+  // parent global para crear locales
+  const { data: globals } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name', { ascending: true });
+  $('parent-global').innerHTML = `<option value="">(none)</option>` + (globals || []).map(t =>
+    `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
 
-  try {
-    // Para selects
-    const { data: allTeams } = await sb.from('teams').select('id,name,class,scope,parent_global_id').order('name', { ascending: true });
+  // selector de equipo activo
+  const { data: teams } = await sb.from('teams').select('id,name,class').order('name', { ascending: true });
+  $('team-select').innerHTML = (teams || []).map(t =>
+    `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
 
-    // team-select
-    const sel = el('team-select');
-    if (sel) {
-      sel.innerHTML = (allTeams || []).map(t =>
-        `<option value="${t.id}">${t.name} [${t.scope}] (${t.class ?? '—'})</option>`).join('');
-    }
+  // pool de alumnos
+  const { data: students } = await sb.from('students').select('id,name,class').order('name', { ascending: true });
+  $('student-pool').innerHTML = (students || []).map(s =>
+    `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
 
-    // student pool
-    const { data: students } = await sb.from('students').select('id,name,class').order('name', { ascending: true });
-    el('student-pool') && (el('student-pool').innerHTML = (students || []).map(s =>
-      `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join(''));
-
-    // parent-global (solo GLOBALS)
-    if (el('parent-global')) {
-      const globals = (allTeams || []).filter(t => t.scope === 'global');
-      el('parent-global').innerHTML = globals.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-    }
-
-    // team-for-card
-    if (el('team-for-card')) {
-      el('team-for-card').innerHTML = (allTeams || []).map(t =>
-        `<option value="${t.id}" data-scope="${t.scope}">${t.name} [${t.scope}] (${t.class ?? '—'})</option>`).join('');
-    }
-
-    await refreshTeamDetails();
-  } catch (e) {
-    console.error('loadTeamsUI', e);
-  }
+  await refreshTeamDetails();
 }
+
+$('reload-teams')?.addEventListener('click', loadTeamsUI);
+$('team-select')?.addEventListener('change', refreshTeamDetails);
 
 async function refreshTeamDetails() {
-  const sel = el('team-select');
-  if (!sel) return;
-  const teamId = parseInt(sel.value || '0', 10);
+  const teamId = parseInt(($('team-select').value || '0'), 10);
   if (!teamId) {
-    el('team-members') && (el('team-members').innerHTML = '');
-    el('team-balance') && (el('team-balance').textContent = '—');
+    $('team-members').innerHTML = '';
+    text($('team-balance'), '—');
     return;
   }
-  try {
-    const { data: members } = await sb
-      .from('team_member_points')
-      .select('student_id,name,class,points')
-      .eq('team_id', teamId)
-      .order('name', { ascending: true });
 
-    el('team-members') && (el('team-members').innerHTML = (members || []).map(m =>
-      `<li data-student="${m.student_id}">${m.name} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
-    ).join(''));
+  const { data: members } = await sb
+    .from('team_member_points')
+    .select('student_id,name,class,points')
+    .eq('team_id', teamId)
+    .order('name', { ascending: true });
 
-    const { data: tbal } = await sb
-      .from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
-    el('team-balance') && (el('team-balance').textContent = tbal?.points ?? 0);
-  } catch (e) {
-    console.error('refreshTeamDetails', e);
-  }
+  $('team-members').innerHTML = (members || []).map(m =>
+    `<li data-student="${m.student_id}">${m.name} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
+  ).join('');
+
+  const { data: tbal } = await sb.from('team_balances').select('points').eq('team_id', teamId).maybeSingle();
+  text($('team-balance'), tbal?.points ?? 0);
 }
 
-el('reload-teams')?.addEventListener('click', loadTeamsUI);
-el('team-select')?.addEventListener('change', refreshTeamDetails);
-
-el('new-team-form')?.addEventListener('submit', async (e) => {
+$('new-team-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const name = el('team-name').value.trim();
-  const klass = (el('team-class').value || '').trim() || null;
-  const scope = el('team-scope').value;
-  const parent = el('parent-global').value || null;
+  const name = $('team-name').value.trim();
+  const klass = ($('team-class').value || '').trim();
+  const scope = $('team-scope').value || 'global';
+  const parent = parseInt(($('parent-global').value || '0'), 10) || null;
+
   if (!name) return alert('Team name is required.');
-  if (scope === 'local' && !parent) return alert('Parent global requerido para equipo LOCAL.');
-  const payload = { name, class: klass, scope, parent_global_id: scope === 'local' ? parseInt(parent,10) : null };
-  const { error } = await sb.from('teams').insert([payload]);
+  if (scope === 'local' && !parent) return alert('Local teams require a parent Global.');
+
+  // crea con scope/parent si el esquema lo soporta; si no, cae a nombre/clase
+  const row = scope === 'local'
+    ? { name, class: klass || null, scope: 'local', parent_global_id: parent }
+    : { name, class: klass || null, scope: 'global', parent_global_id: null };
+
+  const { error } = await sb.from('teams').insert([row]);
   if (error) return alert(error.message);
-  el('team-name').value = ''; el('team-class').value = '';
+  $('team-name').value = ''; $('team-class').value = '';
   await loadTeamsUI();
 });
 
-el('delete-team')?.addEventListener('click', async () => {
-  const teamId = parseInt(el('team-select').value || '0', 10);
+$('delete-team')?.addEventListener('click', async () => {
+  const teamId = parseInt(($('team-select').value || '0'), 10);
   if (!teamId) return;
   const ok = confirm('Delete this team? This removes memberships but not student records or transactions.');
   if (!ok) return;
@@ -304,19 +281,19 @@ el('delete-team')?.addEventListener('click', async () => {
   await loadTeamsUI();
 });
 
-el('assign-member')?.addEventListener('click', async () => {
-  const teamId = parseInt(el('team-select').value || '0', 10);
-  const studentId = parseInt(el('student-pool').value || '0', 10);
+$('assign-member')?.addEventListener('click', async () => {
+  const teamId = parseInt(($('team-select').value || '0'), 10);
+  const studentId = parseInt(($('student-pool').value || '0'), 10);
   if (!teamId || !studentId) return;
-  // Permite MULTI-membresía: ya NO borramos otras membresías
+  await sb.from('team_members').delete().eq('student_id', studentId);
   const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
   if (error) return alert(error.message);
   await refreshTeamDetails();
 });
 
-el('remove-member')?.addEventListener('click', async () => {
-  const teamId = parseInt(el('team-select').value || '0', 10);
-  const li = el('team-members')?.querySelector('li[data-student]');
+$('remove-member')?.addEventListener('click', async () => {
+  const teamId = parseInt(($('team-select').value || '0'), 10);
+  const li = $('team-members')?.querySelector('li[data-student]');
   if (!teamId) return;
   const studentId = li ? parseInt(li.getAttribute('data-student'), 10) : null;
   if (!studentId) return alert('Selecciona un miembro (o implementa selección). Por ahora removerá el primero.');
@@ -325,140 +302,192 @@ el('remove-member')?.addEventListener('click', async () => {
   await refreshTeamDetails();
 });
 
-// --- Team cards: link earn/spend ---
-async function linkTeamCard(role){
-  const sel = el('team-for-card');
-  if (!sel) return;
-  const teamId = parseInt(sel.value, 10);
-  const scope = sel.selectedOptions?.[0]?.dataset?.scope || 'local';
-  const raw = prompt(`Scan/paste UID para ${role.toUpperCase()}:`); if (!raw) return;
-  const uid = normalizeUID(raw);
-  if (!uid) return alert('UID inválido.');
+// ======= Linking de tarjetas =======
+async function loadCardSelects() {
+  const { data: students } = await sb.from('students').select('id,name,class').order('name', { ascending: true });
+  $('card-student').innerHTML = (students || []).map(s =>
+    `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
 
-  if (role === 'team_earn' && scope !== 'global') return alert('La tarjeta EARN debe ligarse a un equipo GLOBAL.');
-  if (role === 'team_spend' && scope !== 'local')  return alert('La tarjeta SPEND debe ligarse a un equipo LOCAL.');
+  await reloadTeamOptionsForCard();
+}
 
+async function reloadTeamOptionsForCard() {
+  const role = $('card-role').value;
+  if (role === 'team_earn') {
+    const { data: globals } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name', { ascending: true });
+    $('card-team').innerHTML = (globals || []).map(t =>
+      `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
+  } else {
+    const { data: locals } = await sb.from('teams').select('id,name,class').eq('scope','local').order('name', { ascending: true });
+    $('card-team').innerHTML = (locals || []).map(t =>
+      `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
+  }
+}
+
+$('card-role')?.addEventListener('change', reloadTeamOptionsForCard);
+
+$('link-card-student')?.addEventListener('click', async () => {
+  const studentId = parseInt(($('card-student').value || '0'), 10);
+  const uid = normalizeUID($('card-uid-stu').value);
+  if (!studentId || !uid) return alert('Student + UID required');
   const { error } = await sb.from('cards').upsert(
-    { team_id: teamId, card_uid: uid, card_role: role, active: true },
+    { card_uid: uid, student_id: studentId, team_id: null, card_role: 'student', active: true },
     { onConflict: 'card_uid' }
   );
   if (error) return alert(error.message);
-  alert('Card linked.');
-}
-el('link-earn')?.addEventListener('click', () => linkTeamCard('team_earn'));
-el('link-spend')?.addEventListener('click', () => linkTeamCard('team_spend'));
-
-// ---------- Edge Function helper ----------
-async function callEdge(fnName, payload) {
-  const { data: { session} } = await sb.auth.getSession();
-  const resp = await fetch(`${SUPA_URL}/functions/v1/${fnName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    throw new Error(`${fnName} failed: ${resp.status} ${text}`);
-  }
-  return await resp.json();
-}
-
-// --------- Alta de ALUMNO (record only) ---------
-(function wireRecordOnlyForm(){
-  const form = el('new-student-form');
-  if (!form) return;
-  if (form.dataset.wired === '1') return;
-  form.dataset.wired = '1';
-
-  let busy = false;
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    busy = true;
-
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn?.setAttribute('disabled', 'disabled');
-
-    const name  = (el('ns-name')?.value  || '').trim();
-    const klass = (el('ns-class')?.value || '').trim();   // opcional
-    const raw   = (el('ns-card')?.value  || '').trim();   // opcional
-    const card  = normalizeUID(raw);
-    if (!name) { alert('Name is required.'); submitBtn?.removeAttribute('disabled'); busy = false; return; }
-
-    try {
-      const { data: inserted, error: e1 } = await sb
-        .from('students')
-        .insert([{ name, class: klass || null }])
-        .select('id')
-        .single();
-      if (e1) throw e1;
-
-      if (card) {
-        const { error: e2 } = await sb
-          .from('cards')
-          .upsert({ student_id: inserted.id, card_uid: card, card_role: 'student', active: true }, { onConflict: 'card_uid' });
-        if (e2) throw e2;
-      }
-
-      el('ns-name').value = '';
-      el('ns-class').value = '';
-      el('ns-card').value  = '';
-      await loadTeacher();
-      alert('Student created.');
-    } catch (err) {
-      console.error('record-only insert failed:', err);
-      alert(err?.message || 'Insert failed');
-    } finally {
-      busy = false;
-      submitBtn?.removeAttribute('disabled');
-    }
-  });
-})();
-
-// ---------- Normalización ----------
-function normalizeUID(s){
-  return (s || '').toUpperCase().replace(/[^0-9A-F]/g, '');
-}
-function extractUIDs(raw){
-  const canon = normalizeUID(raw);
-  if (!canon) return [];
-  const lens = [8,14,16,20];
-  for (const L of lens){
-    if (canon.length === L) return [canon];
-    if (canon.length > L && canon.length % L === 0){
-      const out = [];
-      for (let i=0;i<canon.length;i+=L) out.push(canon.slice(i,i+L));
-      return out;
-    }
-  }
-  const m = canon.match(/[0-9A-F]{8,}/g);
-  if (m && m.length) return m;
-  return [canon];
-}
-
-// ---------- Botones rápidos (+1..+4) ----------
-document.querySelectorAll('[data-quick]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const n = parseInt(btn.getAttribute('data-quick'), 10);
-    const deltaInput = el('delta');
-    if (Number.isFinite(n) && deltaInput) deltaInput.value = String(n);
-  });
+  alert('Card linked to student.');
+  $('card-uid-stu').value = '';
 });
 
-// --------- Lista de alumnos + (link/unlink) ---------
-el('reload-students')?.addEventListener('click', loadStudentsList);
-el('class-filter')?.addEventListener('change', loadStudentsList);
-el('search-name')?.addEventListener('input', () => {
+$('unlink-card-student')?.addEventListener('click', async () => {
+  const uid = normalizeUID($('card-uid-stu').value);
+  if (!uid) return alert('UID required');
+  const { error } = await sb.from('cards').update({ active: false }).eq('card_uid', uid);
+  if (error) return alert(error.message);
+  alert('Card set inactive.');
+  $('card-uid-stu').value = '';
+});
+
+$('link-card-team')?.addEventListener('click', async () => {
+  const role = $('card-role').value; // team_earn | team_spend
+  const teamId = parseInt(($('card-team').value || '0'), 10);
+  const uid = normalizeUID($('card-uid-team').value);
+  if (!teamId || !uid) return alert('Team + UID required');
+
+  // Para equipo: student_id debe quedar NULL
+  const { error } = await sb.from('cards').upsert(
+    { card_uid: uid, team_id: teamId, student_id: null, card_role: role, active: true },
+    { onConflict: 'card_uid' }
+  );
+  if (error) return alert(error.message);
+  alert('Card linked to team.');
+  $('card-uid-team').value = '';
+});
+
+$('unlink-card-team')?.addEventListener('click', async () => {
+  const uid = normalizeUID($('card-uid-team').value);
+  if (!uid) return alert('UID required');
+  const { error } = await sb.from('cards').update({ active: false }).eq('card_uid', uid);
+  if (error) return alert(error.message);
+  alert('Card set inactive.');
+  $('card-uid-team').value = '';
+});
+
+// ======= Ajustes manuales =======
+async function loadTeamAdjustOptions() {
+  const { data: globals } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name', { ascending: true });
+  const selG = $('adjust-pool-team');
+  if (selG) selG.innerHTML = (globals || []).map(t =>
+    `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
+
+  const { data: locals } = await sb.from('teams').select('id,name,class').eq('scope','local').order('name', { ascending: true });
+  const selL = $('adjust-local-team');
+  if (selL) selL.innerHTML = (locals || []).map(t =>
+    `<option value="${t.id}">${t.name} (${t.class ?? '—'})</option>`).join('');
+}
+
+$('adjust-pool-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const teamId = parseInt(($('adjust-pool-team').value || '0'), 10);
+  const delta  = parseInt($('adjust-pool-delta').value, 10);
+  const reason = ($('adjust-pool-reason').value || '').trim() || null;
+  if (!teamId || !Number.isFinite(delta) || delta === 0) return alert('Team + non-zero Δ required');
+
+  const device = 'web-teacher';
+  const { data, error } = await sb.rpc('team_pool_adjust', {
+    _pool_team_id: teamId, _delta: delta, _reason: reason, _device_id: device
+  });
+  if (error) return alert(error.message);
+  alert(`Pool adjusted. Remaining: ${data?.remaining ?? 'n/a'}`);
+  await refreshTeamOverview();
+});
+
+$('adjust-local-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const localId = parseInt(($('adjust-local-team').value || '0'), 10);
+  const amount  = parseInt($('adjust-local-amount').value, 10);
+  const reason  = ($('adjust-local-reason').value || '').trim() || null;
+  if (!localId || !Number.isFinite(amount) || amount <= 0) return alert('Local team + positive amount required');
+
+  const device = 'web-teacher';
+  const { data, error } = await sb.rpc('team_local_spend_adjust', {
+    _local_team_id: localId, _amount: amount, _reason: reason, _device_id: device
+  });
+  if (error) return alert(error.message);
+  alert(`Local spend applied. Pool remaining: ${data?.pool_remaining ?? 'n/a'}`);
+  await refreshTeamOverview();
+});
+
+// ======= Overview (vistas del pool) =======
+let _selectedPoolId = null;
+
+async function refreshTeamOverview() {
+  // Pools
+  const { data: pools, error: e1, status } = await sb.from('team_pool_balances').select('pool_team_id,points');
+  if (e1 && status === 404) {
+    // vistas aún no creadas: no rompas la UI
+    document.querySelector('#pool-table tbody').innerHTML = `<tr><td colspan="2">Views missing.</td></tr>`;
+    return;
+  }
+  const tbody = document.querySelector('#pool-table tbody');
+  tbody.innerHTML = (pools || []).map(p =>
+    `<tr data-pool="${p.pool_team_id}"><td>${p.pool_team_id}</td><td><strong>${p.points ?? 0}</strong></td></tr>`
+  ).join('');
+
+  // por defecto selecciona el primero si no hay seleccionado
+  if (!_selectedPoolId && pools && pools.length) _selectedPoolId = pools[0].pool_team_id;
+
+  // click to select
+  Array.from(tbody.querySelectorAll('tr[data-pool]')).forEach(tr => {
+    tr.addEventListener('click', () => {
+      _selectedPoolId = parseInt(tr.getAttribute('data-pool'), 10);
+      loadLocalSummary();
+    });
+  });
+
+  await loadLocalSummary();
+}
+
+async function loadLocalSummary() {
+  if (!_selectedPoolId) {
+    document.querySelector('#local-table tbody').innerHTML = '';
+    text($('local-title'), '—');
+    return;
+  }
+
+  // locales bajo ese pool: usamos team_local_remaining (pool + gasto local)
+  const { data: locals } = await sb
+    .from('team_local_remaining')
+    .select('local_team_id,pool_team_id,spent_by_local,pool_remaining')
+    .eq('pool_team_id', _selectedPoolId)
+    .order('local_team_id', { ascending: true });
+
+  text($('local-title'), `Pool ${_selectedPoolId}`);
+  const tbody = document.querySelector('#local-table tbody');
+  tbody.innerHTML = (locals || []).map(r =>
+    `<tr><td>${r.local_team_id}</td><td>${r.spent_by_local ?? 0}</td><td><strong>${r.pool_remaining ?? 0}</strong></td></tr>`
+  ).join('');
+}
+
+// ======= Asignar por alumno =======
+$('reload-students')?.addEventListener('click', loadStudentsList);
+$('class-filter')?.addEventListener('change', loadStudentsList);
+$('search-name')?.addEventListener('input', () => {
   clearTimeout(loadStudentsList._t);
   loadStudentsList._t = setTimeout(loadStudentsList, 200);
 });
 
+document.querySelectorAll('[data-quick]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const n = parseInt(btn.getAttribute('data-quick'), 10);
+    const deltaInput = document.getElementById('delta');
+    // ya no existe input#delta global; sólo ajustamos prompt cuando se use "custom".
+  });
+});
+
 async function loadStudentsList() {
-  const cls = (el('class-filter')?.value || '').trim();
-  const q = (el('search-name')?.value || '').trim().toLowerCase();
+  const cls = ($('class-filter')?.value || '').trim();
+  const q = ($('search-name')?.value || '').trim().toLowerCase();
 
   let query = sb.from('students').select('id,name,class');
   if (cls) query = query.ilike('class', `${cls}%`);
@@ -468,7 +497,7 @@ async function loadStudentsList() {
   const { data: students, error } = await query;
   if (error) { console.error(error); return; }
 
-  const container = el('students-list');
+  const container = $('students-list');
   if (!container) return;
   if (!students || students.length === 0) {
     container.innerHTML = '<p class="muted">No students found for this filter.</p>';
@@ -478,33 +507,29 @@ async function loadStudentsList() {
   const balances = {};
   const ids = students.map(s => s.id);
   if (ids.length > 0) {
-    const { data: bals } = await sb
-      .from('balances').select('student_id,points').in('student_id', ids);
+    const { data: bals } = await sb.from('balances').select('student_id,points').in('student_id', ids);
     (bals || []).forEach(b => { balances[b.student_id] = b.points; });
   }
 
   container.innerHTML = students.map(s => {
     const pts = balances[s.id] ?? 0;
     return `
-      <div class="card" style="margin:8px 0; padding:12px">
-        <div class="row" style="justify-content:space-between">
-          <div><strong>${s.name}</strong> <span class="muted">(${s.class ?? '—'})</span> — <strong>${pts}</strong> pts</div>
-          <div class="row">
-            <button data-award="+1" data-student="${s.id}">+1</button>
-            <button data-award="+2" data-student="${s.id}">+2</button>
-            <button data-award="+3" data-student="${s.id}">+3</button>
-            <button data-award="+4" data-student="${s.id}">+4</button>
-            <button data-award="custom" data-student="${s.id}">Custom…</button>
-            <button data-link-card="${s.id}">Link card…</button>
-            <button data-unlink-card="${s.id}">Unlink card…</button>
-            <button data-delete="${s.id}" data-name="${s.name}">Delete</button>
-          </div>
+      <div class="row listitem">
+        <div><strong>${s.name}</strong> <span class="muted">(${s.class ?? '—'})</span> — <strong>${pts}</strong> pts</div>
+        <div class="row">
+          <button data-award="+1" data-student="${s.id}" class="btn">+1</button>
+          <button data-award="+2" data-student="${s.id}" class="btn">+2</button>
+          <button data-award="+3" data-student="${s.id}" class="btn">+3</button>
+          <button data-award="+4" data-student="${s.id}" class="btn">+4</button>
+          <button data-award="custom" data-student="${s.id}" class="btn">Custom…</button>
+          <button data-link-card="${s.id}" class="btn">Link card…</button>
+          <button data-delete="${s.id}" data-name="${s.name}" class="btn danger">Delete</button>
         </div>
       </div>
     `;
   }).join('');
 
-  // otorgar por alumno (RPC by student)
+  // otorgar por alumno
   container.querySelectorAll('button[data-award]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-student'), 10);
@@ -522,38 +547,23 @@ async function loadStudentsList() {
         _student_id: studentId, _delta: delta, _reason: reason, _device_id: device,
       });
       if (error) return alert(error.message);
-      await Promise.all([loadLatestTransactions(), loadStudentsList(), loadTeamsOverview()]);
+      await loadLatestTransactions();
+      await loadStudentsList();
     });
   });
 
-  // vincular tarjeta alumno
+  // vincular tarjeta a alumno
   container.querySelectorAll('button[data-link-card]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const studentId = parseInt(btn.getAttribute('data-link-card'), 10);
-      const raw = prompt('Card UID (scan now or paste):'); if (!raw) return;
-      const card = normalizeUID(raw.trim());
-      if (!card) return alert('UID inválido.');
-      const { error } = await sb
-        .from('cards')
-        .upsert({ student_id: studentId, card_uid: card, card_role: 'student', active: true }, { onConflict: 'card_uid' });
+      const raw = prompt('Card UID (write or scan later):'); if (!raw) return;
+      const uid = normalizeUID(raw);
+      const { error } = await sb.from('cards').upsert(
+        { student_id: studentId, team_id: null, card_role: 'student', card_uid: uid, active: true },
+        { onConflict: 'card_uid' }
+      );
       if (error) return alert(error.message);
-      await Promise.all([loadStudentsList(), loadLatestTransactions(), loadTeamsOverview()]);
-    });
-  });
-
-  // desvincular tarjeta alumno
-  container.querySelectorAll('button[data-unlink-card]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const raw = prompt('UID to unlink (scan or paste):'); if (!raw) return;
-      const uid = normalizeUID(raw.trim());
-      if (!uid) return alert('UID inválido.');
-      const { error } = await sb
-        .from('cards')
-        .update({ student_id: null, team_id: null, active: false, card_role: 'student' })
-        .eq('card_uid', uid);
-      if (error) return alert(error.message);
-      await Promise.all([loadStudentsList(), loadTeamsOverview()]);
-      alert('Card unlinked.');
+      alert('Card linked.');
     });
   });
 
@@ -566,7 +576,8 @@ async function loadStudentsList() {
       if (confirmText !== 'DELETE') return;
       try {
         await callEdge('admin_delete_student', { student_id: studentId });
-        await Promise.all([loadStudentsList(), loadLatestTransactions(), loadTeamsOverview()]);
+        await loadLatestTransactions();
+        await loadStudentsList();
         alert('Student deleted (Auth + data).');
       } catch (err) {
         console.error(err);
@@ -576,145 +587,27 @@ async function loadStudentsList() {
   });
 }
 
-// ---------- Teams overview (global pool) ----------
-async function loadTeamsOverview(){
-  const box = el('teams-overview');
-  if (!box) return;
-  box.textContent = 'Loading…';
-
-  try {
-    const [{ data: globals }, { data: pool }, { data: spend }, { data: remain }] = await Promise.all([
-      sb.from('teams').select('id,name').eq('scope','global').order('name', { ascending:true }),
-      sb.from('team_pool_balances').select('pool_team_id,points'),
-      sb.from('team_local_spend').select('pool_team_id,local_team_id,spent'),
-      sb.from('team_local_remaining').select('pool_team_id,local_team_id,remaining')
-    ]);
-
-    const mapPool = new Map((pool||[]).map(x => [x.pool_team_id, x.points||0]));
-    const byPool = new Map(); // pool_team_id -> { locals: Map(local_id -> {spent, remaining}) }
-    (spend||[]).forEach(s => {
-      if (!byPool.has(s.pool_team_id)) byPool.set(s.pool_team_id, new Map());
-      if (!byPool.get(s.pool_team_id).has(s.local_team_id)) byPool.get(s.pool_team_id).set(s.local_team_id, {spent:0, remaining:0});
-      byPool.get(s.pool_team_id).get(s.local_team_id).spent = s.spent||0;
-    });
-    (remain||[]).forEach(r => {
-      if (!byPool.has(r.pool_team_id)) byPool.set(r.pool_team_id, new Map());
-      if (!byPool.get(r.pool_team_id).has(r.local_team_id)) byPool.get(r.pool_team_id).set(r.local_team_id, {spent:0, remaining:0});
-      byPool.get(r.pool_team_id).get(r.local_team_id).remaining = r.remaining||0;
-    });
-
-    // Para nombres de locales:
-    const { data: locals } = await sb.from('teams').select('id,name,class,parent_global_id').eq('scope','local');
-
-    const html = (globals||[]).map(g => {
-      const earned = mapPool.get(g.id) ?? 0;
-      const rows = [];
-      (locals||[]).filter(l => l.parent_global_id === g.id).forEach(l => {
-        const stat = byPool.get(g.id)?.get(l.id) || {spent:0, remaining:earned};
-        rows.push(`<li>${l.name} <span class="muted">(${l.class ?? '—'})</span> — spent <strong>${stat.spent}</strong>, remaining <strong>${stat.remaining}</strong></li>`);
-      });
-      return `
-        <div class="team-box">
-          <div class="team-header">
-            <div><strong>${g.name}</strong> <span class="muted">[GLOBAL]</span></div>
-            <div>earned: <strong>${earned}</strong></div>
-          </div>
-          <ul>${rows.join('') || '<li class="muted">No local teams linked.</li>'}</ul>
-        </div>
-      `;
-    }).join('');
-
-    box.classList.remove('muted');
-    box.innerHTML = html || '<p class="muted">No global teams yet.</p>';
-  } catch (e){
-    console.error(e);
-    box.textContent = 'Error loading overview (network/permissions)';
+// Edge Function helper
+async function callEdge(fnName, payload) {
+  const { data: { session} } = await sb.auth.getSession();
+  const resp = await fetch(`${SUPA_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`${fnName} failed: ${resp.status} ${text}`);
   }
+  return await resp.json();
 }
 
-// ---------- Scan UID viewer ----------
-(function wireUIDViewer(){
-  const input = el('uid-viewer');
-  const out = el('uid-output');
-  const clearBtn = el('uid-clear');
-  if (!out) return;
-
-  // Manual (HID)
-  if (input) {
-    function render(){
-      const parts = extractUIDs(input.value);
-      out.innerHTML = parts.map(p => `<div>${p}</div>`).join('');
-    }
-    input.addEventListener('input', render);
-    clearBtn?.addEventListener('click', () => { input.value = ''; out.textContent=''; });
-  }
-
-  // Live (SPP) — via bridge_status + Realtime
-  try {
-    sb.channel('live-uid')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'bridge_status',
-        filter: `device_id=eq.${BRIDGE_DEVICE_ID}`
-      }, (payload) => {
-        const uid = normalizeUID(payload?.new?.last_uid || '');
-        if (!uid) return;
-        const node = document.createElement('div');
-        node.textContent = uid;
-        out.prepend(node);
-      })
-      .subscribe();
-  } catch (e) {
-    console.error('realtime live-uid', e);
-  }
-})();
-
-// ---------- Realtime (auto-refresh) ----------
-function setupRealtimeTeacher(){
-  try {
-    sb.channel('rt-tx')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'transactions' }, async () => {
-        await Promise.all([loadLatestTransactions(), loadTeamsOverview(), loadStudentsList()]);
-      })
-      .subscribe();
-
-    sb.channel('rt-pool')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'team_pool_tx' }, async () => {
-        await loadTeamsOverview();
-      })
-      .subscribe();
-  } catch (e) {
-    console.error('realtime teacher', e);
-  }
-
-  // Fallback polling
-  setInterval(() => {
-    loadLatestTransactions();
-    loadTeamsOverview();
-  }, 6000);
-}
-
-function setupRealtimeStudent(userId){
-  try {
-    sb.channel('rt-tx-student')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'transactions' }, async () => {
-        await loadStudent(userId);
-      })
-      .subscribe();
-
-    sb.channel('rt-pool-student')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'team_pool_tx' }, async () => {
-        await loadStudent(userId);
-      })
-      .subscribe();
-  } catch (e) {
-    console.error('realtime student', e);
-  }
-
-  // Fallback polling
-  setInterval(() => loadStudent(userId), 6000);
-}
-
-// -------- Arranque --------
-handleRecoveryFromHash().finally(refreshUI);
+// Arranque
+handleRecoveryFromHash().finally(async () => {
+  await refreshUI();
+  await loadCardSelects().catch(()=>{});
+  await reloadTeamOptionsForCard().catch(()=>{});
+});
