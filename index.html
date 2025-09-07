@@ -56,6 +56,7 @@
         <div class="card">
           <h4>Teams</h4>
 
+          <!-- Crear equipos global/local -->
           <form id="new-team-form" class="row">
             <input id="team-name" placeholder="Team name (e.g., Team_1)" required />
             <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
@@ -67,8 +68,12 @@
             <button type="submit" class="btn primary">Create team</button>
           </form>
 
+          <!-- Asignar ALUMNOS a un EQUIPO LOCAL -->
           <div class="row">
-            <select id="team-select"></select>
+            <strong>Assign students to a LOCAL team</strong>
+          </div>
+          <div class="row">
+            <select id="team-select" title="Local team"></select>
             <button id="reload-teams" type="button" class="btn">Reload</button>
             <button id="delete-team" type="button" class="btn danger">Delete team</button>
           </div>
@@ -80,14 +85,38 @@
           </div>
 
           <div class="row">
-            <strong>Team members</strong>
+            <strong>Team members (local)</strong>
           </div>
           <ul id="team-members" class="list"></ul>
 
           <div class="row">
-            <strong>Team balance:</strong> <span id="team-balance">—</span> pts
+            <strong>Local team balance:</strong> <span id="team-balance">—</span> pts
           </div>
         </div>
+      </div>
+
+      <!-- Crear CUENTAS de estudiante (email + password) -->
+      <div class="card">
+        <h4>Create student account (email + password)</h4>
+        <form id="create-student-account" class="row">
+          <input id="ct-name" placeholder="Full name" required />
+          <input id="ct-class" placeholder="Class (e.g., 8A)" />
+          <input id="ct-email" type="email" placeholder="Email" required />
+          <input id="ct-pass" type="password" placeholder="Password (≥6)" required />
+          <button type="submit" class="btn primary">Create account</button>
+        </form>
+        <p class="muted small">Crea Auth user + profile(student) + student row. Sin registro público.</p>
+      </div>
+
+      <!-- Alta rápida de alumno sin cuenta -->
+      <div class="card">
+        <h4>Add student (record only)</h4>
+        <form id="new-student-form" class="row">
+          <input id="ns-name"  placeholder="Full name" required />
+          <input id="ns-class" placeholder="Class (e.g., 8A)" />
+          <input id="ns-card"  placeholder="Card UID (optional)" />
+          <button id="ns-create-btn" type="submit" class="btn primary">Create</button>
+        </form>
       </div>
 
       <!-- Vincular tarjetas -->
@@ -189,35 +218,36 @@
     <section id="student-panel" class="card hidden">
       <h3>My points</h3>
       <div id="student-info" class="muted"></div>
-      <h4>My balance: <span id="balance">—</span> points</h4>
 
-      <div style="margin-top:10px">
-        <strong>My last movements</strong>
-        <div class="scrollbox" style="max-height:280px">
-          <table id="mytx-table"><thead>
-            <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
-          </thead><tbody></tbody></table>
+      <div class="grid2">
+        <div class="card">
+          <h4>My team (global/local)</h4>
+          <div class="muted" id="team-info">—</div>
+          <ul class="list" id="my-team-members"></ul>
+        </div>
+        <div class="card">
+          <h4>Team summary</h4>
+          <div>Global pool: <strong id="pool-points">—</strong></div>
+          <div>Local spent: <strong id="local-spent">—</strong></div>
+          <div>Remaining: <strong id="local-remaining">—</strong></div>
         </div>
       </div>
 
-      <div style="margin-top:16px">
-        <h3>My team</h3>
-        <div id="team-info" class="muted"></div>
-        <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
-        <div class="scrollbox" style="max-height:260px">
-          <strong>Team members</strong>
-          <ul id="my-team-members" class="list"></ul>
-        </div>
+      <h4>My balance: <span id="balance">—</span> points</h4>
+      <div class="scrollbox" style="max-height:280px">
+        <table id="mytx-table"><thead>
+          <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
+        </thead><tbody></tbody></table>
       </div>
     </section>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    // === Mantén tus credenciales aquí ===
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
   </script>
   <script src="./app.js"></script>
 </body>
 </html>
+
