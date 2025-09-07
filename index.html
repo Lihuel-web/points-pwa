@@ -6,7 +6,7 @@
   <title>Points Control</title>
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 980px }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 1100px }
     form, .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin: 12px 0 }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
     .muted { color:#666 }
@@ -16,15 +16,14 @@
     th, td { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
     #teacher-panel, #student-panel, #authed { display:none }
     .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
-    @media (max-width: 900px){ .split { grid-template-columns: 1fr; } }
+    @media (max-width: 1050px){ .split { grid-template-columns: 1fr; } }
     .tag { font-size: 12px; padding: 2px 8px; border:1px solid #ccc; border-radius: 999px; }
     .team-box { border:1px solid #eee; border-radius:12px; padding:12px; margin:10px 0 }
     .team-header { display:flex; justify-content:space-between; align-items:center }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .scroll { max-height: 280px; overflow:auto; }
+    .scroll-tall { max-height: 500px; overflow:auto; }
   </style>
-  <!-- CSP opcional
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdn.jsdelivr.net https://*.supabase.co 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
-  -->
 </head>
 <body>
   <h1>Points Control</h1>
@@ -60,28 +59,35 @@
       <div class="split">
         <div class="card">
           <h4>Latest transactions</h4>
-          <table id="tx-table"><thead>
-            <tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr>
-          </thead><tbody></tbody></table>
+          <div class="scroll">
+            <table id="tx-table"><thead>
+              <tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr>
+            </thead><tbody></tbody></table>
+          </div>
         </div>
 
         <div class="card">
           <h4>Teams</h4>
           <form id="new-team-form" class="row">
             <input id="team-name" placeholder="Team name (e.g., Team_1)" required />
-            <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
+            <input id="team-class" placeholder="Class/Group (e.g., 801)" />
+            <select id="team-scope">
+              <option value="global">GLOBAL (acumula)</option>
+              <option value="local" selected>LOCAL (gasta)</option>
+            </select>
+            <select id="parent-global" disabled title="Parent global (para locales)"></select>
             <button type="submit">Create team</button>
           </form>
 
           <div class="row" style="margin-top:8px">
-            <select id="team-select"></select>
+            <select id="team-select" title="Selecciona un team"></select>
             <button id="reload-teams" type="button">Reload</button>
             <button id="delete-team" type="button">Delete team</button>
           </div>
 
           <div class="row" style="margin-top:8px">
             <select id="student-pool"></select>
-            <button id="assign-member" type="button">Assign to team</button>
+            <button id="assign-member" type="button" title="Permite multi-membresía">Assign to team</button>
             <button id="remove-member" type="button">Remove from team</button>
           </div>
 
@@ -91,22 +97,20 @@
           </div>
 
           <div style="margin-top:8px">
-            <strong>Team balance:</strong> <span id="team-balance">—</span> pts
+            <strong>Team balance (by student tx):</strong> <span id="team-balance">—</span> pts
+          </div>
+
+          <!-- Tarjetas de equipo -->
+          <div class="card" style="margin-top:12px">
+            <h4>Team cards</h4>
+            <div class="row">
+              <select id="team-for-card" title="Equipo para tarjeta"></select>
+              <button id="link-earn" type="button">Link EARN card… (global)</button>
+              <button id="link-spend" type="button">Link SPEND card… (local)</button>
+            </div>
+            <p class="muted">EARN: asociar a equipo <strong>GLOBAL</strong>. SPEND: asociar a equipo <strong>LOCAL</strong> (gastará del global padre).</p>
           </div>
         </div>
-      </div>
-
-      <!-- Crear CUENTA de estudiante -->
-      <div class="card" style="margin-top:12px">
-        <h4>Create student account (email + password)</h4>
-        <form id="create-student-account" class="row">
-          <input id="ct-name" placeholder="Full name" required />
-          <input id="ct-class" placeholder="Class (e.g., 8A)" />
-          <input id="ct-email" type="email" placeholder="Email" required />
-          <input id="ct-pass" type="password" placeholder="Password (≥6)" required />
-          <button type="submit">Create account</button>
-        </form>
-        <p class="muted">Crea Auth user + profile(student) + student row. Sin registro público.</p>
       </div>
 
       <!-- Alta rápida de alumno -->
@@ -114,7 +118,7 @@
         <h4>Add student (record only)</h4>
         <form id="new-student-form" class="row">
           <input id="ns-name"  placeholder="Full name" required />
-          <input id="ns-class" placeholder="Class (e.g., 8A)" />
+          <input id="ns-class" placeholder="Class (e.g., 801)" />
           <input id="ns-card"  placeholder="Card UID (optional)" />
           <button id="ns-create-btn" type="submit">Create</button>
         </form>
@@ -124,11 +128,11 @@
       <div class="card" style="margin-top:12px">
         <h4>Asignar por alumno</h4>
         <div class="row" style="margin-bottom:8px">
-          <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
+          <input id="class-filter" placeholder="Filtrar por grupo (ej. 801)" />
           <input id="search-name" placeholder="Buscar nombre" />
           <button id="reload-students" type="button">Cargar alumnos</button>
         </div>
-        <div id="students-list"></div>
+        <div id="students-list" class="scroll-tall"></div>
         <div class="row" style="margin-top:8px">
           <button type="button" data-quick="+1">+1</button>
           <button type="button" data-quick="+2">+2</button>
@@ -137,16 +141,16 @@
         </div>
       </div>
 
-      <!-- NUEVO: Teams overview -->
+      <!-- Teams overview (global/local pool) -->
       <div class="card" style="margin-top:12px">
-        <h4>Teams overview</h4>
+        <h4>Teams overview (global pool)</h4>
         <div id="teams-overview" class="mono muted">Loading…</div>
       </div>
 
-      <!-- NUEVO: Scan UID (viewer) -->
+      <!-- Scan UID (viewer, opcional) -->
       <div class="card" style="margin-top:12px">
         <h4>Scan UID (viewer)</h4>
-        <p class="muted">Para HID teclado: enfoque el campo y escanee — no otorga puntos, sólo muestra/normaliza.</p>
+        <p class="muted">Con bridge SPP verás UIDs aquí en vivo. También puedes pegar/teclear.</p>
         <div class="row">
           <input id="uid-viewer" placeholder="Scan or paste UID(s)" />
           <button id="uid-clear" type="button">Clear</button>
@@ -163,9 +167,11 @@
 
       <div style="margin-top:10px">
         <strong>My last movements</strong>
-        <table id="mytx-table"><thead>
-          <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
-        </thead><tbody></tbody></table>
+        <div class="scroll">
+          <table id="mytx-table"><thead>
+            <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
+          </thead><tbody></tbody></table>
+        </div>
       </div>
 
       <div style="margin-top:16px">
@@ -177,15 +183,7 @@
           <ul id="my-team-members"></ul>
         </div>
       </div>
-    </section>
-  </section>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script>
-    window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
-    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
-  </script>
-  <script src="./app.js"></script>
-</body>
-</html>
-
+      <div style="margin-top:16px">
+        <h3>Global pool</h3>
+        <div class="mono" id="m
