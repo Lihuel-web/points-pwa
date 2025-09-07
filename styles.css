@@ -1,0 +1,72 @@
+:root{
+  --bg:#f7faff;
+  --card:#ffffff;
+  --text:#102a43;
+  --muted:#6b8097;
+  --border:#e6eef7;
+  --accent:#0d47a1;      /* azul Westhill */
+  --accent-2:#1976d2;
+  --danger:#b00020;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--text); background:var(--bg); }
+
+.hidden{ display:none !important; }
+
+.topbar{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 20px; background:var(--card); border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+}
+.topbar h1{ margin:0; font-size:22px; color:var(--accent); }
+.topbar .school{ margin-left:auto; font-weight:600; color:var(--muted); }
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px; padding:16px; margin:14px 16px;
+  box-shadow:0 1px 2px rgba(10,40,80,.04);
+}
+
+.row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.bar{ margin: 10px 16px; }
+.spacer{ flex:1; }
+
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+@media (max-width: 920px){ .grid2{ grid-template-columns: 1fr; } }
+
+input, select{
+  padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+  background:#fff; min-width: 160px;
+}
+input::placeholder{ color:#9db0c2; }
+
+button.btn{
+  padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer;
+}
+button.btn.primary{
+  background:var(--accent); border-color:var(--accent); color:#fff;
+}
+button.btn.danger{
+  background:#fff; color:var(--danger); border-color:#ffd0d4;
+}
+button.btn:hover{ filter: brightness(0.98); }
+
+h3{ margin: 6px 0 12px; }
+h4{ margin: 0 0 10px; color: var(--accent); }
+h5{ margin: 0 0 8px; color: var(--accent-2); }
+
+table{ width:100%; border-collapse: collapse; }
+th, td{ border-bottom: 1px solid var(--border); padding: 8px 6px; text-align:left; }
+thead th{ background:#f0f5ff; color:#274c77; }
+
+.scrollbox{ max-height:320px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:#fff; }
+.list{ margin:8px 0; padding-left: 18px; }
+.list li{ margin: 4px 0; }
+
+.listitem{ justify-content:space-between; padding:8px 4px; border-bottom:1px dashed var(--border); }
+
+.muted{ color:var(--muted); }
+.small{ font-size: 12px; }
+.tag{ font-size: 12px; padding: 2px 8px; border:1px solid var(--border); border-radius: 999px; background:#f3f6ff; color:#254981; }
