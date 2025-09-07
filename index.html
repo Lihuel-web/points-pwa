@@ -18,9 +18,13 @@
     .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
     @media (max-width: 900px){ .split { grid-template-columns: 1fr; } }
     .tag { font-size: 12px; padding: 2px 8px; border:1px solid #ccc; border-radius: 999px; }
+    .team-box { border:1px solid #eee; border-radius:12px; padding:12px; margin:10px 0 }
+    .team-header { display:flex; justify-content:space-between; align-items:center }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   </style>
-  <!-- CSP segura (opcional; ver sección E) -->
-  <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdn.jsdelivr.net https://*.supabase.co 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; style-src 'self' 'unsafe-inline';"> -->
+  <!-- CSP opcional
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdn.jsdelivr.net https://*.supabase.co 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+  -->
 </head>
 <body>
   <h1>Points Control</h1>
@@ -92,7 +96,7 @@
         </div>
       </div>
 
-      <!-- Crear CUENTA de estudiante (email + password) -->
+      <!-- Crear CUENTA de estudiante -->
       <div class="card" style="margin-top:12px">
         <h4>Create student account (email + password)</h4>
         <form id="create-student-account" class="row">
@@ -105,7 +109,7 @@
         <p class="muted">Crea Auth user + profile(student) + student row. Sin registro público.</p>
       </div>
 
-      <!-- Alta rápida de alumno sin cuenta (opcional) -->
+      <!-- Alta rápida de alumno -->
       <div class="card" style="margin-top:12px">
         <h4>Add student (record only)</h4>
         <form id="new-student-form" class="row">
@@ -115,7 +119,6 @@
           <button id="ns-create-btn" type="submit">Create</button>
         </form>
       </div>
-
 
       <!-- Asignar puntos por alumno -->
       <div class="card" style="margin-top:12px">
@@ -134,17 +137,21 @@
         </div>
       </div>
 
-      <!-- Otorgar por UID (cuando llegue el lector) -->
+      <!-- NUEVO: Teams overview -->
       <div class="card" style="margin-top:12px">
-        <h4>Scan mode (UID)</h4>
-        <label><input type="checkbox" id="scan-mode" /> Keep focus + auto-Enter</label>
-        <form id="award-form" class="row">
-          <input id="identifier" placeholder="UID/Token de tarjeta" />
-          <input id="delta" type="number" value="1" step="1" />
-          <input id="reason" placeholder="Motivo (opcional)" />
-          <input id="device" placeholder="Device ID (ej. laptop-ale)" />
-          <button type="submit">Apply</button>
-        </form>
+        <h4>Teams overview</h4>
+        <div id="teams-overview" class="mono muted">Loading…</div>
+      </div>
+
+      <!-- NUEVO: Scan UID (viewer) -->
+      <div class="card" style="margin-top:12px">
+        <h4>Scan UID (viewer)</h4>
+        <p class="muted">Para HID teclado: enfoque el campo y escanee — no otorga puntos, sólo muestra/normaliza.</p>
+        <div class="row">
+          <input id="uid-viewer" placeholder="Scan or paste UID(s)" />
+          <button id="uid-clear" type="button">Clear</button>
+        </div>
+        <div id="uid-output" class="mono" style="margin-top:8px"></div>
       </div>
     </section>
 
