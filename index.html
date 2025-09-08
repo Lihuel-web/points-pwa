@@ -24,7 +24,6 @@
     th, td { border-bottom: 1px solid #eef3ff; padding: 8px 6px; text-align: left; }
     thead th { background:#f2f6ff; color:#1959b7 }
     #teacher-panel, #student-panel, #authed { display:none }
-    /* limitar altura con scroll */
     .scroll-300 { max-height:300px; overflow:auto }
     .scroll-450 { max-height:450px; overflow:auto }
     .section-title { margin:8px 0 12px; color:#1959b7 }
@@ -167,47 +166,44 @@
             </div>
           </div>
         </div>
-      </section>
 
-      
-<!-- STUDENTS MANAGEMENT -->
-<div class="card">
-<h3 class="section-title">Students</h3>
-<div class="grid-2">
-<!-- Real (Auth) -->
-<div>
-<h4 style="margin:0 0 8px">Create real student (Auth)</h4>
-<form id="real-student-form" class="row">
-<input id="real-name" placeholder="Name (optional)" />
-<input id="real-class" placeholder="Class/Group" />
-<input id="real-email" type="email" placeholder="Email" required />
-<input id="real-pass" type="password" placeholder="Temp password (min 6)" required />
-<input id="real-card-uid" placeholder="Card UID (optional)" />
-<select id="real-pool-team" title="Global team (optional)"></select>
-<select id="real-local-team" title="Local team (optional)"></select>
-<button type="submit" class="primary">Create</button>
-</form>
-<div class="hint">Opcional: asigna equipo y vincula tarjeta durante el alta.</div>
-</div>
+        <!-- STUDENTS MANAGEMENT (SOLO TEACHER, está dentro de #teacher-panel) -->
+        <div id="students-mgmt" class="card">
+          <h3 class="section-title">Students</h3>
+          <div class="grid-2">
+            <!-- Real (Auth) -->
+            <div>
+              <h4 style="margin:0 0 8px">Create real student (Auth)</h4>
+              <form id="real-student-form" class="row">
+                <input id="real-name" placeholder="Name (optional)" />
+                <input id="real-class" placeholder="Class/Group" />
+                <input id="real-email" type="email" placeholder="Email" required />
+                <input id="real-pass" type="password" placeholder="Temp password (min 6)" required />
+                <input id="real-card-uid" placeholder="Card UID (optional)" />
+                <select id="real-pool-team" title="Global team (optional)"></select>
+                <select id="real-local-team" title="Local team (optional)"></select>
+                <button type="submit" class="primary">Create</button>
+              </form>
+              <div class="hint">Opcional: asigna equipo y vincula tarjeta durante el alta.</div>
+            </div>
 
+            <!-- Record-only -->
+            <div>
+              <h4 style="margin:0 0 8px">Add record-only student</h4>
+              <form id="fake-student-form" class="row">
+                <input id="fake-name" placeholder="Name" required />
+                <input id="fake-class" placeholder="Class/Group" />
+                <input id="fake-card-uid" placeholder="Card UID (optional)" />
+                <select id="fake-pool-team" title="Global team (optional)"></select>
+                <select id="fake-local-team" title="Local team (optional)"></select>
+                <button type="submit">Add</button>
+              </form>
+              <div class="hint">Se crea fila en <code>students</code> (sin usuario Auth).</div>
+            </div>
+          </div>
+        </div>
+      </section> <!-- /#teacher-panel -->
 
-<!-- Record-only -->
-<div>
-<h4 style="margin:0 0 8px">Add record‑only student</h4>
-<form id="fake-student-form" class="row">
-<input id="fake-name" placeholder="Name" required />
-<input id="fake-class" placeholder="Class/Group" />
-<input id="fake-card-uid" placeholder="Card UID (optional)" />
-<select id="fake-pool-team" title="Global team (optional)"></select>
-<select id="fake-local-team" title="Local team (optional)"></select>
-<button type="submit">Add</button>
-</form>
-<div class="hint">Se crea fila en <code>students</code> (sin usuario Auth).</div>
-</div>
-</div>
-</div>
-
-      
       <!-- STUDENT -->
       <section id="student-panel" class="card">
         <h3 class="section-title">My points</h3>
@@ -233,13 +229,29 @@
             <ul id="my-team-members"></ul>
           </div>
         </div>
+
+        <!-- NUEVO: Overview del Pool Global del alumno -->
+        <div style="margin-top:16px">
+          <h3 class="section-title">Global team (pool) overview</h3>
+          <div class="muted" id="pool-meta">—</div>
+          <div class="row">
+            <div><strong>Pool total:</strong> <span id="pool-total">—</span> pts</div>
+            <div style="margin-left:12px"><strong>Remaining (overall):</strong> <span id="pool-remaining-global">—</span> pts</div>
+          </div>
+          <div class="scroll-300" style="margin-top:8px">
+            <table>
+              <thead><tr><th>Local team</th><th>Spent</th><th>Remaining for this local</th></tr></thead>
+              <tbody id="pool-locals-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </section>
   </main>
 
   <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <!-- Config pública (rellena con tus valores) -->
+  <!-- Config pública -->
   <script>
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
@@ -247,3 +259,4 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
