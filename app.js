@@ -1,4 +1,4 @@
-// app.js — PWA Points Control (Team labels + gestión/overview)
+// app.js — PWA Points Control (Teacher: alta real/record-only + fixes RPC)
 
 // ---------------- Supabase client (UMD) ----------------
 const { createClient } = supabase;
@@ -10,6 +10,8 @@ if (!/^https?:\/\//.test(SUPA_URL) || !SUPA_KEY) {
   alert('Config error. Check SUPABASE_URL / SUPABASE_ANON_KEY.');
 }
 const sb = createClient(SUPA_URL, SUPA_KEY);
+// NEW: base para Edge Functions
+const EDGE_BASE = SUPA_URL.replace('.supabase.co', '.functions.supabase.co');
 
 // ---------------- Utilidades DOM ----------------
 const $ = (id) => document.getElementById(id);
@@ -171,6 +173,7 @@ async function loadTeacher() {
   await loadTeamAdjustOptions();
   await refreshTeamOverview();
   await loadCardSelects();
+  await initStudentForms(); // NEW
 }
 
 async function loadLatestTransactions() {
@@ -265,6 +268,7 @@ async function loadTeamsUI() {
     invalidateTeamCache();
     $('team-name').value=''; $('team-class').value='';
     await loadTeamsUI();
+    await refreshTeamOverview();
   });
 
   on($('delete-team'), 'click', async () => {
@@ -276,6 +280,7 @@ async function loadTeamsUI() {
     if (error) return alert(error.message);
     invalidateTeamCache();
     await loadTeamsUI();
+    await refreshTeamOverview();
   });
 
   on($('assign-member'), 'click', async () => {
@@ -355,15 +360,17 @@ async function loadTeamAdjustOptions() {
       if (scope === 'pool') {
         const poolId = parseInt(poolSel?.value || '0', 10);
         if (!poolId) return alert('Select a global pool');
-        const { error } = await sb.rpc('adjust_pool_points', {
+        // FIX: nombre real de la función
+        const { error } = await sb.rpc('team_pool_adjust', {
           _pool_team_id: poolId, _delta: delta, _reason: reason, _device_id: 'manual-adjust',
         });
         if (error) throw error;
       } else {
         const localId = parseInt(localSel?.value || '0', 10);
         if (!localId) return alert('Select a local team');
-        const { error } = await sb.rpc('adjust_local_spend', {
-          _local_team_id: localId, _delta: delta, _reason: reason, _device_id: 'manual-adjust',
+        // FIX: firma usa _amount
+        const { error } = await sb.rpc('team_local_spend_adjust', {
+          _local_team_id: localId, _amount: Math.abs(delta), _reason: reason, _device_id: 'manual-adjust',
         });
         if (error) throw error;
       }
@@ -421,10 +428,136 @@ async function loadCardSelects() {
   });
 }
 
+// ---------------- NEW: Student forms ----------------
+async function initStudentForms() {
+  await populateStudentTeamSelectors('real');
+  await populateStudentTeamSelectors('fake');
+
+  // Real (Auth)
+  const realForm = $('real-student-form');
+  on(realForm, 'submit', async (e) => {
+    e.preventDefault();
+    const name = $('real-name').value.trim();
+    const klass = $('real-class').value.trim();
+    const email = $('real-email').value.trim().toLowerCase();
+    const password = $('real-pass').value;
+    const uidRaw = $('real-card-uid').value;
+    const uid = normalizeUID(uidRaw);
+    const poolId = parseInt(($('real-pool-team')?.value || '0'), 10) || null;
+    const localId = parseInt(($('real-local-team')?.value || '0'), 10) || null;
+
+    if (!email || password.length < 6) return alert('Email and a 6+ char password are required.');
+
+    try {
+      const { data: sess } = await sb.auth.getSession();
+      const token = sess?.session?.access_token;
+      if (!token) return alert('No auth token. Please re-login.');
+      const res = await fetch(`${EDGE_BASE}/admin_create_student`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': SUPA_KEY,
+        },
+        body: JSON.stringify({ name, klass, email, password })
+      });
+      if (res.status === 409) {
+        alert('Email already registered.');
+        return;
+      }
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'admin_create_student failed');
+      }
+      const payload = await res.json();
+      const studentId = payload?.student?.id;
+      if (!studentId) throw new Error('No student id from edge function');
+
+      // asignación a equipo (prioriza local si viene)
+      await upsertMembership(studentId, localId || poolId);
+      // vincular tarjeta si hay UID
+      if (uid) await upsertStudentCard(studentId, uid);
+
+      // limpiar UI y refrescar combos
+      $('real-name').value = '';
+      $('real-class').value = '';
+      $('real-email').value = '';
+      $('real-pass').value = '';
+      $('real-card-uid').value = '';
+      await loadTeamsUI();
+      await loadCardSelects();
+      alert('Student created.');
+    } catch (err) { console.error(err); alert(err?.message || 'Create student failed'); }
+  });
+
+  // Record-only
+  const fakeForm = $('fake-student-form');
+  on(fakeForm, 'submit', async (e) => {
+    e.preventDefault();
+    const name = $('fake-name').value.trim();
+    const klass = $('fake-class').value.trim();
+    const uidRaw = $('fake-card-uid').value;
+    const uid = normalizeUID(uidRaw);
+    const poolId = parseInt(($('fake-pool-team')?.value || '0'), 10) || null;
+    const localId = parseInt(($('fake-local-team')?.value || '0'), 10) || null;
+
+    if (!name) return alert('Name is required.');
+
+    try {
+      const { data, error } = await sb.from('students').insert([{ name, class: klass || null }]).select('id').single();
+      if (error) throw error;
+      const studentId = data.id;
+      await upsertMembership(studentId, localId || poolId);
+      if (uid) await upsertStudentCard(studentId, uid);
+
+      $('fake-name').value = '';
+      $('fake-class').value = '';
+      $('fake-card-uid').value = '';
+      await loadTeamsUI();
+      await loadCardSelects();
+      alert('Record-only student added.');
+    } catch (err) { console.error(err); alert(err?.message || 'Add record-only failed'); }
+  });
+}
+
+async function populateStudentTeamSelectors(prefix) {
+  // Rellena selects de equipos para los formularios de alta
+  const poolSel = $(`${prefix}-pool-team`);
+  const localSel = $(`${prefix}-local-team`);
+  if (poolSel) {
+    const { data: pools } = await sb.from('teams').select('id,name,class,scope').eq('scope','global').order('name',{ascending:true});
+    poolSel.innerHTML = `<option value="">— Global (optional) —</option>` +
+      (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
+  }
+  async function fillLocalsFor(poolId) {
+    if (!localSel) return;
+    if (!poolId) { localSel.innerHTML = `<option value="">— Local (optional) —</option>`; return; }
+    const { data: locals } = await sb.from('teams').select('id,name,class,scope,parent_global_id')
+      .eq('scope','local').eq('parent_global_id', poolId).order('name',{ascending:true});
+    localSel.innerHTML = `<option value="">— Local (optional) —</option>` +
+      (locals || []).map(t => `<option value="${t.id}">${t.name}${t.class?` (${t.class})`:''}</option>`).join('');
+  }
+  if (poolSel && localSel) {
+    on(poolSel, 'change', () => fillLocalsFor(parseInt(poolSel.value||'0',10)||null));
+    await fillLocalsFor(parseInt(poolSel.value||'0',10)||null);
+  }
+}
+
+async function upsertMembership(studentId, teamId) {
+  if (!studentId || !teamId) return;
+  await sb.from('team_members').delete().eq('student_id', studentId); // modelo 1 equipo por alumno
+  const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
+  if (error) throw error;
+}
+
+async function upsertStudentCard(studentId, uid) {
+  const { error } = await sb.from('cards').upsert(
+    { student_id: studentId, card_uid: uid, active: true, card_role: 'student', team_id: null },
+    { onConflict: 'card_uid' }
+  );
+  if (error) throw error;
+}
+
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
-
-// Refresco periódico opcional (ver cambios del bridge sin recargar):
 // setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTransactions().catch(()=>{}); }, 5000);
-
-
