@@ -169,6 +169,45 @@
         </div>
       </section>
 
+      
+<!-- STUDENTS MANAGEMENT -->
+<div class="card">
+<h3 class="section-title">Students</h3>
+<div class="grid-2">
+<!-- Real (Auth) -->
+<div>
+<h4 style="margin:0 0 8px">Create real student (Auth)</h4>
+<form id="real-student-form" class="row">
+<input id="real-name" placeholder="Name (optional)" />
+<input id="real-class" placeholder="Class/Group" />
+<input id="real-email" type="email" placeholder="Email" required />
+<input id="real-pass" type="password" placeholder="Temp password (min 6)" required />
+<input id="real-card-uid" placeholder="Card UID (optional)" />
+<select id="real-pool-team" title="Global team (optional)"></select>
+<select id="real-local-team" title="Local team (optional)"></select>
+<button type="submit" class="primary">Create</button>
+</form>
+<div class="hint">Opcional: asigna equipo y vincula tarjeta durante el alta.</div>
+</div>
+
+
+<!-- Record-only -->
+<div>
+<h4 style="margin:0 0 8px">Add record‑only student</h4>
+<form id="fake-student-form" class="row">
+<input id="fake-name" placeholder="Name" required />
+<input id="fake-class" placeholder="Class/Group" />
+<input id="fake-card-uid" placeholder="Card UID (optional)" />
+<select id="fake-pool-team" title="Global team (optional)"></select>
+<select id="fake-local-team" title="Local team (optional)"></select>
+<button type="submit">Add</button>
+</form>
+<div class="hint">Se crea fila en <code>students</code> (sin usuario Auth).</div>
+</div>
+</div>
+</div>
+
+      
       <!-- STUDENT -->
       <section id="student-panel" class="card">
         <h3 class="section-title">My points</h3>
