@@ -3,246 +3,204 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Points Control — Westhill</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./westhill.css">
-  <meta name="color-scheme" content="light only">
+  <title>Points Control</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#f4f7ff; color:#123; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#eaf1ff; border-bottom:1px solid #d6e2ff; }
+    header h1 { margin:0; color:#1959b7; font-size:22px; }
+    header .brand { color:#7a8da8; }
+    main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    .muted { color:#667892 }
+    .tag { font-size: 12px; padding: 2px 8px; border:1px solid #cdd8ee; border-radius: 999px; background:#f6f9ff; color:#1959b7 }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; cursor:pointer }
+    button.primary { background:#1959b7; color:#fff; border-color:#1959b7 }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #cdd8ee; background:white }
+    .card { background:white; border:1px solid #e2e8f6; border-radius: 12px; padding:16px; margin:14px 0 }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
+    @media (max-width: 980px){ .grid-2 { grid-template-columns: 1fr; } }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eef3ff; padding: 8px 6px; text-align: left; }
+    thead th { background:#f2f6ff; color:#1959b7 }
+    #teacher-panel, #student-panel, #authed { display:none }
+    /* limitar altura con scroll */
+    .scroll-300 { max-height:300px; overflow:auto }
+    .scroll-450 { max-height:450px; overflow:auto }
+    .section-title { margin:8px 0 12px; color:#1959b7 }
+    .hint { font-size:12px; color:#7a8da8 }
+  </style>
 </head>
 <body>
-  <header class="topbar">
+  <header>
     <h1>Points Control</h1>
-    <div class="school">Westhill</div>
+    <div class="brand">Westhill</div>
   </header>
 
-  <!-- LOGIN -->
-  <section id="auth">
-    <div class="card">
-      <h3>Login</h3>
+  <main>
+    <!-- LOGIN -->
+    <section id="auth" class="card">
+      <h3 class="section-title">Login</h3>
       <form id="login-form" class="row">
         <input id="email" type="email" placeholder="Email" required autocomplete="username" />
         <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password" />
-        <button type="submit" class="btn primary">Entrar</button>
+        <button type="submit" class="primary">Enter</button>
       </form>
       <p class="muted">El registro está deshabilitado. Pide tu cuenta al profesor.</p>
-    </div>
-  </section>
+    </section>
 
-  <!-- APP AUTENTICADA -->
-  <section id="authed" class="hidden">
-    <div class="row bar">
-      <div id="whoami" class="muted"></div>
-      <span id="role-badge" class="tag"></span>
-      <div class="spacer"></div>
-      <button id="logout" class="btn">Logout</button>
-      <button id="change-pass" class="btn">Change password</button>
-    </div>
+    <!-- APP AUTENTICADA -->
+    <section id="authed">
+      <div class="row card">
+        <div id="whoami" class="muted"></div>
+        <span id="role-badge" class="tag"></span>
+        <button id="logout">Logout</button>
+        <button id="change-pass">Change password</button>
+      </div>
 
-    <!-- TEACHER -->
-    <section id="teacher-panel" class="card hidden">
-      <h3>Teacher Panel</h3>
+      <!-- TEACHER -->
+      <section id="teacher-panel">
+        <div class="grid-2">
+          <!-- Latest tx -->
+          <div class="card">
+            <h3 class="section-title">Latest transactions</h3>
+            <div class="scroll-300">
+              <table id="tx-table">
+                <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
 
-      <div class="grid2">
-        <!-- Últimas transacciones -->
-        <div class="card">
-          <h4>Latest transactions</h4>
-          <div id="tx-table-wrapper" class="scrollbox">
-            <table id="tx-table"><thead>
-              <tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr>
-            </thead><tbody></tbody></table>
+          <!-- Teams overview -->
+          <div class="card">
+            <h3 class="section-title">Teams overview</h3>
+            <div class="grid-2">
+              <div>
+                <div class="hint" style="margin-bottom:6px">Global pools (clic para ver locales)</div>
+                <div class="scroll-300">
+                  <table id="pool-table">
+                    <thead><tr><th>Global team</th><th>Points</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <div class="hint" id="local-title" style="margin-bottom:6px">—</div>
+                <div class="scroll-300">
+                  <table id="local-table">
+                    <thead><tr><th>Local team</th><th>Spent</th><th>Pool remaining</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Gestión de equipos -->
+        <!-- Ajuste manual -->
         <div class="card">
-          <h4>Teams</h4>
-
-          <!-- Crear equipos global/local -->
-          <form id="new-team-form" class="row">
-            <input id="team-name" placeholder="Team name (e.g., Team_1)" required />
-            <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
-            <select id="team-scope">
-              <option value="global">Global</option>
-              <option value="local">Local (elige su Global abajo)</option>
+          <h3 class="section-title">Manual adjust</h3>
+          <form id="adjust-form" class="row">
+            <select id="adjust-scope">
+              <option value="pool">Global pool</option>
+              <option value="local">Local team (spend)</option>
             </select>
-            <select id="parent-global" title="Parent global (para locales)"></select>
-            <button type="submit" class="btn primary">Create team</button>
+            <select id="adjust-pool-id" title="Global team"></select>
+            <select id="adjust-local-id" title="Local team (auto relleno por pool)"></select>
+            <input id="adjust-delta" type="number" step="1" value="1" />
+            <input id="adjust-reason" placeholder="Reason (optional)" />
+            <button type="submit" class="primary">Apply</button>
           </form>
-
-          <!-- Asignar ALUMNOS a un EQUIPO LOCAL -->
-          <div class="row">
-            <strong>Assign students to a LOCAL team</strong>
-          </div>
-          <div class="row">
-            <select id="team-select" title="Local team"></select>
-            <button id="reload-teams" type="button" class="btn">Reload</button>
-            <button id="delete-team" type="button" class="btn danger">Delete team</button>
-          </div>
-
-          <div class="row">
-            <select id="student-pool"></select>
-            <button id="assign-member" type="button" class="btn">Assign to team</button>
-            <button id="remove-member" type="button" class="btn">Remove from team</button>
-          </div>
-
-          <div class="row">
-            <strong>Team members (local)</strong>
-          </div>
-          <ul id="team-members" class="list"></ul>
-
-          <div class="row">
-            <strong>Local team balance:</strong> <span id="team-balance">—</span> pts
-          </div>
+          <div class="hint">Usa valores negativos para restar (gasto) si corresponde.</div>
         </div>
-      </div>
 
-      <!-- Crear CUENTAS de estudiante (email + password) -->
-      <div class="card">
-        <h4>Create student account (email + password)</h4>
-        <form id="create-student-account" class="row">
-          <input id="ct-name" placeholder="Full name" required />
-          <input id="ct-class" placeholder="Class (e.g., 8A)" />
-          <input id="ct-email" type="email" placeholder="Email" required />
-          <input id="ct-pass" type="password" placeholder="Password (≥6)" required />
-          <button type="submit" class="btn primary">Create account</button>
-        </form>
-        <p class="muted small">Crea Auth user + profile(student) + student row. Sin registro público.</p>
-      </div>
-
-      <!-- Alta rápida de alumno sin cuenta -->
-      <div class="card">
-        <h4>Add student (record only)</h4>
-        <form id="new-student-form" class="row">
-          <input id="ns-name"  placeholder="Full name" required />
-          <input id="ns-class" placeholder="Class (e.g., 8A)" />
-          <input id="ns-card"  placeholder="Card UID (optional)" />
-          <button id="ns-create-btn" type="submit" class="btn primary">Create</button>
-        </form>
-      </div>
-
-      <!-- Vincular tarjetas -->
-      <div class="card">
-        <h4>Cards (link / unlink)</h4>
-
-        <div class="grid2">
-          <div>
-            <h5>To student</h5>
-            <div class="row">
-              <select id="card-student"></select>
-              <input id="card-uid-stu" placeholder="Card UID (scan/paste)" />
-              <button id="link-card-student" class="btn primary" type="button">Link</button>
-              <button id="unlink-card-student" class="btn" type="button" title="Set inactive">Unlink</button>
-            </div>
-          </div>
-
-          <div>
-            <h5>To team</h5>
-            <div class="row">
-              <select id="card-role">
-                <option value="team_earn">Global (EARN)</option>
-                <option value="team_spend">Local (SPEND)</option>
-              </select>
-              <select id="card-team"></select>
-              <input id="card-uid-team" placeholder="Card UID (scan/paste)" />
-              <button id="link-card-team" class="btn primary" type="button">Link</button>
-              <button id="unlink-card-team" class="btn" type="button" title="Set inactive">Unlink</button>
-            </div>
-          </div>
-        </div>
-        <p class="muted small">Los UID se normalizan automáticamente (HEX mayúsculas, sin separadores).</p>
-      </div>
-
-      <!-- Ajustes manuales -->
-      <div class="card">
-        <h4>Manual adjustments (Teams)</h4>
-
-        <div class="row"><strong>Global pool</strong></div>
-        <form id="adjust-pool-form" class="row">
-          <select id="adjust-pool-team" required></select>
-          <input id="adjust-pool-delta" type="number" placeholder="Δ (e.g., 5 or -3)" required />
-          <input id="adjust-pool-reason" placeholder="Reason (optional)" />
-          <button type="submit" class="btn primary">Apply to pool</button>
-        </form>
-
-        <div class="row"><strong>Local spend</strong></div>
-        <form id="adjust-local-form" class="row">
-          <select id="adjust-local-team" required></select>
-          <input id="adjust-local-amount" type="number" placeholder="Spend (e.g., 2)" required />
-          <input id="adjust-local-reason" placeholder="Reason (optional)" />
-          <button type="submit" class="btn primary">Apply spend</button>
-        </form>
-      </div>
-
-      <!-- Overview -->
-      <div class="card">
-        <h4>Teams overview</h4>
-        <div class="grid2">
-          <div>
-            <h5>Global pools</h5>
-            <div class="scrollbox" style="max-height:280px">
-              <table id="pool-table"><thead>
-                <tr><th>Pool</th><th>Points</th></tr>
-              </thead><tbody></tbody></table>
-            </div>
-          </div>
-          <div>
-            <h5>Local summary (selected pool)</h5>
-            <div id="local-title" class="muted">—</div>
-            <div class="scrollbox" style="max-height:280px">
-              <table id="local-table"><thead>
-                <tr><th>Local team</th><th>Spent</th><th>Pool remaining</th></tr>
-              </thead><tbody></tbody></table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Asignar por alumno -->
-      <div class="card">
-        <h4>Asignar por alumno</h4>
-        <div class="row">
-          <input id="class-filter" placeholder="Filtrar por grupo (ej. 8A)" />
-          <input id="search-name" placeholder="Buscar nombre" />
-          <button id="reload-students" type="button" class="btn">Cargar alumnos</button>
-        </div>
-        <div id="students-list" class="scrollbox"></div>
-        <div class="row">
-          <button type="button" data-quick="+1" class="btn">+1</button>
-          <button type="button" data-quick="+2" class="btn">+2</button>
-          <button type="button" data-quick="+3" class="btn">+3</button>
-          <button type="button" data-quick="+4" class="btn">+4</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- STUDENT -->
-    <section id="student-panel" class="card hidden">
-      <h3>My points</h3>
-      <div id="student-info" class="muted"></div>
-
-      <div class="grid2">
+        <!-- Gestión de equipos + membresías -->
         <div class="card">
-          <h4>My team (global/local)</h4>
-          <div class="muted" id="team-info">—</div>
-          <ul class="list" id="my-team-members"></ul>
-        </div>
-        <div class="card">
-          <h4>Team summary</h4>
-          <div>Global pool: <strong id="pool-points">—</strong></div>
-          <div>Local spent: <strong id="local-spent">—</strong></div>
-          <div>Remaining: <strong id="local-remaining">—</strong></div>
-        </div>
-      </div>
+          <h3 class="section-title">Teams management</h3>
+          <div class="grid-2">
+            <div>
+              <form id="new-team-form" class="row">
+                <input id="team-name" placeholder="Team name (e.g., Team 1)" required />
+                <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
+                <button type="submit">Create team</button>
+              </form>
 
-      <h4>My balance: <span id="balance">—</span> points</h4>
-      <div class="scrollbox" style="max-height:280px">
-        <table id="mytx-table"><thead>
-          <tr><th>Date</th><th>Δ</th><th>Reason</th></tr>
-        </thead><tbody></tbody></table>
-      </div>
+              <div class="row" style="margin-top:8px">
+                <select id="team-select" title="Team"></select>
+                <button id="reload-teams" type="button">Reload</button>
+                <button id="delete-team" type="button">Delete team</button>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <select id="student-pool" title="Student"></select>
+                <button id="assign-member" type="button">Assign to team</button>
+                <button id="remove-member" type="button">Remove from team</button>
+              </div>
+
+              <div style="margin-top:8px">
+                <strong>Team members</strong>
+                <ul id="team-members"></ul>
+              </div>
+
+              <div style="margin-top:8px">
+                <strong>Team balance:</strong> <span id="team-balance">—</span> pts
+              </div>
+            </div>
+
+            <!-- Link card -->
+            <div>
+              <h4 style="margin:0 0 8px">Link card</h4>
+              <div class="row">
+                <select id="link-card-role">
+                  <option value="student">Student card</option>
+                  <option value="team_earn">Team (global/local) earn card</option>
+                </select>
+                <input id="link-card-uid" placeholder="Scan or type UID" />
+              </div>
+              <div class="row" style="margin-top:8px">
+                <select id="link-card-student" title="Student"></select>
+                <select id="link-card-team" title="Team"></select>
+                <button id="link-card-btn" class="primary">Save link</button>
+              </div>
+              <div class="hint">Los UID se normalizan a HEX mayúsculas sin separadores automáticamente.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STUDENT -->
+      <section id="student-panel" class="card">
+        <h3 class="section-title">My points</h3>
+        <div id="student-info" class="muted"></div>
+        <h4>My balance: <span id="balance">—</span> points</h4>
+
+        <div style="margin-top:10px">
+          <strong>My last movements</strong>
+          <div class="scroll-300">
+            <table id="mytx-table">
+              <thead><tr><th>Date</th><th>Δ</th><th>Reason</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <h3 class="section-title">My team</h3>
+          <div id="team-info" class="muted"></div>
+          <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
+          <div class="scroll-300">
+            <strong>Team members</strong>
+            <ul id="my-team-members"></ul>
+          </div>
+        </div>
+      </section>
     </section>
-  </section>
+  </main>
 
+  <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Config pública (rellena con tus valores) -->
   <script>
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
@@ -250,4 +208,5 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
 
