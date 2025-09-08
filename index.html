@@ -1,152 +1,210 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Points Control</title>
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./styles.css">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#f4f7ff; color:#123; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#eaf1ff; border-bottom:1px solid #d6e2ff; }
+    header h1 { margin:0; color:#1959b7; font-size:22px; }
+    header .brand { color:#7a8da8; }
+    main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    .muted { color:#667892 }
+    .tag { font-size: 12px; padding: 2px 8px; border:1px solid #cdd8ee; border-radius: 999px; background:#f6f9ff; color:#1959b7 }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; cursor:pointer }
+    button.primary { background:#1959b7; color:#fff; border-color:#1959b7 }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #cdd8ee; background:white }
+    .card { background:white; border:1px solid #e2e8f6; border-radius: 12px; padding:16px; margin:14px 0 }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
+    @media (max-width: 980px){ .grid-2 { grid-template-columns: 1fr; } }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eef3ff; padding: 8px 6px; text-align: left; }
+    thead th { background:#f2f6ff; color:#1959b7 }
+    #teacher-panel, #student-panel, #authed { display:none }
+    /* limitar altura con scroll */
+    .scroll-300 { max-height:300px; overflow:auto }
+    .scroll-450 { max-height:450px; overflow:auto }
+    .section-title { margin:8px 0 12px; color:#1959b7 }
+    .hint { font-size:12px; color:#7a8da8 }
+  </style>
 </head>
 <body>
-  <header class="appbar">
-    <div class="brand">Points Control</div>
-    <div class="spacer"></div>
-    <div id="whoami" class="muted"></div>
-    <span id="role-badge" class="badge"></span>
-    <button id="logout" class="btn ghost">Logout</button>
-    <button id="change-pass" class="btn ghost">Change password</button>
+  <header>
+    <h1>Points Control</h1>
+    <div class="brand">Westhill</div>
   </header>
 
-  <!-- LOGIN -->
-  <section id="auth" class="shell">
-    <div class="card">
-      <h2>Login</h2>
+  <main>
+    <!-- LOGIN -->
+    <section id="auth" class="card">
+      <h3 class="section-title">Login</h3>
       <form id="login-form" class="row">
-        <input id="email" type="email" placeholder="Email" required autocomplete="username">
-        <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password">
-        <button class="btn primary" type="submit">Enter</button>
+        <input id="email" type="email" placeholder="Email" required autocomplete="username" />
+        <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password" />
+        <button type="submit" class="primary">Enter</button>
       </form>
       <p class="muted">El registro está deshabilitado. Pide tu cuenta al profesor.</p>
-    </div>
-  </section>
+    </section>
 
-  <!-- APP -->
-  <section id="authed" class="shell" style="display:none">
+    <!-- APP AUTENTICADA -->
+    <section id="authed">
+      <div class="row card">
+        <div id="whoami" class="muted"></div>
+        <span id="role-badge" class="tag"></span>
+        <button id="logout">Logout</button>
+        <button id="change-pass">Change password</button>
+      </div>
 
-    <!-- TEACHER PANEL -->
-    <section id="teacher-panel" style="display:none">
-
-      <div class="grid two">
-        <!-- Teams overview -->
-        <div class="card">
-          <div class="row space-between">
-            <h3>Teams overview</h3>
-            <a class="muted" id="refresh-overview" href="#">Reload</a>
+      <!-- TEACHER -->
+      <section id="teacher-panel">
+        <div class="grid-2">
+          <!-- Latest tx -->
+          <div class="card">
+            <h3 class="section-title">Latest transactions</h3>
+            <div class="scroll-300">
+              <table id="tx-table">
+                <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
 
-          <h4>Global pools</h4>
-          <table class="tbl">
-            <thead><tr><th>Global team</th><th class="right">Points</th></tr></thead>
-            <tbody id="tbl-global-pools"><tr><td colspan="2">—</td></tr></tbody>
-          </table>
-
-          <h4 class="mt">Local summary <span class="muted">(selected global)</span></h4>
-          <div class="muted">Global: <strong id="local-summary-title">—</strong></div>
-          <table class="tbl">
-            <thead><tr><th>Local team</th><th class="right">Spent</th><th class="right">Pool remaining</th></tr></thead>
-            <tbody id="tbl-local-summary"><tr><td colspan="3">—</td></tr></tbody>
-          </table>
+          <!-- Teams overview -->
+          <div class="card">
+            <h3 class="section-title">Teams overview</h3>
+            <div class="grid-2">
+              <div>
+                <div class="hint" style="margin-bottom:6px">Global pools (clic para ver locales)</div>
+                <div class="scroll-300">
+                  <table id="pool-table">
+                    <thead><tr><th>Global team</th><th>Points</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <div class="hint" id="local-title" style="margin-bottom:6px">—</div>
+                <div class="scroll-300">
+                  <table id="local-table">
+                    <thead><tr><th>Local team</th><th>Spent</th><th>Pool remaining</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Latest tx -->
+        <!-- Ajuste manual -->
         <div class="card">
-          <h3>Latest transactions</h3>
-          <div class="scroll" style="max-height:420px">
-            <table class="tbl">
-              <thead><tr><th>Date</th><th>Student</th><th>Δ</th><th>Reason</th></tr></thead>
-              <tbody id="tx-table"><tr><td colspan="4">—</td></tr></tbody>
+          <h3 class="section-title">Manual adjust</h3>
+          <form id="adjust-form" class="row">
+            <select id="adjust-scope">
+              <option value="pool">Global pool</option>
+              <option value="local">Local team (spend)</option>
+            </select>
+            <select id="adjust-pool-id" title="Global team"></select>
+            <select id="adjust-local-id" title="Local team (auto relleno por pool)"></select>
+            <input id="adjust-delta" type="number" step="1" value="1" />
+            <input id="adjust-reason" placeholder="Reason (optional)" />
+            <button type="submit" class="primary">Apply</button>
+          </form>
+          <div class="hint">Usa valores negativos para restar (gasto) si corresponde.</div>
+        </div>
+
+        <!-- Gestión de equipos + membresías -->
+        <div class="card">
+          <h3 class="section-title">Teams management</h3>
+          <div class="grid-2">
+            <div>
+              <form id="new-team-form" class="row">
+                <input id="team-name" placeholder="Team name (e.g., Team 1)" required />
+                <input id="team-class" placeholder="Class/Group (e.g., 8A)" />
+                <button type="submit">Create team</button>
+              </form>
+
+              <div class="row" style="margin-top:8px">
+                <select id="team-select" title="Team"></select>
+                <button id="reload-teams" type="button">Reload</button>
+                <button id="delete-team" type="button">Delete team</button>
+              </div>
+
+              <div class="row" style="margin-top:8px">
+                <select id="student-pool" title="Student"></select>
+                <button id="assign-member" type="button">Assign to team</button>
+                <button id="remove-member" type="button">Remove from team</button>
+              </div>
+
+              <div style="margin-top:8px">
+                <strong>Team members</strong>
+                <ul id="team-members"></ul>
+              </div>
+
+              <div style="margin-top:8px">
+                <strong>Team balance:</strong> <span id="team-balance">—</span> pts
+              </div>
+            </div>
+
+            <!-- Link card -->
+            <div>
+              <h4 style="margin:0 0 8px">Link card</h4>
+              <div class="row">
+                <select id="link-card-role">
+                  <option value="student">Student card</option>
+                  <option value="team_earn">Team (global/local) earn card</option>
+                </select>
+                <input id="link-card-uid" placeholder="Scan or type UID" />
+              </div>
+              <div class="row" style="margin-top:8px">
+                <select id="link-card-student" title="Student"></select>
+                <select id="link-card-team" title="Team"></select>
+                <button id="link-card-btn" class="primary">Save link</button>
+              </div>
+              <div class="hint">Los UID se normalizan a HEX mayúsculas sin separadores automáticamente.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STUDENT -->
+      <section id="student-panel" class="card">
+        <h3 class="section-title">My points</h3>
+        <div id="student-info" class="muted"></div>
+        <h4>My balance: <span id="balance">—</span> points</h4>
+
+        <div style="margin-top:10px">
+          <strong>My last movements</strong>
+          <div class="scroll-300">
+            <table id="mytx-table">
+              <thead><tr><th>Date</th><th>Δ</th><th>Reason</th></tr></thead>
+              <tbody></tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- NUEVO: crear cuenta de alumno -->
-      <div class="card">
-        <h3>Create student account (email + password)</h3>
-        <form id="create-student-account" class="row wrap">
-          <input id="ct-name"  placeholder="Full name" required>
-          <input id="ct-class" placeholder="Class (e.g., 8A)">
-          <input id="ct-email" type="email" placeholder="Email" required>
-          <input id="ct-pass"  type="password" placeholder="Password (≥6)" required>
-          <button class="btn primary" type="submit">Create account</button>
-        </form>
-        <p class="muted">Crea Auth user + profile(student) + students (via Edge Function).</p>
-      </div>
-
-      <!-- NUEVO: alta rápida sin cuenta -->
-      <div class="card">
-        <h3>Add student (record-only)</h3>
-        <form id="new-student-form" class="row wrap">
-          <input id="ns-name"  placeholder="Full name" required>
-          <input id="ns-class" placeholder="Class (e.g., 8A)">
-          <input id="ns-card"  placeholder="Card UID (optional)">
-          <button id="ns-create-btn" class="btn" type="submit">Create</button>
-        </form>
-      </div>
-
-      <!-- Asignación a equipos (global → locales) -->
-      <div class="card">
-        <h3>Team membership</h3>
-        <div class="row wrap">
-          <label>Global
-            <select id="sel-global"></select>
-          </label>
-          <label>Local (of selected global)
-            <select id="sel-local"></select>
-          </label>
-          <label>Student
-            <select id="student-pool"></select>
-          </label>
-          <button id="assign-member" class="btn">Assign to local</button>
-          <button id="remove-member" class="btn ghost">Remove from local</button>
+        <div style="margin-top:16px">
+          <h3 class="section-title">My team</h3>
+          <div id="team-info" class="muted"></div>
+          <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
+          <div class="scroll-300">
+            <strong>Team members</strong>
+            <ul id="my-team-members"></ul>
+          </div>
         </div>
-        <div class="mt">
-          <strong>Members</strong>
-          <ul id="team-members"></ul>
-        </div>
-      </div>
+      </section>
     </section>
+  </main>
 
-    <!-- STUDENT PANEL -->
-    <section id="student-panel" style="display:none">
-      <div class="card">
-        <h3>My points</h3>
-        <div id="student-info" class="muted"></div>
-        <div class="grid three mt">
-          <div class="stat"><div class="k">Global team</div><div id="st-global-name" class="v">—</div></div>
-          <div class="stat"><div class="k">Pool points</div><div id="st-global-points" class="v">—</div></div>
-          <div class="stat"><div class="k">Local team</div><div id="st-local-name" class="v">—</div></div>
-          <div class="stat"><div class="k">Spent (local)</div><div id="st-local-spent" class="v">—</div></div>
-          <div class="stat"><div class="k">Remaining</div><div id="st-local-rem" class="v">—</div></div>
-        </div>
-
-        <h4 class="mt">My last movements</h4>
-        <div class="scroll" style="max-height:320px">
-          <table class="tbl">
-            <thead><tr><th>Date</th><th>Δ</th><th>Reason</th></tr></thead>
-            <tbody id="mytx-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  </section>
-
-  <!-- Supabase SDK UMD -->
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Config pública (rellena con tus valores) -->
   <script>
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
