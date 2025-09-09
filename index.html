@@ -90,7 +90,7 @@
                 <div class="hint" id="local-title" style="margin-bottom:6px">—</div>
                 <div class="scroll-300">
                   <table id="local-table">
-                    <thead><tr><th>Local team</th><th>Spent</th><th>Pool remaining</th></tr></thead>
+                    <thead><tr><th>Local team</th><th>Spent</th><th>Remaining (local)</th></tr></thead>
                     <tbody></tbody>
                   </table>
                 </div>
@@ -220,7 +220,15 @@
       <section id="student-panel" class="card">
         <h3 class="section-title">My points</h3>
         <div id="student-info" class="muted"></div>
-        <h4>My balance: <span id="balance">—</span> points</h4>
+
+        <!-- NUEVO: bloque claro para local -->
+        <div style="margin-top:6px">
+          <h4 style="margin:0 0 6px">My local team</h4>
+          <div class="row">
+            <div><strong>Local spent:</strong> <span id="my-local-spent">—</span> pts</div>
+            <div style="margin-left:12px"><strong>Local total (pool - spent):</strong> <span id="my-local-total">—</span> pts</div>
+          </div>
+        </div>
 
         <div style="margin-top:10px">
           <strong>My last movements</strong>
@@ -235,7 +243,6 @@
         <div style="margin-top:16px">
           <h3 class="section-title">My team</h3>
           <div id="team-info" class="muted"></div>
-          <h4>Team balance: <span id="my-team-balance">—</span> points</h4>
           <div class="scroll-300">
             <strong>Team members</strong>
             <ul id="my-team-members"></ul>
