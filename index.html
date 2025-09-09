@@ -14,9 +14,11 @@
     .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
     .muted { color:#667892 }
     .tag { font-size: 12px; padding: 2px 8px; border:1px solid #cdd8ee; border-radius: 999px; background:#f6f9ff; color:#1959b7 }
-    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; cursor:pointer }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; cursor:pointer; color:#123; }
     button.primary { background:#1959b7; color:#fff; border-color:#1959b7 }
-    input, select { padding: 8px; border-radius: 8px; border: 1px solid #cdd8ee; background:white }
+    button.danger { background:#fff; color:#b00020; border-color:#ffd0d4; }
+    input, select, textarea { padding: 8px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; color:#123; caret-color:#123; }
+    input::placeholder { color:#7a8da8; opacity:1; }
     .card { background:white; border:1px solid #e2e8f6; border-radius: 12px; padding:16px; margin:14px 0 }
     .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
     @media (max-width: 980px){ .grid-2 { grid-template-columns: 1fr; } }
@@ -167,7 +169,7 @@
           </div>
         </div>
 
-        <!-- STUDENTS MANAGEMENT (SOLO TEACHER, está dentro de #teacher-panel) -->
+        <!-- STUDENTS MANAGEMENT (SOLO TEACHER) -->
         <div id="students-mgmt" class="card">
           <h3 class="section-title">Students</h3>
           <div class="grid-2">
@@ -201,6 +203,16 @@
               <div class="hint">Se crea fila en <code>students</code> (sin usuario Auth).</div>
             </div>
           </div>
+
+          <!-- Danger zone: Delete student -->
+          <div style="margin-top:12px">
+            <h4 style="margin:0 0 8px">Delete student</h4>
+            <div class="row">
+              <select id="delete-student-select" title="Student to delete"></select>
+              <button id="delete-student-btn" class="danger">Delete</button>
+            </div>
+            <div class="hint">Elimina al alumno, su usuario (si existe), y limpia membresías/tx (CASCADE/Edge).</div>
+          </div>
         </div>
       </section> <!-- /#teacher-panel -->
 
@@ -230,7 +242,7 @@
           </div>
         </div>
 
-        <!-- NUEVO: Overview del Pool Global del alumno -->
+        <!-- Overview del Pool Global del alumno -->
         <div style="margin-top:16px">
           <h3 class="section-title">Global team (pool) overview</h3>
           <div class="muted" id="pool-meta">—</div>
@@ -259,4 +271,3 @@
   <script src="./app.js"></script>
 </body>
 </html>
-
