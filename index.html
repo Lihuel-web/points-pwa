@@ -30,7 +30,7 @@
     .scroll-450 { max-height:450px; overflow:auto }
     .section-title { margin:8px 0 12px; color:#1959b7 }
     .hint { font-size:12px; color:#7a8da8 }
-    .hl { background:#fff8d6; } /* highlight para el local del alumno */
+    .hl { background:#fff8d6; }
   </style>
 </head>
 <body>
@@ -170,6 +170,22 @@
           </div>
         </div>
 
+        <!-- NUEVO: Local leaderboard -->
+        <div class="card">
+          <h3 class="section-title">Local leaderboard</h3>
+          <div class="row">
+            <select id="leaderboard-pool" title="Global team"></select>
+            <button id="refresh-leaderboard" type="button">Reload</button>
+          </div>
+          <div class="scroll-300" style="margin-top:8px">
+            <table id="leaderboard-table">
+              <thead><tr><th>#</th><th>Local team</th><th>Spent</th><th>Total (local)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint">Ordenado por <em>Total (local) = pool − spent</em>, de mayor a menor.</div>
+        </div>
+
         <!-- STUDENTS MANAGEMENT (SOLO TEACHER) -->
         <div id="students-mgmt" class="card">
           <h3 class="section-title">Students</h3>
@@ -252,7 +268,6 @@
             <div style="margin-left:12px"><strong>Remaining (overall):</strong> <span id="pool-remaining-global">—</span> pts</div>
           </div>
 
-          <!-- NUEVO: resumen del local del alumno -->
           <div class="row" style="margin-top:8px">
             <div><strong>My local spent:</strong> <span id="my-local-spent">—</span> pts</div>
             <div style="margin-left:12px"><strong>My local total (remaining):</strong> <span id="my-local-remaining">—</span> pts</div>
@@ -280,4 +295,3 @@
   <script src="./app.js"></script>
 </body>
 </html>
-
