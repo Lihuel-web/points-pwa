@@ -287,16 +287,21 @@ async function loadLocalSummary() {
   if (!_selectedPoolId) { tbody.innerHTML = ''; text(title, '—'); return; }
 
   const { data: locals } = await sb.from('team_local_remaining')
-    .select('local_team_id,pool_team_id,spent_by_local,pool_remaining')
-    .eq('pool_team_id', _selectedPoolId).order('local_team_id',{ascending:true});
+  .select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining')
+  .eq('pool_team_id', _selectedPoolId).order('local_team_id',{ascending:true});
 
-  text(title, teamLabel(_selectedPoolId));
-  tbody.innerHTML = (locals || []).map(r => `
+tbody.innerHTML = (locals || []).map(r => {
+  const poolPoints = r.pool_points ?? 0;
+  const spent = r.spent_by_local ?? 0;
+  const remainingForLocal = Math.max(poolPoints - spent, 0);
+  return `
     <tr>
       <td>${teamLabel(r.local_team_id)}</td>
-      <td>${r.spent_by_local ?? 0}</td>
-      <td><strong>${r.pool_remaining ?? 0}</strong></td>
-    </tr>`).join('');
+      <td>${spent}</td>
+      <td><strong>${remainingForLocal}</strong></td>
+    </tr>`;
+}).join('');
+
 }
 
 // ---- Gestión equipos + membresías ----
