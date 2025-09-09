@@ -1,4 +1,4 @@
-// app.js — PWA Points Control (Teacher-only student creation + Student pool overview + RPC fixes)
+// app.js — PWA Points Control (UI legible + delete student + pool overview + RPC fixes)
 
 // ---------------- Supabase client (UMD) ----------------
 const { createClient } = supabase;
@@ -10,7 +10,7 @@ if (!/^https?:\/\//.test(SUPA_URL) || !SUPA_KEY) {
   alert('Config error. Check SUPABASE_URL / SUPABASE_ANON_KEY.');
 }
 const sb = createClient(SUPA_URL, SUPA_KEY);
-// Base URL de Edge Functions
+// Edge Functions base
 const EDGE_BASE = SUPA_URL.replace('.supabase.co', '.functions.supabase.co');
 
 // ---------------- Utilidades DOM ----------------
@@ -124,7 +124,6 @@ async function loadStudent(userId) {
     const mt = $('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
     text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
     const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
-    // también limpia overview del pool
     await renderPoolOverviewForStudent(null);
     return;
   }
@@ -143,7 +142,6 @@ async function loadStudent(userId) {
     `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
   ).join('');
 
-  // Membresía: necesitamos scope y parent_global_id del team
   try {
     const { data: tm } = await sb.from('team_members')
       .select('team_id, teams(name,class,scope,parent_global_id)')
@@ -168,13 +166,10 @@ async function loadStudent(userId) {
       `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
     ).join('');
 
-    // Calcular poolId: si estoy en un local, uso el parent_global_id; si estoy en un global, uso ese id.
     let poolId = null;
-    if (tm?.teams?.scope === 'local') {
-      poolId = tm.teams?.parent_global_id || null;
-    } else {
-      poolId = tm?.team_id || null;
-    }
+    if (tm?.teams?.scope === 'local') poolId = tm.teams?.parent_global_id || null;
+    else poolId = tm?.team_id || null;
+
     await renderPoolOverviewForStudent(poolId);
   } catch (e) {
     console.warn('loadStudent membership:', e);
@@ -201,7 +196,6 @@ async function renderPoolOverviewForStudent(poolId) {
   await ensureTeamCache();
   meta.textContent = `Global team: ${teamLabel(poolId)}`;
 
-  // Trae locales y totales del pool
   const { data: rows } = await sb.from('team_local_remaining')
     .select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining')
     .eq('pool_team_id', poolId)
@@ -211,10 +205,9 @@ async function renderPoolOverviewForStudent(poolId) {
   let overallRemaining = 0;
 
   if (rows && rows.length) {
-    poolPoints = rows[0]?.pool_points ?? 0;         // idéntico en todas las filas del pool
+    poolPoints = rows[0]?.pool_points ?? 0;
     overallRemaining = rows[0]?.pool_remaining ?? 0;
   } else {
-    // Sin locales aún: lee sólo el pool
     const { data: bal2 } = await sb.from('team_pool_balances')
       .select('points').eq('pool_team_id', poolId).maybeSingle();
     poolPoints = bal2?.points ?? 0;
@@ -243,7 +236,7 @@ async function loadTeacher() {
   await loadTeamAdjustOptions();
   await refreshTeamOverview();
   await loadCardSelects();
-  await initStudentForms(); // sólo se ejecuta en modo teacher
+  await initStudentForms(); // sólo en modo teacher
 }
 
 async function loadLatestTransactions() {
@@ -268,7 +261,7 @@ async function refreshTeamOverview() {
   if (!poolBody) return;
 
   const { data: pools, error } = await sb.from('team_pool_balances').select('pool_team_id,points');
-  if (error && error.code === 'PGRST116') { // 404 view missing
+  if (error && error.code === 'PGRST116') { // view missing
     poolBody.innerHTML = `<tr><td colspan="2">Views missing.</td></tr>`; return;
   }
 
@@ -430,7 +423,6 @@ async function loadTeamAdjustOptions() {
       if (scope === 'pool') {
         const poolId = parseInt(poolSel?.value || '0', 10);
         if (!poolId) return alert('Select a global pool');
-        // Función correcta
         const { error } = await sb.rpc('team_pool_adjust', {
           _pool_team_id: poolId, _delta: delta, _reason: reason, _device_id: 'manual-adjust',
         });
@@ -438,7 +430,6 @@ async function loadTeamAdjustOptions() {
       } else {
         const localId = parseInt(localSel?.value || '0', 10);
         if (!localId) return alert('Select a local team');
-        // Firma usa _amount
         const { error } = await sb.rpc('team_local_spend_adjust', {
           _local_team_id: localId, _amount: Math.abs(delta), _reason: reason, _device_id: 'manual-adjust',
         });
@@ -498,10 +489,11 @@ async function loadCardSelects() {
   });
 }
 
-// ---------------- Student forms (solo teacher) ----------------
+// ---------------- Student forms (alta + delete; solo teacher) ----------------
 async function initStudentForms() {
   await populateStudentTeamSelectors('real');
   await populateStudentTeamSelectors('fake');
+  await populateDeleteStudentSelect();
 
   // Real (Auth)
   const realForm = $('real-student-form');
@@ -543,9 +535,7 @@ async function initStudentForms() {
       const studentId = payload?.student?.id;
       if (!studentId) throw new Error('No student id from edge function');
 
-      // asignación a equipo (prioriza local si viene)
       await upsertMembership(studentId, localId || poolId);
-      // vincular tarjeta si hay UID
       if (uid) await upsertStudentCard(studentId, uid);
 
       // limpiar UI y refrescar combos
@@ -556,6 +546,7 @@ async function initStudentForms() {
       $('real-card-uid').value = '';
       await loadTeamsUI();
       await loadCardSelects();
+      await populateDeleteStudentSelect();
       alert('Student created.');
     } catch (err) { console.error(err); alert(err?.message || 'Create student failed'); }
   });
@@ -585,13 +576,49 @@ async function initStudentForms() {
       $('fake-card-uid').value = '';
       await loadTeamsUI();
       await loadCardSelects();
+      await populateDeleteStudentSelect();
       alert('Record-only student added.');
     } catch (err) { console.error(err); alert(err?.message || 'Add record-only failed'); }
+  });
+
+  // Delete student
+  on($('delete-student-btn'), 'click', async () => {
+    const sel = $('delete-student-select');
+    const studentId = parseInt(sel?.value || '0', 10);
+    if (!studentId) return alert('Select a student to delete.');
+    const ok = confirm('Delete this student? This removes memberships and transactions; if tiene usuario Auth, también se elimina.');
+    if (!ok) return;
+
+    try {
+      const { data: sess } = await sb.auth.getSession();
+      const token = sess?.session?.access_token;
+      if (!token) return alert('No auth token. Please re-login.');
+
+      const res = await fetch(`${EDGE_BASE}/admin_delete_student`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'apikey': SUPA_KEY,
+        },
+        body: JSON.stringify({ student_id: studentId })
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'admin_delete_student failed');
+      }
+
+      await loadTeamsUI();
+      await loadCardSelects();
+      await populateDeleteStudentSelect();
+      await refreshTeamOverview();
+      await loadLatestTransactions();
+      alert('Student deleted.');
+    } catch (err) { console.error(err); alert(err?.message || 'Delete student failed'); }
   });
 }
 
 async function populateStudentTeamSelectors(prefix) {
-  // Rellena selects de equipos para los formularios de alta
   const poolSel = $(`${prefix}-pool-team`);
   const localSel = $(`${prefix}-local-team`);
   if (poolSel) {
@@ -613,6 +640,13 @@ async function populateStudentTeamSelectors(prefix) {
   }
 }
 
+async function populateDeleteStudentSelect() {
+  const sel = $('delete-student-select');
+  if (!sel) return;
+  const { data: students } = await sb.from('students').select('id,name,class').order('name',{ascending:true});
+  sel.innerHTML = (students || []).map(s => `<option value="${s.id}">${s.name} (${s.class ?? '—'})</option>`).join('');
+}
+
 async function upsertMembership(studentId, teamId) {
   if (!studentId || !teamId) return;
   await sb.from('team_members').delete().eq('student_id', studentId); // 1 equipo por alumno
@@ -630,5 +664,5 @@ async function upsertStudentCard(studentId, uid) {
 
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
-// Refresco opcional
 // setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTransactions().catch(()=>{}); }, 5000);
+
