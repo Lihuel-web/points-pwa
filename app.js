@@ -1,4 +1,4 @@
-// app.js — Student local spend & total + highlight + (resto de mejoras previas)
+// app.js — PWA Points Control (con Local leaderboard en Teacher)
 
 // ---------------- Supabase client (UMD) ----------------
 const { createClient } = supabase;
@@ -163,7 +163,6 @@ async function loadStudent(userId) {
       `<li>${m.name ?? m.student_id} (${m.class ?? '—'}) — <strong>${m.points ?? 0}</strong> pts</li>`
     ).join('');
 
-    // poolId y localId del alumno
     const isLocal = tm?.teams?.scope === 'local';
     const poolId = isLocal ? (tm.teams?.parent_global_id || null) : (tm?.team_id || null);
     const localId = isLocal ? tm.team_id : null;
@@ -175,10 +174,6 @@ async function loadStudent(userId) {
   }
 }
 
-/**
- * Renderiza overview del pool global y, si localId no es null,
- * muestra "My local spent" y "My local total (remaining)".
- */
 async function renderPoolOverviewForStudent(poolId, localId) {
   const meta = $('pool-meta');
   const totalEl = $('pool-total');
@@ -207,26 +202,29 @@ async function renderPoolOverviewForStudent(poolId, localId) {
     .eq('pool_team_id', poolId)
     .order('local_team_id', { ascending: true });
 
-  let poolPoints = 0;
-  let overallRemaining = 0;
-
-  if (rows && rows.length) {
-    poolPoints = rows[0]?.pool_points ?? 0;
-    overallRemaining = rows[0]?.pool_remaining ?? 0;
-  } else {
+  if (!rows || rows.length === 0) {
     const { data: bal2 } = await sb.from('team_pool_balances')
       .select('points').eq('pool_team_id', poolId).maybeSingle();
-    poolPoints = bal2?.points ?? 0;
-    overallRemaining = poolPoints;
+    const poolPoints = bal2?.points ?? 0;
+    totalEl.textContent = poolPoints;
+    remGlobalEl.textContent = poolPoints;
+    tbody.innerHTML = '';
+    if (mySpentEl) mySpentEl.textContent = '—';
+    if (myRemainEl) myRemainEl.textContent = '—';
+    return;
   }
 
+  const visible = localId ? rows.filter(r => r.local_team_id === localId) : rows;
+  const baseRow = rows[0];
+
+  const poolPoints = baseRow?.pool_points ?? 0;
+  const overallRemaining = baseRow?.pool_remaining ?? poolPoints;
   totalEl.textContent = poolPoints;
   remGlobalEl.textContent = overallRemaining;
 
-  // Rellenar tabla y resaltar el local del alumno
-  tbody.innerHTML = (rows || []).map(r => {
+  tbody.innerHTML = (visible || []).map(r => {
     const spent = r.spent_by_local ?? 0;
-    const remainingForLocal = Math.max((poolPoints ?? 0) - spent, 0);
+    const remainingForLocal = Math.max(poolPoints - spent, 0);
     const hl = (localId && r.local_team_id === localId) ? ' class="hl"' : '';
     return `<tr${hl}>
       <td>${teamLabel(r.local_team_id)}</td>
@@ -235,20 +233,17 @@ async function renderPoolOverviewForStudent(poolId, localId) {
     </tr>`;
   }).join('');
 
-  // Si el alumno pertenece a un local, muestra su resumen
-  if (localId) {
-    const mine = (rows || []).find(r => r.local_team_id === localId);
-    const mySpent = mine?.spent_by_local ?? 0;
-    const myRemaining = Math.max((poolPoints ?? 0) - mySpent, 0);
-    if (mySpentEl) mySpentEl.textContent = mySpent;
-    if (myRemainEl) myRemainEl.textContent = myRemaining;
-  } else {
-    if (mySpentEl) mySpentEl.textContent = '—';
-    if (myRemainEl) myRemainEl.textContent = '—';
-  }
+  const mine = localId ? visible[0] : null;
+  const mySpent = mine?.spent_by_local ?? 0;
+  const myRemaining = Math.max((poolPoints ?? 0) - mySpent, 0);
+  if (mySpentEl) mySpentEl.textContent = mySpent;
+  if (myRemainEl) myRemainEl.textContent = myRemaining;
 }
 
 // ---------------- Teacher panel ----------------
+let _selectedPoolId = null;       // usado por overview locales
+let _leaderboardPoolId = null;    // usado por leaderboard
+
 async function loadTeacher() {
   await ensureTeamCache();
   await loadLatestTransactions();
@@ -257,6 +252,7 @@ async function loadTeacher() {
   await refreshTeamOverview();
   await loadCardSelects();
   await initStudentForms();
+  await initLeaderboardUI();
 }
 
 async function loadLatestTransactions() {
@@ -273,8 +269,6 @@ async function loadLatestTransactions() {
 }
 
 // ---- Teams overview ----
-let _selectedPoolId = null;
-
 async function refreshTeamOverview() {
   await ensureTeamCache();
   const poolBody = document.querySelector('#pool-table tbody');
@@ -293,9 +287,14 @@ async function refreshTeamOverview() {
 
   if (!_selectedPoolId && pools && pools.length) _selectedPoolId = pools[0].pool_team_id;
   poolBody.querySelectorAll('tr[data-pool]').forEach(tr => {
-    tr.addEventListener('click', () => { _selectedPoolId = parseInt(tr.getAttribute('data-pool'),10); loadLocalSummary(); });
+    tr.addEventListener('click', async () => {
+      _selectedPoolId = parseInt(tr.getAttribute('data-pool'),10);
+      await loadLocalSummary();
+      await syncLeaderboardToSelectedPool();
+    });
   });
   await loadLocalSummary();
+  await syncLeaderboardToSelectedPool();
 }
 
 async function loadLocalSummary() {
@@ -322,6 +321,75 @@ async function loadLocalSummary() {
         <td><strong>${remainingForLocal}</strong></td>
       </tr>`;
   }).join('');
+}
+
+// ---- Local leaderboard (Teacher) ----
+async function initLeaderboardUI() {
+  const sel = $('leaderboard-pool');
+  const btn = $('refresh-leaderboard');
+
+  // opciones de pools globales
+  const { data: pools } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name',{ascending:true});
+  if (sel) {
+    sel.innerHTML = (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
+  }
+
+  // valor inicial: pool seleccionado en overview o primero disponible
+  if (pools && pools.length) {
+    _leaderboardPoolId = (_selectedPoolId && pools.find(p => p.id === _selectedPoolId))
+      ? _selectedPoolId
+      : pools[0].id;
+    if (sel) sel.value = String(_leaderboardPoolId);
+  }
+
+  on(sel, 'change', async () => {
+    _leaderboardPoolId = parseInt(sel.value || '0',10) || null;
+    await refreshLeaderboard();
+  });
+  on(btn, 'click', refreshLeaderboard);
+
+  await refreshLeaderboard();
+}
+
+async function syncLeaderboardToSelectedPool() {
+  const sel = $('leaderboard-pool');
+  if (!sel) return;
+  if (_selectedPoolId && String(sel.value) !== String(_selectedPoolId)) {
+    _leaderboardPoolId = _selectedPoolId;
+    sel.value = String(_leaderboardPoolId);
+    await refreshLeaderboard();
+  }
+}
+
+async function refreshLeaderboard() {
+  const tbody = $('leaderboard-table')?.querySelector('tbody');
+  if (!tbody) return;
+  if (!_leaderboardPoolId) { tbody.innerHTML = ''; return; }
+
+  await ensureTeamCache();
+
+  const { data: rows } = await sb.from('team_local_remaining')
+    .select('local_team_id,pool_team_id,pool_points,spent_by_local')
+    .eq('pool_team_id', _leaderboardPoolId);
+
+  if (!rows || rows.length === 0) { tbody.innerHTML = ''; return; }
+
+  const poolPoints = rows[0]?.pool_points ?? 0;
+  const ranked = rows.map(r => ({
+    local_team_id: r.local_team_id,
+    spent: r.spent_by_local ?? 0,
+    totalLocal: Math.max((poolPoints ?? 0) - (r.spent_by_local ?? 0), 0),
+  }))
+  .sort((a,b) => b.totalLocal - a.totalLocal || a.local_team_id - b.local_team_id);
+
+  tbody.innerHTML = ranked.map((r, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${teamLabel(r.local_team_id)}</td>
+      <td>${r.spent}</td>
+      <td><strong>${r.totalLocal}</strong></td>
+    </tr>
+  `).join('');
 }
 
 // ---- Gestión equipos + membresías ----
@@ -357,6 +425,7 @@ async function loadTeamsUI() {
     $('team-name').value=''; $('team-class').value='';
     await loadTeamsUI();
     await refreshTeamOverview();
+    await initLeaderboardUI();
   });
 
   on($('delete-team'), 'click', async () => {
@@ -369,6 +438,7 @@ async function loadTeamsUI() {
     invalidateTeamCache();
     await loadTeamsUI();
     await refreshTeamOverview();
+    await initLeaderboardUI();
   });
 
   on($('assign-member'), 'click', async () => {
@@ -462,6 +532,7 @@ async function loadTeamAdjustOptions() {
       }
       await refreshTeamOverview();
       await loadLatestTransactions();
+      await refreshLeaderboard();
       alert('Adjustment applied.');
     } catch (err) { console.error('adjust error', err); alert(err?.message || 'Adjust failed.'); }
   });
@@ -571,6 +642,8 @@ async function initStudentForms() {
       await loadTeamsUI();
       await loadCardSelects();
       await populateDeleteStudentSelect();
+      await refreshTeamOverview();
+      await refreshLeaderboard();
       alert('Student created.');
     } catch (err) { console.error(err); alert(err?.message || 'Create student failed'); }
   });
@@ -601,6 +674,8 @@ async function initStudentForms() {
       await loadTeamsUI();
       await loadCardSelects();
       await populateDeleteStudentSelect();
+      await refreshTeamOverview();
+      await refreshLeaderboard();
       alert('Record-only student added.');
     } catch (err) { console.error(err); alert(err?.message || 'Add record-only failed'); }
   });
@@ -636,6 +711,7 @@ async function initStudentForms() {
       await loadCardSelects();
       await populateDeleteStudentSelect();
       await refreshTeamOverview();
+      await refreshLeaderboard();
       await loadLatestTransactions();
       alert('Student deleted.');
     } catch (err) { console.error(err); alert(err?.message || 'Delete student failed'); }
@@ -689,4 +765,5 @@ async function upsertStudentCard(studentId, uid) {
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
 // setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTransactions().catch(()=>{}); }, 5000);
+
 
