@@ -10,7 +10,7 @@
     header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#eaf1ff; border-bottom:1px solid #d6e2ff; }
     header h1 { margin:0; color:#1959b7; font-size:22px; }
     header .brand { color:#7a8da8; }
-    main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+    main { padding: 20px; max-width: 1200px; margin: 0 auto; }
     .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
     .muted { color:#667892 }
     .tag { font-size: 12px; padding: 2px 8px; border:1px solid #cdd8ee; border-radius: 999px; background:#f6f9ff; color:#1959b7 }
@@ -31,6 +31,8 @@
     .section-title { margin:8px 0 12px; color:#1959b7 }
     .hint { font-size:12px; color:#7a8da8 }
     .hl { background:#fff8d6; }
+    .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; border:1px solid rgba(0,0,0,.06); vertical-align: -1px; }
+    .legend-item { margin-right:12px; }
   </style>
 </head>
 <body>
@@ -170,7 +172,7 @@
           </div>
         </div>
 
-        <!-- NUEVO: Local leaderboard -->
+        <!-- Local leaderboard (por pool) -->
         <div class="card">
           <h3 class="section-title">Local leaderboard</h3>
           <div class="row">
@@ -184,6 +186,24 @@
             </table>
           </div>
           <div class="hint">Ordenado por <em>Total (local) = pool − spent</em>, de mayor a menor.</div>
+        </div>
+
+        <!-- NUEVO: All locals leaderboard (todos los locales juntos) -->
+        <div class="card">
+          <h3 class="section-title">All locals leaderboard</h3>
+          <div class="row">
+            <label><input type="checkbox" id="alllb-filter-toggle" /> Filter by global</label>
+            <select id="alllb-pool" title="Global team" disabled></select>
+            <button id="alllb-refresh" type="button">Reload</button>
+          </div>
+          <div class="muted" id="alllb-legend" style="margin-top:8px"></div>
+          <div class="scroll-300" style="margin-top:8px">
+            <table id="alllb-table">
+              <thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Spent</th><th>Total (local)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint">Tabla global de todos los equipos locales. Sombreado por color según el pool.</div>
         </div>
 
         <!-- STUDENTS MANAGEMENT (SOLO TEACHER) -->
@@ -203,7 +223,7 @@
                 <select id="real-local-team" title="Local team (optional)"></select>
                 <button type="submit" class="primary">Create</button>
               </form>
-              <div class="hint">Opcional: asigna equipo y vincula tarjeta durante el alta.</div>
+              <div class="hint">Puedes elegir primero el <strong>local</strong> y se ajusta el global automáticamente.</div>
             </div>
 
             <!-- Record-only -->
@@ -217,7 +237,7 @@
                 <select id="fake-local-team" title="Local team (optional)"></select>
                 <button type="submit">Add</button>
               </form>
-              <div class="hint">Se crea fila en <code>students</code> (sin usuario Auth).</div>
+              <div class="hint">Puedes elegir primero el <strong>local</strong> y se ajusta el global automáticamente.</div>
             </div>
           </div>
 
@@ -281,6 +301,18 @@
           </div>
           <div class="hint">La fila resaltada corresponde a tu equipo local.</div>
         </div>
+
+        <!-- NUEVO: Global teams leaderboard (para alumnos) -->
+        <div style="margin-top:16px">
+          <h3 class="section-title">Global teams leaderboard</h3>
+          <div class="scroll-300">
+            <table id="student-global-leaderboard">
+              <thead><tr><th>#</th><th>Global team</th><th>Points</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint">Ranking por puntos del pool global. Si ves <code>#ID</code>, es por permisos de lectura.</div>
+        </div>
       </section>
     </section>
   </main>
@@ -295,3 +327,4 @@
   <script src="./app.js"></script>
 </body>
 </html>
+
