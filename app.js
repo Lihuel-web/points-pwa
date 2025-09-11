@@ -1,4 +1,4 @@
-// app.js — PWA Points Control (con Local leaderboard en Teacher)
+// app.js — PWA Points Control (leaderboards globales + fixes alta de alumno)
 
 // ---------------- Supabase client (UMD) ----------------
 const { createClient } = supabase;
@@ -18,6 +18,15 @@ const text = (el, v) => { if (el) el.textContent = v ?? ''; };
 const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
 function normalizeUID(s) { return String(s || '').toUpperCase().replace(/[^0-9A-F]/g, ''); }
 
+// Color por pool (pasteles deterministas)
+function colorForPool(poolId) {
+  const hues = [210, 25, 140, 95, 275, 0, 180, 330, 50, 260, 120, 300];
+  const n = Number(poolId);
+  const idx = Math.abs(Number.isFinite(n) ? n : String(poolId).split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % hues.length;
+  const h = hues[idx];
+  return `hsl(${h}, 90%, 94%)`;
+}
+
 // ---------------- Team name cache ----------------
 let TEAM_CACHE = null;
 async function ensureTeamCache() {
@@ -25,12 +34,18 @@ async function ensureTeamCache() {
   const { data, error } = await sb.from('teams').select('id,name,class,scope,parent_global_id');
   if (error) {
     console.warn('ensureTeamCache:', error);
-    TEAM_CACHE = { byId: new Map() };
+    TEAM_CACHE = { byId: new Map(), locals: [], pools: [] };
     return TEAM_CACHE;
   }
   const byId = new Map();
-  (data || []).forEach(t => byId.set(t.id, `${t.name}${t.class ? ` (${t.class})` : ''}`));
-  TEAM_CACHE = { byId };
+  const locals = [];
+  const pools = [];
+  (data || []).forEach(t => {
+    byId.set(t.id, `${t.name}${t.class ? ` (${t.class})` : ''}`);
+    if (t.scope === 'local') locals.push(t);
+    else if (t.scope === 'global') pools.push(t);
+  });
+  TEAM_CACHE = { byId, locals, pools };
   return TEAM_CACHE;
 }
 function teamLabel(id) { return (TEAM_CACHE?.byId?.get(id)) ?? `#${id}`; }
@@ -122,6 +137,7 @@ async function loadStudent(userId) {
     text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
     const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
     await renderPoolOverviewForStudent(null, null);
+    await renderStudentGlobalLeaderboard();
     return;
   }
 
@@ -148,6 +164,7 @@ async function loadStudent(userId) {
       text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
       const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
       await renderPoolOverviewForStudent(null, null);
+      await renderStudentGlobalLeaderboard();
       return;
     }
 
@@ -168,9 +185,11 @@ async function loadStudent(userId) {
     const localId = isLocal ? tm.team_id : null;
 
     await renderPoolOverviewForStudent(poolId, localId);
+    await renderStudentGlobalLeaderboard();
   } catch (e) {
     console.warn('loadStudent membership:', e);
     await renderPoolOverviewForStudent(null, null);
+    await renderStudentGlobalLeaderboard();
   }
 }
 
@@ -240,9 +259,33 @@ async function renderPoolOverviewForStudent(poolId, localId) {
   if (myRemainEl) myRemainEl.textContent = myRemaining;
 }
 
+// Student: global leaderboard
+async function renderStudentGlobalLeaderboard() {
+  await ensureTeamCache();
+  const tbody = $('student-global-leaderboard')?.querySelector('tbody');
+  if (!tbody) return;
+
+  const { data: pools } = await sb.from('team_pool_balances').select('pool_team_id,points');
+  if (!pools || pools.length === 0) { tbody.innerHTML = ''; return; }
+
+  const ranked = pools.map(p => ({
+    pool_team_id: p.pool_team_id,
+    name: teamLabel(p.pool_team_id),
+    points: p.points ?? 0
+  })).sort((a,b) => b.points - a.points || a.name.localeCompare(b.name));
+
+  tbody.innerHTML = ranked.map((r,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.name}</td>
+      <td><strong>${r.points}</strong></td>
+    </tr>
+  `).join('');
+}
+
 // ---------------- Teacher panel ----------------
-let _selectedPoolId = null;       // usado por overview locales
-let _leaderboardPoolId = null;    // usado por leaderboard
+let _selectedPoolId = null;       // overview locales
+let _leaderboardPoolId = null;    // leaderboard por pool
 
 async function loadTeacher() {
   await ensureTeamCache();
@@ -253,6 +296,7 @@ async function loadTeacher() {
   await loadCardSelects();
   await initStudentForms();
   await initLeaderboardUI();
+  await initAllLocalsLeaderboardUI();
 }
 
 async function loadLatestTransactions() {
@@ -291,6 +335,7 @@ async function refreshTeamOverview() {
       _selectedPoolId = parseInt(tr.getAttribute('data-pool'),10);
       await loadLocalSummary();
       await syncLeaderboardToSelectedPool();
+      await refreshAllLocalsLeaderboard(); // mantener en sync
     });
   });
   await loadLocalSummary();
@@ -323,18 +368,16 @@ async function loadLocalSummary() {
   }).join('');
 }
 
-// ---- Local leaderboard (Teacher) ----
+// ---- Local leaderboard (por pool) ----
 async function initLeaderboardUI() {
   const sel = $('leaderboard-pool');
   const btn = $('refresh-leaderboard');
 
-  // opciones de pools globales
   const { data: pools } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name',{ascending:true});
   if (sel) {
     sel.innerHTML = (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
   }
 
-  // valor inicial: pool seleccionado en overview o primero disponible
   if (pools && pools.length) {
     _leaderboardPoolId = (_selectedPoolId && pools.find(p => p.id === _selectedPoolId))
       ? _selectedPoolId
@@ -392,6 +435,86 @@ async function refreshLeaderboard() {
   `).join('');
 }
 
+// ---- NUEVO: All locals leaderboard ----
+async function initAllLocalsLeaderboardUI() {
+  await ensureTeamCache();
+  const toggle = $('alllb-filter-toggle');
+  const sel = $('alllb-pool');
+  const btn = $('alllb-refresh');
+
+  // pools
+  const { data: pools } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name',{ascending:true});
+  if (sel) {
+    sel.innerHTML = (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
+  }
+
+  on(toggle, 'change', async () => {
+    const enabled = !!toggle.checked;
+    if (sel) sel.disabled = !enabled;
+    await refreshAllLocalsLeaderboard();
+  });
+  on(sel, 'change', refreshAllLocalsLeaderboard);
+  on(btn, 'click', refreshAllLocalsLeaderboard);
+
+  // valor inicial: sin filtro
+  if (sel) sel.disabled = true;
+  await refreshAllLocalsLeaderboard();
+}
+
+async function refreshAllLocalsLeaderboard() {
+  await ensureTeamCache();
+  const toggle = $('alllb-filter-toggle');
+  const sel = $('alllb-pool');
+  const legend = $('alllb-legend');
+  const tbody = $('alllb-table')?.querySelector('tbody');
+  if (!tbody) return;
+
+  let q = sb.from('team_local_remaining').select('local_team_id,pool_team_id,pool_points,spent_by_local');
+  if (toggle?.checked) {
+    const poolId = parseInt(sel?.value || '0',10) || null;
+    if (poolId) q = q.eq('pool_team_id', poolId);
+  }
+  const { data: rows } = await q;
+  if (!rows || rows.length === 0) { tbody.innerHTML = ''; if (legend) legend.innerHTML=''; return; }
+
+  // Mapeo de colores por pool presente
+  const poolsPresent = Array.from(new Set(rows.map(r => r.pool_team_id))).sort((a,b)=>a-b);
+  const poolColors = new Map(poolsPresent.map(pid => [pid, colorForPool(pid)]));
+
+  // Leyenda
+  if (legend) {
+    legend.innerHTML = poolsPresent.map(pid =>
+      `<span class="legend-item"><span class="swatch" style="background:${poolColors.get(pid)}"></span>${teamLabel(pid)}</span>`
+    ).join('');
+  }
+
+  const byPoolPoints = new Map(); // pool -> pool_points (de la vista)
+  rows.forEach(r => { if (!byPoolPoints.has(r.pool_team_id)) byPoolPoints.set(r.pool_team_id, r.pool_points ?? 0); });
+
+  const ranked = rows.map(r => {
+    const poolPoints = byPoolPoints.get(r.pool_team_id) ?? 0;
+    const spent = r.spent_by_local ?? 0;
+    return {
+      local_team_id: r.local_team_id,
+      pool_team_id: r.pool_team_id,
+      spent,
+      totalLocal: Math.max(poolPoints - spent, 0),
+      nameLocal: teamLabel(r.local_team_id),
+      namePool: teamLabel(r.pool_team_id),
+    };
+  }).sort((a,b) => b.totalLocal - a.totalLocal || a.nameLocal.localeCompare(b.nameLocal));
+
+  tbody.innerHTML = ranked.map((r, i) => `
+    <tr style="background:${poolColors.get(r.pool_team_id)}">
+      <td>${i+1}</td>
+      <td>${r.nameLocal}</td>
+      <td>${r.namePool}</td>
+      <td>${r.spent}</td>
+      <td><strong>${r.totalLocal}</strong></td>
+    </tr>
+  `).join('');
+}
+
 // ---- Gestión equipos + membresías ----
 async function loadTeamsUI() {
   const selTeam = $('team-select');
@@ -426,6 +549,7 @@ async function loadTeamsUI() {
     await loadTeamsUI();
     await refreshTeamOverview();
     await initLeaderboardUI();
+    await refreshAllLocalsLeaderboard();
   });
 
   on($('delete-team'), 'click', async () => {
@@ -439,6 +563,7 @@ async function loadTeamsUI() {
     await loadTeamsUI();
     await refreshTeamOverview();
     await initLeaderboardUI();
+    await refreshAllLocalsLeaderboard();
   });
 
   on($('assign-member'), 'click', async () => {
@@ -533,6 +658,7 @@ async function loadTeamAdjustOptions() {
       await refreshTeamOverview();
       await loadLatestTransactions();
       await refreshLeaderboard();
+      await refreshAllLocalsLeaderboard();
       alert('Adjustment applied.');
     } catch (err) { console.error('adjust error', err); alert(err?.message || 'Adjust failed.'); }
   });
@@ -644,6 +770,7 @@ async function initStudentForms() {
       await populateDeleteStudentSelect();
       await refreshTeamOverview();
       await refreshLeaderboard();
+      await refreshAllLocalsLeaderboard();
       alert('Student created.');
     } catch (err) { console.error(err); alert(err?.message || 'Create student failed'); }
   });
@@ -676,6 +803,7 @@ async function initStudentForms() {
       await populateDeleteStudentSelect();
       await refreshTeamOverview();
       await refreshLeaderboard();
+      await refreshAllLocalsLeaderboard();
       alert('Record-only student added.');
     } catch (err) { console.error(err); alert(err?.message || 'Add record-only failed'); }
   });
@@ -712,32 +840,65 @@ async function initStudentForms() {
       await populateDeleteStudentSelect();
       await refreshTeamOverview();
       await refreshLeaderboard();
+      await refreshAllLocalsLeaderboard();
       await loadLatestTransactions();
       alert('Student deleted.');
     } catch (err) { console.error(err); alert(err?.message || 'Delete student failed'); }
   });
 }
 
+// Mejora selects: elegir primero local ajusta pool, y viceversa
 async function populateStudentTeamSelectors(prefix) {
+  await ensureTeamCache();
   const poolSel = $(`${prefix}-pool-team`);
   const localSel = $(`${prefix}-local-team`);
+
+  const pools = TEAM_CACHE.pools.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const locals = TEAM_CACHE.locals.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
   if (poolSel) {
-    const { data: pools } = await sb.from('teams').select('id,name,class,scope').eq('scope','global').order('name',{ascending:true});
     poolSel.innerHTML = `<option value="">— Global (optional) —</option>` +
-      (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
+      pools.map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
   }
-  async function fillLocalsFor(poolId) {
-    if (!localSel) return;
-    if (!poolId) { localSel.innerHTML = `<option value="">— Local (optional) —</option>`; return; }
-    const { data: locals } = await sb.from('teams').select('id,name,class,scope,parent_global_id')
-      .eq('scope','local').eq('parent_global_id', poolId).order('name',{ascending:true});
+  if (localSel) {
     localSel.innerHTML = `<option value="">— Local (optional) —</option>` +
-      (locals || []).map(t => `<option value="${t.id}">${t.name}${t.class?` (${t.class})`:''}</option>`).join('');
+      locals.map(t => `<option data-parent="${t.parent_global_id}" value="${t.id}">${t.name}${t.class?` (${t.class})`:''}</option>`).join('');
   }
-  if (poolSel && localSel) {
-    on(poolSel, 'change', () => fillLocalsFor(parseInt(poolSel.value||'0',10)||null));
-    await fillLocalsFor(parseInt(poolSel.value||'0',10)||null);
+
+  function filterLocalsByPool(poolId) {
+    if (!localSel) return;
+    const opts = Array.from(localSel.querySelectorAll('option'));
+    if (!poolId) {
+      // mostrar todos
+      opts.forEach(o => o.hidden = false);
+      return;
+    }
+    opts.forEach(o => {
+      const pid = o.getAttribute('data-parent');
+      if (!pid) return; // placeholder
+      o.hidden = String(pid) !== String(poolId);
+    });
+    // si el seleccionado no pertenece, limpiar selección
+    const selOpt = localSel.selectedOptions[0];
+    if (selOpt && selOpt.getAttribute('data-parent') && String(selOpt.getAttribute('data-parent')) !== String(poolId)) {
+      localSel.value = '';
+    }
   }
+
+  on(poolSel, 'change', () => {
+    const poolId = poolSel.value ? parseInt(poolSel.value, 10) : null;
+    filterLocalsByPool(poolId);
+  });
+
+  on(localSel, 'change', () => {
+    const opt = localSel.selectedOptions[0];
+    if (!opt) return;
+    const parent = opt.getAttribute('data-parent');
+    if (parent && poolSel) poolSel.value = String(parent);
+  });
+
+  // Estado inicial: sin filtro de locales
+  filterLocalsByPool(null);
 }
 
 async function populateDeleteStudentSelect() {
