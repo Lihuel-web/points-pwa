@@ -1,4 +1,4 @@
-// app.js — PWA Points Control (leaderboards globales + fixes alta de alumno)
+// app.js — PWA Points Control (incluye Top-9 locales para estudiantes)
 
 // ---------------- Supabase client (UMD) ----------------
 const { createClient } = supabase;
@@ -138,6 +138,7 @@ async function loadStudent(userId) {
     const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
     await renderPoolOverviewForStudent(null, null);
     await renderStudentGlobalLeaderboard();
+    await renderStudentLocalTop9();
     return;
   }
 
@@ -165,6 +166,7 @@ async function loadStudent(userId) {
       const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
       await renderPoolOverviewForStudent(null, null);
       await renderStudentGlobalLeaderboard();
+      await renderStudentLocalTop9();
       return;
     }
 
@@ -186,10 +188,12 @@ async function loadStudent(userId) {
 
     await renderPoolOverviewForStudent(poolId, localId);
     await renderStudentGlobalLeaderboard();
+    await renderStudentLocalTop9();
   } catch (e) {
     console.warn('loadStudent membership:', e);
     await renderPoolOverviewForStudent(null, null);
     await renderStudentGlobalLeaderboard();
+    await renderStudentLocalTop9();
   }
 }
 
@@ -283,6 +287,32 @@ async function renderStudentGlobalLeaderboard() {
   `).join('');
 }
 
+// NUEVO: Student: Top-9 locales (usa función SQL security definer)
+async function renderStudentLocalTop9() {
+  await ensureTeamCache();
+  const tbody = $('student-local-top9')?.querySelector('tbody');
+  if (!tbody) return;
+
+  const { data, error } = await sb.rpc('top_local_leaderboard', { _limit: 9 });
+  if (error) {
+    console.warn('top_local_leaderboard RPC error:', error);
+    tbody.innerHTML = `<tr><td colspan="5">Leaderboard unavailable.</td></tr>`;
+    return;
+  }
+  const rows = data || [];
+  tbody.innerHTML = rows.map((r, i) => {
+    const poolBg = colorForPool(r.pool_team_id);
+    return `
+      <tr style="background:${poolBg}">
+        <td>${i+1}</td>
+        <td>${r.local_name ?? teamLabel(r.local_team_id)}</td>
+        <td>${r.pool_name ?? teamLabel(r.pool_team_id)}</td>
+        <td>${r.spent ?? 0}</td>
+        <td><strong>${r.total_local ?? 0}</strong></td>
+      </tr>`;
+  }).join('');
+}
+
 // ---------------- Teacher panel ----------------
 let _selectedPoolId = null;       // overview locales
 let _leaderboardPoolId = null;    // leaderboard por pool
@@ -335,7 +365,7 @@ async function refreshTeamOverview() {
       _selectedPoolId = parseInt(tr.getAttribute('data-pool'),10);
       await loadLocalSummary();
       await syncLeaderboardToSelectedPool();
-      await refreshAllLocalsLeaderboard(); // mantener en sync
+      await refreshAllLocalsLeaderboard();
     });
   });
   await loadLocalSummary();
@@ -435,14 +465,13 @@ async function refreshLeaderboard() {
   `).join('');
 }
 
-// ---- NUEVO: All locals leaderboard ----
+// ---- All locals leaderboard (teacher) ----
 async function initAllLocalsLeaderboardUI() {
   await ensureTeamCache();
   const toggle = $('alllb-filter-toggle');
   const sel = $('alllb-pool');
   const btn = $('alllb-refresh');
 
-  // pools
   const { data: pools } = await sb.from('teams').select('id,name,class').eq('scope','global').order('name',{ascending:true});
   if (sel) {
     sel.innerHTML = (pools || []).map(p => `<option value="${p.id}">${p.name}${p.class?` (${p.class})`:''}</option>`).join('');
@@ -456,7 +485,6 @@ async function initAllLocalsLeaderboardUI() {
   on(sel, 'change', refreshAllLocalsLeaderboard);
   on(btn, 'click', refreshAllLocalsLeaderboard);
 
-  // valor inicial: sin filtro
   if (sel) sel.disabled = true;
   await refreshAllLocalsLeaderboard();
 }
@@ -477,18 +505,16 @@ async function refreshAllLocalsLeaderboard() {
   const { data: rows } = await q;
   if (!rows || rows.length === 0) { tbody.innerHTML = ''; if (legend) legend.innerHTML=''; return; }
 
-  // Mapeo de colores por pool presente
   const poolsPresent = Array.from(new Set(rows.map(r => r.pool_team_id))).sort((a,b)=>a-b);
   const poolColors = new Map(poolsPresent.map(pid => [pid, colorForPool(pid)]));
 
-  // Leyenda
   if (legend) {
     legend.innerHTML = poolsPresent.map(pid =>
       `<span class="legend-item"><span class="swatch" style="background:${poolColors.get(pid)}"></span>${teamLabel(pid)}</span>`
     ).join('');
   }
 
-  const byPoolPoints = new Map(); // pool -> pool_points (de la vista)
+  const byPoolPoints = new Map();
   rows.forEach(r => { if (!byPoolPoints.has(r.pool_team_id)) byPoolPoints.set(r.pool_team_id, r.pool_points ?? 0); });
 
   const ranked = rows.map(r => {
@@ -869,16 +895,14 @@ async function populateStudentTeamSelectors(prefix) {
     if (!localSel) return;
     const opts = Array.from(localSel.querySelectorAll('option'));
     if (!poolId) {
-      // mostrar todos
       opts.forEach(o => o.hidden = false);
       return;
     }
     opts.forEach(o => {
       const pid = o.getAttribute('data-parent');
-      if (!pid) return; // placeholder
+      if (!pid) return;
       o.hidden = String(pid) !== String(poolId);
     });
-    // si el seleccionado no pertenece, limpiar selección
     const selOpt = localSel.selectedOptions[0];
     if (selOpt && selOpt.getAttribute('data-parent') && String(selOpt.getAttribute('data-parent')) !== String(poolId)) {
       localSel.value = '';
@@ -897,7 +921,6 @@ async function populateStudentTeamSelectors(prefix) {
     if (parent && poolSel) poolSel.value = String(parent);
   });
 
-  // Estado inicial: sin filtro de locales
   filterLocalsByPool(null);
 }
 
@@ -922,6 +945,8 @@ async function upsertStudentCard(studentId, uid) {
   );
   if (error) throw error;
 }
+
+// ---------------- Teacher helpers already present above ----------------
 
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
