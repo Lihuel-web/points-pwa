@@ -188,7 +188,7 @@
           <div class="hint">Ordenado por <em>Total (local) = pool − spent</em>, de mayor a menor.</div>
         </div>
 
-        <!-- NUEVO: All locals leaderboard (todos los locales juntos) -->
+        <!-- All locals leaderboard -->
         <div class="card">
           <h3 class="section-title">All locals leaderboard</h3>
           <div class="row">
@@ -206,7 +206,7 @@
           <div class="hint">Tabla global de todos los equipos locales. Sombreado por color según el pool.</div>
         </div>
 
-        <!-- STUDENTS MANAGEMENT (SOLO TEACHER) -->
+        <!-- STUDENTS MANAGEMENT -->
         <div id="students-mgmt" class="card">
           <h3 class="section-title">Students</h3>
           <div class="grid-2">
@@ -302,7 +302,7 @@
           <div class="hint">La fila resaltada corresponde a tu equipo local.</div>
         </div>
 
-        <!-- NUEVO: Global teams leaderboard (para alumnos) -->
+        <!-- Global teams leaderboard (estudiante) -->
         <div style="margin-top:16px">
           <h3 class="section-title">Global teams leaderboard</h3>
           <div class="scroll-300">
@@ -311,8 +311,21 @@
               <tbody></tbody>
             </table>
           </div>
-          <div class="hint">Ranking por puntos del pool global. Si ves <code>#ID</code>, es por permisos de lectura.</div>
+          <div class="hint">Ranking por puntos del pool global.</div>
         </div>
+
+        <!-- NUEVO: Top 9 local teams (estudiante) -->
+        <div style="margin-top:16px">
+          <h3 class="section-title">Top 9 local teams</h3>
+          <div class="scroll-300">
+            <table id="student-local-top9">
+              <thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Spent</th><th>Total (local)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint">Se muestran sólo los 9 mejores equipos locales por <em>Total (local) = pool − spent</em>.</div>
+        </div>
+
       </section>
     </section>
   </main>
@@ -327,4 +340,3 @@
   <script src="./app.js"></script>
 </body>
 </html>
-
