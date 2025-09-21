@@ -11,7 +11,7 @@
     header { display:flex; gap:12px; align-items:center; padding:12px 16px;
              background:#111827; border-bottom:1px solid #1f2937; }
     header h1 { margin:0; font-size:18px; color:#93c5fd; }
-    main { max-width: 950px; margin: 0 auto; padding: 16px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
     .hud { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
     .card { background:#111827; border:1px solid #1f2937; border-radius:10px; padding:10px 12px; }
     .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd }
@@ -19,14 +19,18 @@
     button { padding:8px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer }
     button.primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff }
     button:disabled { opacity:.6; cursor:not-allowed }
+    select { padding:6px 8px; border-radius:8px; background:#0f172a; color:#e2e8f0; border:1px solid #334155 }
     #screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; }
     .help { color:#94a3b8; font-size:12px; margin-top:6px; }
+    table { width:100%; border-collapse: collapse; margin-top:12px; }
+    th, td { border-bottom:1px solid #1f2937; padding:8px 6px; text-align:left }
+    thead th { background:#0f172a; color:#93c5fd }
   </style>
 </head>
 <body>
   <header>
     <h1>ASCII Flappy</h1>
-    <span class="tag">read-only</span>
+    <span class="tag">read-only (puntos de equipo no cambian)</span>
     <div class="row" style="margin-left:auto">
       <a href="./index.html"><button>← Back</button></a>
     </div>
@@ -42,9 +46,18 @@
       <div class="card"><strong>Total (local):</strong> <span id="hud-total">0</span></div>
       <div class="card"><strong>Play time:</strong> <span id="hud-time">0</span> s</div>
       <div class="card"><strong>Score:</strong> <span id="hud-score">0</span></div>
+      <div class="card"><strong>Difficulty:</strong> <span id="hud-diff">normal ×1.25</span></div>
     </div>
 
     <div class="row" style="margin-bottom:10px">
+      <label>Difficulty:
+        <select id="difficulty">
+          <option value="easy">easy ×1.00</option>
+          <option value="normal" selected>normal ×1.25</option>
+          <option value="hard">hard ×1.60</option>
+          <option value="insane">insane ×2.00</option>
+        </select>
+      </label>
       <button id="btn-start" class="primary" disabled>Start</button>
       <button id="btn-stop" disabled>Stop</button>
       <span id="status" class="tag">loading…</span>
@@ -52,8 +65,21 @@
 
     <pre id="screen">Loading…</pre>
     <div class="help">
-      Controls: <strong>Space</strong> o <strong>↑</strong> para saltar · <strong>P</strong> para pausar · Dificultad y tiempo se basan en tu Total (local).
+      El tiempo de juego es igual a tu <strong>Total (local)</strong> (tope 240 s).<br>
+      Cambiar la dificultad <strong>no</strong> cambia tus puntos de equipo; solo ajusta la velocidad/densidad de obstáculos y
+      aplica un multiplicador al puntaje final de la partida.
     </div>
+
+    <section class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 8px">Leaderboard — mejores puntajes de tu equipo local</h3>
+      <table id="lb-table">
+        <thead>
+          <tr><th>#</th><th>Student</th><th>Best score</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="help">Se muestran los mejores puntajes (máximo por estudiante) del mismo equipo local.</div>
+    </section>
   </main>
 
   <!-- Supabase UMD -->
