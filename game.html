@@ -1,0 +1,66 @@
+<!-- Esto es un “shell” listo para desplegar (mismo dominio que tu PWA). Renderiza un mini HUD con los puntos locales 
+y te da un “tiempo de juego” proporcional al total local. El juego ASCII real lo podrás implementar dentro del <pre id="screen"> y los handlers del game.js.-->
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Team Game</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+           margin:0; background:#0b1120; color:#e2e8f0; }
+    header { display:flex; gap:12px; align-items:center; padding:12px 16px;
+             background:#111827; border-bottom:1px solid #1f2937; }
+    header h1 { margin:0; font-size:18px; color:#93c5fd; }
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .hud { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:10px; padding:10px 12px; }
+    .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd }
+    .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+    button { padding:8px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer }
+    button.primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff }
+    button:disabled { opacity:.6; cursor:not-allowed }
+    #screen { white-space: pre; min-height: 300px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Team Game</h1>
+    <span class="tag">read-only</span>
+    <div class="row" style="margin-left:auto">
+      <a href="./index.html"><button>← Back</button></a>
+    </div>
+  </header>
+
+  <main>
+    <div class="hud">
+      <div class="card"><strong>User:</strong> <span id="hud-user">—</span></div>
+      <div class="card"><strong>Local team:</strong> <span id="hud-local">—</span></div>
+      <div class="card"><strong>Global team:</strong> <span id="hud-pool">—</span></div>
+      <div class="card"><strong>Pool points:</strong> <span id="hud-poolpts">0</span></div>
+      <div class="card"><strong>Spent (local):</strong> <span id="hud-spent">0</span></div>
+      <div class="card"><strong>Total (local):</strong> <span id="hud-total">0</span></div>
+      <div class="card"><strong>Play time:</strong> <span id="hud-time">0</span> s</div>
+    </div>
+
+    <div class="row" style="margin-bottom:10px">
+      <button id="btn-start" class="primary" disabled>Start</button>
+      <button id="btn-stop" disabled>Stop</button>
+      <span id="status" class="tag">loading…</span>
+    </div>
+
+    <pre id="screen">Loading…</pre>
+  </main>
+
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Config pública (mismos valores que index.html) -->
+  <script>
+    window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
+  </script>
+  <script src="./game.js"></script>
+</body>
+</html>
