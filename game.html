@@ -3,82 +3,207 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Team Game — ASCII Flappy</title>
+  <title>Team Games — ASCII Suite</title>
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-           margin:0; background:#0b1120; color:#e2e8f0; }
-    header { display:flex; gap:12px; align-items:center; padding:12px 16px;
-             background:#111827; border-bottom:1px solid #1f2937; }
+    body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; margin:0; background:#0b1120; color:#e2e8f0; }
+    header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:#111827; border-bottom:1px solid #1f2937; position:sticky; top:0; z-index:10; }
     header h1 { margin:0; font-size:18px; color:#93c5fd; }
-    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
-    .hud { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
-    .card { background:#111827; border:1px solid #1f2937; border-radius:10px; padding:10px 12px; }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px; }
     .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd }
     .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+    .col { display:flex; flex-direction:column; gap:10px }
     button { padding:8px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer }
     button.primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff }
     button:disabled { opacity:.6; cursor:not-allowed }
     select { padding:6px 8px; border-radius:8px; background:#0f172a; color:#e2e8f0; border:1px solid #334155 }
-    #screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:14px; margin:16px 0; }
+    .hud { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+    .hud .cell { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:8px 10px; }
+    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; }
     .help { color:#94a3b8; font-size:12px; margin-top:6px; }
-    table { width:100%; border-collapse: collapse; margin-top:12px; }
+    h2 { margin: 8px 0 4px; color:#93c5fd; font-size:18px; }
+    h3 { margin: 6px 0 8px; color:#bfdbfe; font-size:14px; }
+    table { width:100%; border-collapse: collapse; margin-top:8px; }
     th, td { border-bottom:1px solid #1f2937; padding:8px 6px; text-align:left }
     thead th { background:#0f172a; color:#93c5fd }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    @media (max-width: 980px){ .grid2{ grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>ASCII Flappy</h1>
-    <span class="tag">read-only (puntos de equipo no cambian)</span>
+    <h1>ASCII Classroom Games</h1>
+    <span class="tag">read-only (los puntos del sistema no cambian)</span>
     <div class="row" style="margin-left:auto">
       <a href="./index.html"><button>← Back</button></a>
     </div>
   </header>
 
   <main>
-    <div class="hud">
-      <div class="card"><strong>User:</strong> <span id="hud-user">—</span></div>
-      <div class="card"><strong>Local:</strong> <span id="hud-local">—</span></div>
-      <div class="card"><strong>Global:</strong> <span id="hud-pool">—</span></div>
-      <div class="card"><strong>Pool:</strong> <span id="hud-poolpts">0</span></div>
-      <div class="card"><strong>Spent:</strong> <span id="hud-spent">0</span></div>
-      <div class="card"><strong>Total (local):</strong> <span id="hud-total">0</span></div>
-      <div class="card"><strong>Play time:</strong> <span id="hud-time">0</span> s</div>
-      <div class="card"><strong>Score:</strong> <span id="hud-score">0</span></div>
-      <div class="card"><strong>Difficulty:</strong> <span id="hud-diff">normal ×1.25</span></div>
-    </div>
+    <!-- Bloque común -->
+    <section class="card">
+      <div class="row">
+        <div class="tag">Usuario: <span id="common-user">—</span></div>
+        <div class="tag">Local: <span id="common-local">—</span></div>
+        <div class="tag">Global: <span id="common-pool">—</span></div>
+        <div class="tag">Pool: <span id="common-poolpts">0</span></div>
+        <div class="tag">Spent: <span id="common-spent">0</span></div>
+        <div class="tag">Total (local): <span id="common-total">0</span></div>
+      </div>
+      <div class="help">El tiempo de juego de cada título = <strong>Total (local)</strong> (tope 240 s). Cambiar dificultad no altera puntos del sistema; solo el juego.</div>
+    </section>
 
-    <div class="row" style="margin-bottom:10px">
-      <label>Difficulty:
-        <select id="difficulty">
-          <option value="easy">easy ×1.00</option>
-          <option value="normal" selected>normal ×1.25</option>
-          <option value="hard">hard ×1.60</option>
-          <option value="insane">insane ×2.00</option>
-        </select>
-      </label>
-      <button id="btn-start" class="primary" disabled>Start</button>
-      <button id="btn-stop" disabled>Stop</button>
-      <span id="status" class="tag">loading…</span>
-    </div>
+    <!-- ==== JUEGO 1: FLAPPY ==== -->
+    <section class="card" id="flappy">
+      <h2>ASCII Flappy</h2>
+      <div class="hud">
+        <div class="cell"><strong>Play time:</strong> <span id="flappy-time">0</span> s</div>
+        <div class="cell"><strong>Score:</strong> <span id="flappy-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Total score:</strong> <span id="flappy-total">0</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="flappy-diff">normal ×1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="flappy-status">loading…</span></div>
+      </div>
+      <div class="row">
+        <label>Dificultad:
+          <select id="flappy-select">
+            <option value="easy">easy ×1.00</option>
+            <option value="normal" selected>normal ×1.25</option>
+            <option value="hard">hard ×1.60</option>
+            <option value="insane">insane ×2.00</option>
+          </select>
+        </label>
+        <button id="flappy-start" class="primary" disabled>Start</button>
+        <button id="flappy-stop" disabled>Stop</button>
+        <span class="tag">Controles: Space/↑ (saltar) · P (pausa)</span>
+      </div>
+      <pre id="flappy-screen" class="screen">Loading…</pre>
+      <div class="help">Tu puntaje final = obstáculos superados × multiplicador. Los puntos del sistema no cambian.</div>
 
-    <pre id="screen">Loading…</pre>
-    <div class="help">
-      El tiempo de juego es igual a tu <strong>Total (local)</strong> (tope 240 s).<br>
-      Cambiar la dificultad <strong>no</strong> cambia tus puntos de equipo; solo ajusta la velocidad/densidad de obstáculos y
-      aplica un multiplicador al puntaje final de la partida.
-    </div>
+      <div class="grid2">
+        <div>
+          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
+          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="flappy-lb-local"></tbody></table>
+        </div>
+        <div>
+          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
+          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="flappy-lb-teams"></tbody></table>
+        </div>
+      </div>
+    </section>
 
-    <section class="card" style="margin-top:16px">
-      <h3 style="margin:0 0 8px">Leaderboard — mejores puntajes de tu equipo local</h3>
-      <table id="lb-table">
-        <thead>
-          <tr><th>#</th><th>Student</th><th>Best score</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="help">Se muestran los mejores puntajes (máximo por estudiante) del mismo equipo local.</div>
+    <!-- ==== JUEGO 2: SNAKE ==== -->
+    <section class="card" id="snake">
+      <h2>ASCII Snake</h2>
+      <div class="hud">
+        <div class="cell"><strong>Play time:</strong> <span id="snake-time">0</span> s</div>
+        <div class="cell"><strong>Score:</strong> <span id="snake-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Total score:</strong> <span id="snake-total">0</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="snake-diff">normal ×1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="snake-status">loading…</span></div>
+      </div>
+      <div class="row">
+        <label>Dificultad:
+          <select id="snake-select">
+            <option value="easy">easy ×1.00</option>
+            <option value="normal" selected>normal ×1.25</option>
+            <option value="hard">hard ×1.60</option>
+            <option value="insane">insane ×2.00</option>
+          </select>
+        </label>
+        <button id="snake-start" class="primary" disabled>Start</button>
+        <button id="snake-stop" disabled>Stop</button>
+        <span class="tag">Controles: ← → ↑ ↓ (mover) · P (pausa)</span>
+      </div>
+      <pre id="snake-screen" class="screen">Loading…</pre>
+      <div class="help">Come “*” para sumar. Chocar con paredes o contigo mismo termina la partida.</div>
+
+      <div class="grid2">
+        <div>
+          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
+          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="snake-lb-local"></tbody></table>
+        </div>
+        <div>
+          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
+          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="snake-lb-teams"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==== JUEGO 3: TETRIS (simplificado ASCII) ==== -->
+    <section class="card" id="tetris">
+      <h2>ASCII Tetris (simplificado)</h2>
+      <div class="hud">
+        <div class="cell"><strong>Play time:</strong> <span id="tetris-time">0</span> s</div>
+        <div class="cell"><strong>Score:</strong> <span id="tetris-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Total score:</strong> <span id="tetris-total">0</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="tetris-diff">normal ×1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="tetris-status">loading…</span></div>
+      </div>
+      <div class="row">
+        <label>Dificultad:
+          <select id="tetris-select">
+            <option value="easy">easy ×1.00</option>
+            <option value="normal" selected>normal ×1.25</option>
+            <option value="hard">hard ×1.60</option>
+            <option value="insane">insane ×2.00</option>
+          </select>
+        </label>
+        <button id="tetris-start" class="primary" disabled>Start</button>
+        <button id="tetris-stop" disabled>Stop</button>
+        <span class="tag">Controles: ← → (mover) · ↑ (rotar) · ↓ (caer rápido) · P (pausa)</span>
+      </div>
+      <pre id="tetris-screen" class="screen">Loading…</pre>
+      <div class="help">Puntuación por líneas eliminadas. Simplificado para ASCII (piezas I, O, L, T).</div>
+
+      <div class="grid2">
+        <div>
+          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
+          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="tetris-lb-local"></tbody></table>
+        </div>
+        <div>
+          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
+          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="tetris-lb-teams"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==== JUEGO 4: ROAD (tipo Road Fighter ASCII) ==== -->
+    <section class="card" id="road">
+      <h2>ASCII Road</h2>
+      <div class="hud">
+        <div class="cell"><strong>Play time:</strong> <span id="road-time">0</span> s</div>
+        <div class="cell"><strong>Score:</strong> <span id="road-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Total score:</strong> <span id="road-total">0</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="road-diff">normal ×1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="road-status">loading…</span></div>
+      </div>
+      <div class="row">
+        <label>Dificultad:
+          <select id="road-select">
+            <option value="easy">easy ×1.00</option>
+            <option value="normal" selected>normal ×1.25</option>
+            <option value="hard">hard ×1.60</option>
+            <option value="insane">insane ×2.00</option>
+          </select>
+        </label>
+        <button id="road-start" class="primary" disabled>Start</button>
+        <button id="road-stop" disabled>Stop</button>
+        <span class="tag">Controles: ← → (mover) · P (pausa)</span>
+      </div>
+      <pre id="road-screen" class="screen">Loading…</pre>
+      <div class="help">Evita los obstáculos que caen. Puntaje por distancia/obstáculos esquivados.</div>
+
+      <div class="grid2">
+        <div>
+          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
+          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="road-lb-local"></tbody></table>
+        </div>
+        <div>
+          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
+          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="road-lb-teams"></tbody></table>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -91,4 +216,3 @@
   <script src="./game.js"></script>
 </body>
 </html>
-
