@@ -327,7 +327,167 @@ async function loadTeacher() {
   await initStudentForms();
   await initLeaderboardUI();
   await initAllLocalsLeaderboardUI();
+  await initAdminResetsUI();   // <— NUEVO: inicializa botones de reset
+
 }
+
+async function initAdminResetsUI() {
+  // Botones de apertura
+  const btnOpenPoints  = document.getElementById('btn-open-reset-points');
+  const btnOpenScores  = document.getElementById('btn-open-reset-scores');
+
+  // Modales
+  const modalPoints    = document.getElementById('modal-reset-points');
+  const modalScores    = document.getElementById('modal-reset-scores');
+
+  if (!btnOpenPoints || !btnOpenScores || !modalPoints || !modalScores) return;
+
+  // ------- Helpers -------
+  function show(el){ el.style.display = 'block'; }
+  function hide(el){ el.style.display = 'none'; }
+
+  async function ensureTeacher() {
+    const { data:{ user } } = await sb.auth.getUser();
+    if (!user) { alert('Inicia sesión.'); return false; }
+    const { data: prof } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if (!prof || prof.role !== 'teacher') { alert('Solo profesores.'); return false; }
+    return true;
+  }
+
+  // ======= Reset de PUNTOS =======
+  const rpInclude = document.getElementById('rp-include-scores');
+  const rpInput   = document.getElementById('rp-confirm');
+  const rpExec    = document.getElementById('rp-exec');
+  const rpCancel  = document.getElementById('rp-cancel');
+  const rpResult  = document.getElementById('rp-result');
+
+  function rpCheckEnable(){
+    rpExec.disabled = (rpInput.value.trim() !== 'RESETEAR PUNTOS');
+  }
+
+  btnOpenPoints.addEventListener('click', async () => {
+    if (!(await ensureTeacher())) return;
+    rpResult.textContent = '';
+    rpInput.value = '';
+    rpInclude.checked = false;
+    rpCheckEnable();
+    show(modalPoints);
+    rpInput.focus();
+  });
+
+  rpInput.addEventListener('input', rpCheckEnable);
+  rpCancel.addEventListener('click', () => hide(modalPoints));
+
+  rpExec.addEventListener('click', async () => {
+    if (rpExec.disabled) return;
+    const includeScores = !!rpInclude.checked;
+    const ok = confirm(`Esto reseteará TODOS los puntos (earn/spend).${includeScores ? ' También borrará los marcadores de juegos.' : ''}\n¿Confirmas?`);
+    if (!ok) return;
+
+    rpExec.disabled = true;
+    rpResult.textContent = 'Ejecutando...';
+    try {
+      const { data, error } = await sb.rpc('reset_all_points', { include_game_scores: includeScores });
+      if (error) throw error;
+
+      rpResult.textContent =
+`✔ Listo
+transactions borradas: ${data.transactions_deleted}
+team_pool_tx borradas: ${data.team_pool_tx_deleted}
+game_scores borradas:  ${data.game_scores_deleted}`;
+
+      // Refrescos de UI afectados por puntos
+      await refreshTeamOverview();
+      await loadLatestTransactions();
+      await refreshLeaderboard();
+      await refreshAllLocalsLeaderboard();
+    } catch (e) {
+      console.error(e);
+      rpResult.textContent = `✖ Error: ${e.message || e}`;
+    } finally {
+      rpExec.disabled = false;
+    }
+  });
+
+  // Cerrar con ESC
+  document.addEventListener('keydown', (ev)=>{
+    if (ev.key === 'Escape') {
+      if (modalPoints.style.display === 'block') hide(modalPoints);
+      if (modalScores.style.display === 'block') hide(modalScores);
+    }
+  });
+
+  // Cerrar si clic fuera del cuadro
+  modalPoints.addEventListener('click', (e)=>{
+    if (e.target === modalPoints) hide(modalPoints);
+  });
+  modalScores.addEventListener('click', (e)=>{
+    if (e.target === modalScores) hide(modalScores);
+  });
+
+  // ======= Reset de PUNTUACIONES =======
+  const rgsInput   = document.getElementById('rgs-confirm');
+  const rgsExec    = document.getElementById('rgs-exec');
+  const rgsCancel  = document.getElementById('rgs-cancel');
+  const rgsResult  = document.getElementById('rgs-result');
+
+  function rgsSelectedGames(){
+    return Array.from(document.querySelectorAll('.rgs-game'))
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+  }
+  function rgsCheckEnable(){
+    const phraseOk = (rgsInput.value.trim() === 'RESETEAR PUNTUACIONES');
+    rgsExec.disabled = !(phraseOk && rgsSelectedGames().length > 0);
+  }
+
+  btnOpenScores.addEventListener('click', async () => {
+    if (!(await ensureTeacher())) return;
+    rgsResult.textContent = '';
+    rgsInput.value = '';
+    document.querySelectorAll('.rgs-game').forEach(cb => { cb.checked = true; });
+    rgsCheckEnable();
+    show(modalScores);
+    rgsInput.focus();
+  });
+
+  document.addEventListener('change', (e)=>{
+    const t = e.target;
+    if (t && t.classList && t.classList.contains('rgs-game')) rgsCheckEnable();
+  });
+  rgsInput.addEventListener('input', rgsCheckEnable);
+  rgsCancel.addEventListener('click', () => hide(modalScores));
+
+  rgsExec.addEventListener('click', async ()=>{
+    if (rgsExec.disabled) return;
+    const games = rgsSelectedGames();
+    const ok = confirm(`Esto reseteará las puntuaciones de: ${games.join(', ')}. ¿Confirmas?`);
+    if (!ok) return;
+
+    rgsExec.disabled = true;
+    rgsResult.textContent = 'Ejecutando...';
+    try {
+      const { data, error } = await sb.rpc('reset_game_scores', { games });
+      if (error) throw error;
+
+      rgsResult.textContent =
+`✔ Listo
+flappy: ${data.flappy_deleted}
+snake:  ${data.snake_deleted}
+tetris: ${data.tetris_deleted}
+road:   ${data.road_deleted}`;
+
+      // Si tienes tablas de leaderboards visibles, refresca lo que aplique aquí
+      await refreshAllLocalsLeaderboard(); // por si pintas algo combinado
+    } catch (e) {
+      console.error(e);
+      rgsResult.textContent = `✖ Error: ${e.message || e}`;
+    } finally {
+      rgsExec.disabled = false;
+    }
+  });
+}
+
 
 async function loadLatestTransactions() {
   const { data: txs } = await sb.from('transactions')
