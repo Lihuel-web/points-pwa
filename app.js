@@ -327,6 +327,7 @@ async function loadTeacher() {
   await initStudentForms();
   await initLeaderboardUI();
   await initAllLocalsLeaderboardUI();
+  await initAsciiLeaderboardsUI();
   await initAdminResetsUI();   // <— NUEVO: inicializa botones de reset
 
 }
@@ -699,6 +700,90 @@ async function refreshAllLocalsLeaderboard() {
       <td><strong>${r.totalLocal}</strong></td>
     </tr>
   `).join('');
+}
+
+// ---- ASCII games leaderboards (teacher) ----
+const ASCII_GAME_CFG = {
+  flappy: { label:'ASCII Flappy', table:'game_scores', teamRpc:'game_local_team_leaderboard' },
+  snake:  { label:'ASCII Snake',  table:'game_scores_snake', teamRpc:'game_local_team_leaderboard_snake' },
+  tetris: { label:'ASCII Tetris', table:'game_scores_tetris', teamRpc:'game_local_team_leaderboard_tetris' },
+  road:   { label:'ASCII Road',   table:'game_scores_road', teamRpc:'game_local_team_leaderboard_road' },
+};
+
+async function initAsciiLeaderboardsUI() {
+  const sel = $('ascii-game-select');
+  const btn = $('ascii-lb-refresh');
+  if (!sel || !btn) return;
+
+  if (!initAsciiLeaderboardsUI._bound) {
+    sel.innerHTML = Object.entries(ASCII_GAME_CFG)
+      .map(([key,cfg]) => `<option value="${key}">${cfg.label}</option>`)
+      .join('');
+    on(sel, 'change', refreshAsciiLeaderboards);
+    on(btn, 'click', refreshAsciiLeaderboards);
+    initAsciiLeaderboardsUI._bound = true;
+  }
+
+  await refreshAsciiLeaderboards();
+}
+
+async function refreshAsciiLeaderboards() {
+  await ensureTeamCache();
+  const sel = $('ascii-game-select');
+  const tbStudents = $('ascii-lb-students')?.querySelector('tbody');
+  const tbTeams = $('ascii-lb-teams')?.querySelector('tbody');
+  if (!sel || !tbStudents || !tbTeams) return;
+
+  const key = sel.value || Object.keys(ASCII_GAME_CFG)[0];
+  const cfg = ASCII_GAME_CFG[key];
+  if (!cfg) return;
+
+  // Top students (global best per student)
+  const { data: rows, error } = await sb
+    .from(cfg.table)
+    .select('student_id,student_name,local_team_id,local_team_name,score')
+    .order('score', { ascending:false })
+    .limit(200);
+  if (error) {
+    console.warn('ascii students lb', error);
+    tbStudents.innerHTML = `<tr><td colspan="4">Error</td></tr>`;
+  } else {
+    const best = new Map();
+    (rows || []).forEach(r => {
+      const current = best.get(r.student_id);
+      const candidateScore = r.score ?? 0;
+      if (!current || candidateScore > current.score) {
+        best.set(r.student_id, {
+          name: r.student_name || `#${r.student_id}`,
+          local: r.local_team_name || teamLabel(r.local_team_id),
+          score: candidateScore,
+        });
+      }
+    });
+    const ranked = Array.from(best.values())
+      .sort((a,b)=> b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, 20);
+    tbStudents.innerHTML = ranked.map((r,i)=> `
+      <tr><td>${i+1}</td><td>${r.name}</td><td>${r.local ?? '—'}</td><td><strong>${r.score}</strong></td></tr>
+    `).join('') || `<tr><td colspan="4">—</td></tr>`;
+  }
+
+  // Top local teams (global)
+  const { data: teams, error: errTeams } = await sb.rpc(cfg.teamRpc, { _limit: 50 });
+  if (errTeams) {
+    console.warn('ascii teams lb', errTeams);
+    tbTeams.innerHTML = `<tr><td colspan="4">Error</td></tr>`;
+  } else {
+    const rankedTeams = (teams || []).map((r,i)=> ({
+      rank: i+1,
+      local: r.local_team_name || teamLabel(r.local_team_id),
+      pool: r.pool_team_name || teamLabel(r.pool_team_id),
+      best: r.team_best ?? 0,
+    })).slice(0, 20);
+    tbTeams.innerHTML = rankedTeams.map(r => `
+      <tr><td>${r.rank}</td><td>${r.local}</td><td>${r.pool}</td><td><strong>${r.best}</strong></td></tr>
+    `).join('') || `<tr><td colspan="4">—</td></tr>`;
+  }
 }
 
 // ---- Gestión equipos + membresías ----

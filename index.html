@@ -206,6 +206,38 @@
           <div class="hint">Tabla global de todos los equipos locales. Sombreado por color según el pool.</div>
         </div>
 
+        <!-- ASCII games leaderboards -->
+        <div class="card">
+          <h3 class="section-title">ASCII games leaderboards</h3>
+          <div class="row">
+            <select id="ascii-game-select" title="Juego">
+              <option>Loading…</option>
+            </select>
+            <button id="ascii-lb-refresh" type="button">Reload</button>
+          </div>
+          <div class="grid-2" style="margin-top:10px">
+            <div>
+              <h4 style="margin:0 0 6px">Top students (global)</h4>
+              <div class="scroll-300">
+                <table id="ascii-lb-students">
+                  <thead><tr><th>#</th><th>Student</th><th>Local</th><th>Best</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h4 style="margin:0 0 6px">Top local teams (global)</h4>
+              <div class="scroll-300">
+                <table id="ascii-lb-teams">
+                  <thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="hint">Puntajes en vivo desde los minijuegos ASCII (Flappy, Snake, Tetris y Road).</div>
+        </div>
+
         <!-- STUDENTS MANAGEMENT -->
         <div id="students-mgmt" class="card">
           <h3 class="section-title">Students</h3>
