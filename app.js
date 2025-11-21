@@ -709,6 +709,66 @@ async function loadTeamsUI() {
   const teamBalance = $('team-balance');
   if (!selTeam && !selStudent && !ulMembers) return;
 
+  if (!loadTeamsUI._bound) {
+    on($('reload-teams'), 'click', loadTeamsUI);
+
+    on($('new-team-form'), 'submit', async (e) => {
+      e.preventDefault();
+      const name = $('team-name').value.trim();
+      const klass = ($('team-class').value || '').trim();
+      if (!name) return alert('Team name is required.');
+      const { error } = await sb.from('teams').insert([{ name, class: klass || null }]);
+      if (error) return alert(error.message);
+      invalidateTeamCache();
+      $('team-name').value=''; $('team-class').value='';
+      await loadTeamsUI();
+      await refreshTeamOverview();
+      await initLeaderboardUI();
+      await refreshAllLocalsLeaderboard();
+    });
+
+    on($('delete-team'), 'click', async () => {
+      const teamId = parseInt(selTeam?.value || '0', 10);
+      if (!teamId) return;
+      const ok = confirm('Delete this team? This removes memberships but not student records or transactions.');
+      if (!ok) return;
+      const { error } = await sb.from('teams').delete().eq('id', teamId);
+      if (error) return alert(error.message);
+      invalidateTeamCache();
+      await loadTeamsUI();
+      await refreshTeamOverview();
+      await initLeaderboardUI();
+      await refreshAllLocalsLeaderboard();
+    });
+
+    on($('assign-member'), 'click', async () => {
+      const teamId = parseInt(selTeam?.value || '0', 10);
+      const studentId = parseInt(selStudent?.value || '0', 10);
+      if (!teamId || !studentId) return;
+      await sb.from('team_members').delete().eq('student_id', studentId); // 1 equipo por alumno
+      const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
+      if (error) return alert(error.message);
+      await refreshTeamDetails();
+      await refreshTeamOverview();
+      await initLeaderboardUI();
+      await refreshAllLocalsLeaderboard();
+    });
+
+    on($('remove-member'), 'click', async () => {
+      const teamId = parseInt(selTeam?.value || '0', 10);
+      const firstLi = ulMembers?.querySelector('li[data-student]');
+      if (!teamId || !firstLi) return;
+      const studentId = parseInt(firstLi.getAttribute('data-student'), 10);
+      const { error } = await sb.from('team_members').delete().match({ team_id: teamId, student_id: studentId });
+      if (error) return alert(error.message);
+      await refreshTeamDetails();
+    });
+
+    on(selTeam, 'change', refreshTeamDetails);
+
+    loadTeamsUI._bound = true;
+  }
+
   try {
     if (selTeam) {
       const { data: teams } = await sb.from('teams').select('id,name,class').order('name', { ascending:true });
@@ -720,59 +780,6 @@ async function loadTeamsUI() {
     }
     await refreshTeamDetails();
   } catch (e) { console.warn('loadTeamsUI:', e); }
-
-  on($('reload-teams'), 'click', loadTeamsUI);
-
-  on($('new-team-form'), 'submit', async (e) => {
-    e.preventDefault();
-    const name = $('team-name').value.trim();
-    const klass = ($('team-class').value || '').trim();
-    if (!name) return alert('Team name is required.');
-    const { error } = await sb.from('teams').insert([{ name, class: klass || null }]);
-    if (error) return alert(error.message);
-    invalidateTeamCache();
-    $('team-name').value=''; $('team-class').value='';
-    await loadTeamsUI();
-    await refreshTeamOverview();
-    await initLeaderboardUI();
-    await refreshAllLocalsLeaderboard();
-  });
-
-  on($('delete-team'), 'click', async () => {
-    const teamId = parseInt(selTeam?.value || '0', 10);
-    if (!teamId) return;
-    const ok = confirm('Delete this team? This removes memberships but not student records or transactions.');
-    if (!ok) return;
-    const { error } = await sb.from('teams').delete().eq('id', teamId);
-    if (error) return alert(error.message);
-    invalidateTeamCache();
-    await loadTeamsUI();
-    await refreshTeamOverview();
-    await initLeaderboardUI();
-    await refreshAllLocalsLeaderboard();
-  });
-
-  on($('assign-member'), 'click', async () => {
-    const teamId = parseInt(selTeam?.value || '0', 10);
-    const studentId = parseInt(selStudent?.value || '0', 10);
-    if (!teamId || !studentId) return;
-    await sb.from('team_members').delete().eq('student_id', studentId); // 1 equipo por alumno
-    const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
-    if (error) return alert(error.message);
-    await refreshTeamDetails();
-  });
-
-  on($('remove-member'), 'click', async () => {
-    const teamId = parseInt(selTeam?.value || '0', 10);
-    const firstLi = ulMembers?.querySelector('li[data-student]');
-    if (!teamId || !firstLi) return;
-    const studentId = parseInt(firstLi.getAttribute('data-student'), 10);
-    const { error } = await sb.from('team_members').delete().match({ team_id: teamId, student_id: studentId });
-    if (error) return alert(error.message);
-    await refreshTeamDetails();
-  });
-
-  on(selTeam, 'change', refreshTeamDetails);
 
   async function refreshTeamDetails() {
     if (!selTeam) return;
