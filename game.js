@@ -29,6 +29,13 @@ let COMMON = {
   totals:  { pool:0, spent:0, totalLocal:0 }
 };
 
+function setGamesUnavailable(message){
+  ['flappy','snake','tetris','road'].forEach(key => {
+    text($(`${key}-status`), 'no team');
+    text($(`${key}-screen`), message);
+  });
+}
+
 // ---------- Supabase helpers ----------
 async function labelTeam(id){
   const { data } = await sb.from('teams').select('id,name,class').eq('id', id).maybeSingle();
@@ -40,22 +47,22 @@ async function bootstrapCommon(){
   if (!user){ location.href='./index.html'; return false; }
   COMMON.user = user;
 
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const role = profile?.role || 'student';
+  if (role === 'teacher') {
+    return bootstrapTeacherPractice();
+  }
+
   const { data: stu } = await sb.from('students').select('id,name,class').eq('auth_user_id', user.id).maybeSingle();
   if (!stu){
-    ['flappy','snake','tetris','road'].forEach(k => {
-      text($(`${k}-status`),'no team');
-      text($(`${k}-screen`),'Aún no tienes equipo local asignado. Pide a tu profesor que te asigne uno.');
-    });
+    setGamesUnavailable('Aún no tienes equipo local asignado. Pide a tu profesor que te asigne uno.');
     return false;
   }
   COMMON.student = { id: stu.id, name: stu.name || 'Student' };
 
   const { data, error } = await sb.rpc('get_my_local_total');
   if (error || !data || data.length===0){
-    ['flappy','snake','tetris','road'].forEach(k => {
-      text($(`${k}-status`),'no team');
-      text($(`${k}-screen`),'No se pudo obtener tu equipo local.');
-    });
+    setGamesUnavailable('No se pudo obtener tu equipo local.');
     return false;
   }
   const row = data[0];
@@ -78,6 +85,45 @@ async function bootstrapCommon(){
     const b = $(`${k}-start`);
     if (b) b.disabled = COMMON.totals.totalLocal <= 0;
   });
+  return true;
+}
+
+async function bootstrapTeacherPractice(){
+  const { data, error } = await sb.rpc('top_local_leaderboard', { _limit: 1 });
+  if (error || !data || data.length === 0) {
+    setGamesUnavailable('No hay equipos locales con puntos disponibles para practicar.');
+    return false;
+  }
+
+  const top = data[0];
+  const localName = top.local_name || await labelTeam(top.local_team_id);
+  const poolName  = top.pool_name  || await labelTeam(top.pool_team_id);
+  const poolPointsRaw = Number(top.pool_points);
+  const poolPoints = Number.isFinite(poolPointsRaw) ? poolPointsRaw : ((top.total_local ?? 0) + (top.spent ?? 0));
+
+  COMMON.local = { id: top.local_team_id, name: localName };
+  COMMON.pool  = { id: top.pool_team_id,  name: poolName  };
+  COMMON.totals.pool       = poolPoints || 0;
+  COMMON.totals.spent      = top.spent ?? 0;
+  COMMON.totals.totalLocal = Math.min(240, top.total_local ?? 0);
+
+  text($('common-user'), `${COMMON.user.email || COMMON.user.id} (teacher practice)`);
+  text($('common-local'), COMMON.local.name);
+  text($('common-pool'), COMMON.pool.name);
+  text($('common-poolpts'), COMMON.totals.pool);
+  text($('common-spent'), COMMON.totals.spent);
+  text($('common-total'), COMMON.totals.totalLocal);
+
+  const info = `Modo profesor: usas el tiempo del equipo con más puntos (${COMMON.local.name}).`;
+  ['flappy','snake','tetris','road'].forEach(key => {
+    text($(`${key}-status`), 'ready');
+    text($(`${key}-screen`), info);
+    const startBtn = $(`${key}-start`);
+    if (startBtn) startBtn.disabled = COMMON.totals.totalLocal <= 0;
+    const stopBtn = $(`${key}-stop`);
+    if (stopBtn) stopBtn.disabled = true;
+  });
+
   return true;
 }
 
