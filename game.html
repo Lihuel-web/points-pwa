@@ -1,26 +1,28 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Team Games — ASCII Suite</title>
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; margin:0; background:#0b1120; color:#e2e8f0; }
+    body { font-family: "Space Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; margin:0; background:#0b1120; color:#e2e8f0; transition: background 0.3s ease, color 0.3s ease; }
     header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:#111827; border-bottom:1px solid #1f2937; position:sticky; top:0; z-index:10; }
-    header h1 { margin:0; font-size:18px; color:#93c5fd; }
+    header h1 { margin:0; font-size:18px; color:#93c5fd; letter-spacing:0.4px; }
     main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd }
+    .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd; }
     .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
     .col { display:flex; flex-direction:column; gap:10px }
-    button { padding:8px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer }
+    button { padding:8px 12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer; transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease; }
     button.primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff }
+    button.ghost { background:transparent; color:#93c5fd; }
     button:disabled { opacity:.6; cursor:not-allowed }
+    button:hover:not(:disabled){ transform: translateY(-1px); }
     select { padding:6px 8px; border-radius:8px; background:#0f172a; color:#e2e8f0; border:1px solid #334155 }
-    .card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:14px; margin:16px 0; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:14px; margin:16px 0; box-shadow:0 16px 40px rgba(0,0,0,0.25); }
     .hud { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
     .hud .cell { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:8px 10px; }
-    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; }
+    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; color:#9cf6ff; text-shadow:0 0 6px rgba(0,255,255,0.2), 0 0 12px rgba(124,244,255,0.18); letter-spacing:0.2px; }
     .help { color:#94a3b8; font-size:12px; margin-top:6px; }
     h2 { margin: 8px 0 4px; color:#93c5fd; font-size:18px; }
     h3 { margin: 6px 0 8px; color:#bfdbfe; font-size:14px; }
@@ -29,29 +31,128 @@
     thead th { background:#0f172a; color:#93c5fd }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     @media (max-width: 980px){ .grid2{ grid-template-columns: 1fr; } }
+
+    /* Cyberpunk neon theme */
+    body.theme-cyber {
+      background: radial-gradient(140% 140% at 20% 0%, rgba(126,34,206,0.35), transparent 45%), radial-gradient(140% 140% at 85% 20%, rgba(14,165,233,0.25), transparent 50%), #040712;
+      color:#e8f5ff;
+      text-shadow:0 0 10px rgba(0,255,255,0.12);
+    }
+    body.theme-cyber header {
+      background: linear-gradient(90deg, rgba(12,16,36,0.9), rgba(18,24,54,0.9));
+      border-bottom:1px solid rgba(124,244,255,0.25);
+      box-shadow:0 16px 40px rgba(0,0,0,0.4), 0 0 18px rgba(124,244,255,0.2);
+    }
+    body.theme-cyber header h1 { color:#7cf4ff; text-shadow:0 0 14px rgba(124,244,255,0.5); }
+    body.theme-cyber .tag {
+      background: rgba(124,244,255,0.12);
+      color:#7cf4ff;
+      border-color: rgba(124,244,255,0.35);
+      text-shadow:0 0 10px rgba(124,244,255,0.4);
+    }
+    body.theme-cyber button {
+      background: rgba(10,14,30,0.9);
+      color:#e8f5ff;
+      border-color: rgba(124,244,255,0.3);
+      box-shadow:0 0 16px rgba(124,244,255,0.25);
+    }
+    body.theme-cyber button.primary {
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      border-color: rgba(126,34,206,0.55);
+      box-shadow:0 0 18px rgba(126,34,206,0.4);
+      color:#f9fbff;
+    }
+    body.theme-cyber select {
+      background: rgba(8,12,28,0.9);
+      border-color: rgba(124,244,255,0.28);
+      color:#e8f5ff;
+      box-shadow: inset 0 0 10px rgba(14,165,233,0.12);
+    }
+    body.theme-cyber .card {
+      background: linear-gradient(145deg, rgba(10,12,30,0.95), rgba(14,20,50,0.92));
+      border:1px solid rgba(124,244,255,0.2);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 26px rgba(126,34,206,0.25);
+    }
+    body.theme-cyber .hud .cell,
+    body.theme-cyber pre.screen {
+      background: rgba(10,12,30,0.85);
+      border-color: rgba(124,244,255,0.2);
+      box-shadow: inset 0 0 16px rgba(14,165,233,0.14);
+    }
+    body.theme-cyber .help { color:#9cb7ff; }
+    body.theme-cyber h2, body.theme-cyber h3 { color:#c8e5ff; text-shadow:0 0 10px rgba(124,244,255,0.35); }
+    body.theme-cyber table { color:#e8f5ff; }
+    body.theme-cyber thead th {
+      background: rgba(124,244,255,0.1);
+      color:#9cf3ff;
+      border-bottom:1px solid rgba(124,244,255,0.25);
+    }
+    body.theme-cyber th, body.theme-cyber td { border-bottom:1px solid rgba(124,244,255,0.2); }
+    body.theme-cyber table tbody td { color:#e8f5ff; text-shadow:0 0 6px rgba(0,255,255,0.25); font-weight:600; }
+    body.theme-cyber table tbody tr { backdrop-filter: saturate(1.05); }
+
+    .shortcut-card {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border:1px solid #243048; border-radius:12px; background:#0f172a;
+      color:#e2e8f0;
+    }
+    .shortcut-thumb { width:48px; height:48px; border-radius:10px; background:linear-gradient(135deg,#1d4ed8,#0ea5e9); }
+    .shortcut-title { font-weight:700; }
+    .flappy-thumb { background:linear-gradient(135deg,#38bdf8,#8b5cf6), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"12\" y=\"44\" font-size=\"32\">🐦</text></svg>') center/70% no-repeat; }
+    .snake-thumb  { background:linear-gradient(135deg,#22c55e,#0ea5e9), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"12\" y=\"44\" font-size=\"32\">🐍</text></svg>') center/70% no-repeat; }
+    .tetris-thumb { background:linear-gradient(135deg,#f59e0b,#6366f1), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"10\" y=\"44\" font-size=\"32\">🧊</text></svg>') center/70% no-repeat; }
+    .road-thumb   { background:linear-gradient(135deg,#f43f5e,#14b8a6), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"10\" y=\"44\" font-size=\"32\">🚗</text></svg>') center/70% no-repeat; }
+
+    .lb-scroll { max-height: 240px; overflow: auto; border:1px solid #1f2937; border-radius:10px; }
+    body.theme-cyber .lb-scroll { border-color: rgba(124,244,255,0.2); box-shadow: inset 0 0 12px rgba(124,244,255,0.15); }
   </style>
 </head>
-<body>
-  <header>
-    <h1>ASCII Classroom Games</h1>
-    <span class="tag">read-only (los puntos del sistema no cambian)</span>
-    <div class="row" style="margin-left:auto">
-      <a href="./index.html"><button>← Back</button></a>
-    </div>
-  </header>
+  <body>
+    <header>
+      <h1>ASCII Classroom Games</h1>
+      <span class="tag">read-only (system points do not change)</span>
+      <div class="row" style="margin-left:auto">
+        <button id="audio-toggle" class="ghost">Mute</button>
+        <button id="theme-toggle-game" class="ghost">Neon mode</button>
+        <a href="./index.html"><button>← Back</button></a>
+      </div>
+    </header>
 
   <main>
-    <!-- Bloque común -->
+    <!-- Game shortcuts -->
+    <section class="card">
+      <h3>Jump to a game</h3>
+      <div class="row" style="gap:12px; flex-wrap:wrap;">
+        <a href="#flappy" class="shortcut-card" style="text-decoration:none;">
+          <div class="shortcut-thumb flappy-thumb"></div>
+          <div class="shortcut-title">ASCII Flappy</div>
+        </a>
+        <a href="#snake" class="shortcut-card" style="text-decoration:none;">
+          <div class="shortcut-thumb snake-thumb"></div>
+          <div class="shortcut-title">ASCII Snake</div>
+        </a>
+        <a href="#tetris" class="shortcut-card" style="text-decoration:none;">
+          <div class="shortcut-thumb tetris-thumb"></div>
+          <div class="shortcut-title">ASCII Tetris</div>
+        </a>
+        <a href="#road" class="shortcut-card" style="text-decoration:none;">
+          <div class="shortcut-thumb road-thumb"></div>
+          <div class="shortcut-title">ASCII Road</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Common block -->
     <section class="card">
       <div class="row">
-        <div class="tag">Usuario: <span id="common-user">—</span></div>
+        <div class="tag">User: <span id="common-user">—</span></div>
         <div class="tag">Local: <span id="common-local">—</span></div>
         <div class="tag">Global: <span id="common-pool">—</span></div>
         <div class="tag">Pool: <span id="common-poolpts">0</span></div>
         <div class="tag">Spent: <span id="common-spent">0</span></div>
         <div class="tag">Total (local): <span id="common-total">0</span></div>
       </div>
-      <div class="help">El tiempo de juego de cada título = <strong>Total (local)</strong> (tope 240 s). Cambiar dificultad no altera puntos del sistema; solo el juego.</div>
+      <div class="help">Play time per game = <strong>Total (local)</strong> (max 240 s). Changing difficulty does not affect system points, only the game.</div>
     </section>
 
     <!-- ==== JUEGO 1: FLAPPY ==== -->
@@ -65,7 +166,7 @@
         <div class="cell"><strong>Status:</strong> <span id="flappy-status">loading…</span></div>
       </div>
       <div class="row">
-        <label>Dificultad:
+        <label>Difficulty:
           <select id="flappy-select">
             <option value="easy">easy ×1.00</option>
             <option value="normal" selected>normal ×1.25</option>
@@ -75,19 +176,25 @@
         </label>
         <button id="flappy-start" class="primary" disabled>Start</button>
         <button id="flappy-stop" disabled>Stop</button>
-        <span class="tag">Controles: Space/↑ (saltar) · P (pausa)</span>
+        <span class="tag">Controls: Space/↑ jump · P pause</span>
       </div>
       <pre id="flappy-screen" class="screen">Loading…</pre>
-      <div class="help">Tu puntaje final = obstáculos superados × multiplicador. Los puntos del sistema no cambian.</div>
+      <div class="help">Final score = obstacles cleared × multiplier. System points do not change.</div>
+      <div class="row">
+        <label>Rows to show:
+          <input type="range" id="flappy-lb-limit" min="5" max="50" step="5" value="10" />
+          <span id="flappy-lb-limit-val">10</span>
+        </label>
+      </div>
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
-          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="flappy-lb-local"></tbody></table>
+          <h3>Leaderboard — best scores (your local team)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="flappy-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
-          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="flappy-lb-teams"></tbody></table>
+          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="flappy-lb-teams"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -103,7 +210,7 @@
         <div class="cell"><strong>Status:</strong> <span id="snake-status">loading…</span></div>
       </div>
       <div class="row">
-        <label>Dificultad:
+        <label>Difficulty:
           <select id="snake-select">
             <option value="easy">easy ×1.00</option>
             <option value="normal" selected>normal ×1.25</option>
@@ -113,19 +220,25 @@
         </label>
         <button id="snake-start" class="primary" disabled>Start</button>
         <button id="snake-stop" disabled>Stop</button>
-        <span class="tag">Controles: ← → ↑ ↓ (mover) · P (pausa)</span>
+        <span class="tag">Controls: ← → ↑ ↓ move · P pause</span>
       </div>
       <pre id="snake-screen" class="screen">Loading…</pre>
-      <div class="help">Come “*” para sumar. Chocar con paredes o contigo mismo termina la partida.</div>
+      <div class="help">Eat “*” to score. Hitting walls or yourself ends the game.</div>
+      <div class="row">
+        <label>Rows to show:
+          <input type="range" id="snake-lb-limit" min="5" max="50" step="5" value="10" />
+          <span id="snake-lb-limit-val">10</span>
+        </label>
+      </div>
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
-          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="snake-lb-local"></tbody></table>
+          <h3>Leaderboard — best scores (your local team)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="snake-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
-          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="snake-lb-teams"></tbody></table>
+          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="snake-lb-teams"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -141,7 +254,7 @@
         <div class="cell"><strong>Status:</strong> <span id="tetris-status">loading…</span></div>
       </div>
       <div class="row">
-        <label>Dificultad:
+        <label>Difficulty:
           <select id="tetris-select">
             <option value="easy">easy ×1.00</option>
             <option value="normal" selected>normal ×1.25</option>
@@ -151,19 +264,25 @@
         </label>
         <button id="tetris-start" class="primary" disabled>Start</button>
         <button id="tetris-stop" disabled>Stop</button>
-        <span class="tag">Controles: ← → (mover) · ↑ (rotar) · ↓ (caer rápido) · P (pausa)</span>
+        <span class="tag">Controls: ← → move · ↑ rotate · ↓ drop faster · P pause</span>
       </div>
       <pre id="tetris-screen" class="screen">Loading…</pre>
-      <div class="help">Puntuación por líneas eliminadas. Simplificado para ASCII (piezas I, O, L, T).</div>
+      <div class="help">Score from cleared lines. Simplified for ASCII (I, O, L, T pieces).</div>
+      <div class="row">
+        <label>Rows to show:
+          <input type="range" id="tetris-lb-limit" min="5" max="50" step="5" value="10" />
+          <span id="tetris-lb-limit-val">10</span>
+        </label>
+      </div>
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
-          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="tetris-lb-local"></tbody></table>
+          <h3>Leaderboard — best scores (your local team)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="tetris-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
-          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="tetris-lb-teams"></tbody></table>
+          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="tetris-lb-teams"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -179,7 +298,7 @@
         <div class="cell"><strong>Status:</strong> <span id="road-status">loading…</span></div>
       </div>
       <div class="row">
-        <label>Dificultad:
+        <label>Difficulty:
           <select id="road-select">
             <option value="easy">easy ×1.00</option>
             <option value="normal" selected>normal ×1.25</option>
@@ -189,19 +308,25 @@
         </label>
         <button id="road-start" class="primary" disabled>Start</button>
         <button id="road-stop" disabled>Stop</button>
-        <span class="tag">Controles: ← → (mover) · P (pausa)</span>
+        <span class="tag">Controls: ← → move · P pause</span>
       </div>
       <pre id="road-screen" class="screen">Loading…</pre>
-      <div class="help">Evita los obstáculos que caen. Puntaje por distancia/obstáculos esquivados.</div>
+      <div class="help">Avoid falling obstacles. Score by distance/obstacles dodged.</div>
+      <div class="row">
+        <label>Rows to show:
+          <input type="range" id="road-lb-limit" min="5" max="50" step="5" value="10" />
+          <span id="road-lb-limit-val">10</span>
+        </label>
+      </div>
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — mejores puntajes (tu equipo local)</h3>
-          <table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="road-lb-local"></tbody></table>
+          <h3>Leaderboard — best scores (your local team)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="road-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — equipos locales (global, mejor individual)</h3>
-          <table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead><tbody id="road-lb-teams"></tbody></table>
+          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="road-lb-teams"></tbody></table></div>
         </div>
       </div>
     </section>

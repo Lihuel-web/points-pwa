@@ -6,20 +6,21 @@
   <title>Points Control</title>
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#f4f7ff; color:#123; }
+    body { font-family: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif; margin: 0; background:#f4f7ff; color:#0f172a; transition: background 0.3s ease, color 0.3s ease; }
     header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:#eaf1ff; border-bottom:1px solid #d6e2ff; }
-    header h1 { margin:0; color:#1959b7; font-size:22px; }
+    header h1 { margin:0; color:#1959b7; font-size:22px; letter-spacing:0.3px; }
     header .brand { color:#7a8da8; }
     main { padding: 20px; max-width: 1200px; margin: 0 auto; }
     .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
     .muted { color:#667892 }
     .tag { font-size: 12px; padding: 2px 8px; border:1px solid #cdd8ee; border-radius: 999px; background:#f6f9ff; color:#1959b7 }
-    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; cursor:pointer; color:#123; }
+    button { padding: 8px 12px; border-radius: 10px; border: 1px solid #cdd8ee; background:white; cursor:pointer; color:#0f172a; transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease; }
     button.primary { background:#1959b7; color:#fff; border-color:#1959b7 }
     button.danger { background:#fff; color:#b00020; border-color:#ffd0d4; }
-    input, select, textarea { padding: 8px; border-radius: 8px; border: 1px solid #cdd8ee; background:white; color:#123; caret-color:#123; }
+    button:hover { transform: translateY(-1px); }
+    input, select, textarea { padding: 8px; border-radius: 10px; border: 1px solid #cdd8ee; background:white; color:#0f172a; caret-color:#0f172a; }
     input::placeholder { color:#7a8da8; opacity:1; }
-    .card { background:white; border:1px solid #e2e8f6; border-radius: 12px; padding:16px; margin:14px 0 }
+    .card { background:white; border:1px solid #e2e8f6; border-radius: 16px; padding:16px; margin:14px 0; box-shadow:0 12px 30px rgba(17, 24, 39, 0.06); }
     .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px }
     @media (max-width: 980px){ .grid-2 { grid-template-columns: 1fr; } }
     table { width:100%; border-collapse: collapse; }
@@ -33,13 +34,90 @@
     .hl { background:#fff8d6; }
     .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; border:1px solid rgba(0,0,0,.06); vertical-align: -1px; }
     .legend-item { margin-right:12px; }
+    .ghost { background:transparent; border-color:#cdd8ee; color:#1959b7; }
+
+    /* Cyberpunk neon theme */
+    body.theme-cyber {
+      background: radial-gradient(120% 120% at 10% 20%, rgba(120,0,255,0.25), transparent 50%), radial-gradient(120% 120% at 80% 0%, rgba(0,255,200,0.22), transparent 45%), #060814;
+      color:#e8f2ff;
+      text-shadow: 0 0 10px rgba(0,255,255,0.1);
+    }
+    body.theme-cyber header {
+      background: linear-gradient(90deg, rgba(10,15,40,0.85), rgba(12,20,60,0.75));
+      border-bottom:1px solid rgba(0,255,200,0.25);
+      box-shadow: 0 10px 40px rgba(0,255,200,0.08);
+    }
+    body.theme-cyber header h1 { color:#7cf4ff; text-shadow:0 0 12px rgba(124,244,255,0.5); }
+    body.theme-cyber header .brand { color:#8ea8ff; }
+    body.theme-cyber button {
+      background: rgba(12,18,38,0.85);
+      color:#e8f2ff;
+      border-color: rgba(124,244,255,0.25);
+      box-shadow: 0 0 12px rgba(124,244,255,0.15);
+    }
+    body.theme-cyber button.primary {
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      border-color: rgba(126,34,206,0.6);
+      box-shadow: 0 0 18px rgba(14,165,233,0.5);
+      color:#f8fbff;
+    }
+    body.theme-cyber button.danger {
+      background: rgba(44,14,32,0.8);
+      border-color: rgba(255,83,143,0.45);
+      color:#ff85b5;
+      box-shadow: 0 0 16px rgba(255,83,143,0.4);
+    }
+    body.theme-cyber button.ghost {
+      border-color: rgba(124,244,255,0.35);
+      color:#7cf4ff;
+    }
+    body.theme-cyber input,
+    body.theme-cyber select,
+    body.theme-cyber textarea {
+      background: rgba(10,14,30,0.85);
+      color:#e8f2ff;
+      border:1px solid rgba(124,244,255,0.35);
+      box-shadow: inset 0 0 10px rgba(14,165,233,0.15);
+    }
+    body.theme-cyber input::placeholder { color:#8fa6ff; opacity:1; }
+    body.theme-cyber .card {
+      background: linear-gradient(145deg, rgba(10,12,30,0.92), rgba(14,20,50,0.9));
+      border:1px solid rgba(124,244,255,0.18);
+      box-shadow: 0 18px 44px rgba(10,10,30,0.45), 0 0 20px rgba(126,34,206,0.25);
+    }
+    body.theme-cyber .tag {
+      background: rgba(124,244,255,0.12);
+      border-color: rgba(124,244,255,0.4);
+      color:#7cf4ff;
+      text-shadow: 0 0 8px rgba(124,244,255,0.45);
+    }
+    body.theme-cyber .muted,
+    body.theme-cyber .hint { color:#9cb7ff; }
+    body.theme-cyber table { color:#e8f2ff; }
+    body.theme-cyber thead th {
+      background: rgba(124,244,255,0.08);
+      color:#9cf3ff;
+      border-bottom:1px solid rgba(124,244,255,0.25);
+      text-shadow: 0 0 8px rgba(124,244,255,0.35);
+    }
+    body.theme-cyber th, body.theme-cyber td { border-bottom: 1px solid rgba(124,244,255,0.18); }
+    body.theme-cyber table tbody td { color:#e8f5ff; text-shadow:0 0 6px rgba(0,255,255,0.25); font-weight:600; }
+    body.theme-cyber table tbody tr { backdrop-filter: saturate(1.05); }
+    body.theme-cyber #alllb-table tbody td { color:#0b111a; text-shadow:none; font-weight:700; }
+    body.theme-cyber .legend-item { color:#cfe8ff; }
+    body.theme-cyber .scroll-300 {
+      background: rgba(8,10,24,0.85);
+      border:1px solid rgba(124,244,255,0.18);
+      box-shadow: inset 0 0 12px rgba(14,165,233,0.12);
+    }
   </style>
 </head>
-<body>
-  <header>
-    <h1>Points Control</h1>
-    <div class="brand">Westhill</div>
-  </header>
+  <body>
+    <header>
+      <h1>Points Control</h1>
+      <div class="brand">Westhill</div>
+      <button id="theme-toggle" class="ghost">Neon mode</button>
+    </header>
 
   <main>
     <!-- LOGIN -->
@@ -47,10 +125,10 @@
       <h3 class="section-title">Login</h3>
       <form id="login-form" class="row">
         <input id="email" type="email" placeholder="Email" required autocomplete="username" />
-        <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password" />
+        <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
         <button type="submit" class="primary">Enter</button>
       </form>
-      <p class="muted">El registro está deshabilitado. Pide tu cuenta al profesor.</p>
+      <p class="muted">Sign-up is disabled. Ask your teacher for an account.</p>
     </section>
 
     <!-- APP AUTENTICADA -->
@@ -70,7 +148,7 @@
             <h3 class="section-title">Latest transactions</h3>
             <div class="scroll-300">
               <table id="tx-table">
-                <thead><tr><th>Fecha</th><th>Alumno</th><th>Δ</th><th>Motivo</th></tr></thead>
+                <thead><tr><th>Date</th><th>Student</th><th>Δ</th><th>Reason</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -116,7 +194,7 @@
             <input id="adjust-reason" placeholder="Reason (optional)" />
             <button type="submit" class="primary">Apply</button>
           </form>
-          <div class="hint">Usa valores negativos para restar (gasto) si corresponde.</div>
+          <div class="hint">Use negative values to subtract (spend) when needed.</div>
         </div>
 
         <!-- Gestión de equipos + membresías -->
@@ -167,7 +245,7 @@
                 <select id="link-card-team" title="Team"></select>
                 <button id="link-card-btn" class="primary">Save link</button>
               </div>
-              <div class="hint">Los UID se normalizan a HEX mayúsculas sin separadores automáticamente.</div>
+              <div class="hint">UIDs are normalized to uppercase HEX without separators automatically.</div>
             </div>
           </div>
         </div>
@@ -203,7 +281,7 @@
               <tbody></tbody>
             </table>
           </div>
-          <div class="hint">Tabla global de todos los equipos locales. Sombreado por color según el pool.</div>
+          <div class="hint">Global table of all local teams. Shaded by pool color.</div>
         </div>
 
         <!-- ASCII games leaderboards -->
@@ -214,9 +292,9 @@
               <button type="button" class="primary">Open games</button>
             </a>
             <a href="https://lihuel-web.github.io/GameAlchemy/" target="_blank" rel="noreferrer">
-              <button type="button">Abrir Alchemy</button>
+              <button type="button">Play Alchemy</button>
             </a>
-            <div class="hint">Abre los minijuegos en una pestaña nueva (solo lectura, sin gastar puntos).</div>
+            <div class="hint">Open minigames in a new tab (read-only, no points spent).</div>
           </div>
         </div>
 
@@ -242,13 +320,13 @@
               <h4 style="margin:0 0 6px">Top local teams (global)</h4>
               <div class="scroll-300">
                 <table id="ascii-lb-teams">
-                  <thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Team best</th></tr></thead>
+                  <thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead>
                   <tbody></tbody>
                 </table>
               </div>
             </div>
           </div>
-          <div class="hint">Puntajes en vivo desde los minijuegos ASCII (Flappy, Snake, Tetris y Road).</div>
+          <div class="hint">Live scores from the ASCII minigames (Flappy, Snake, Tetris, Road).</div>
         </div>
 
         <!-- STUDENTS MANAGEMENT -->
@@ -268,7 +346,7 @@
                 <select id="real-local-team" title="Local team (optional)"></select>
                 <button type="submit" class="primary">Create</button>
               </form>
-              <div class="hint">Puedes elegir primero el <strong>local</strong> y se ajusta el global automáticamente.</div>
+              <div class="hint">You can pick the <strong>local</strong> first and the global is filled automatically.</div>
             </div>
 
             <!-- Record-only -->
@@ -282,7 +360,7 @@
                 <select id="fake-local-team" title="Local team (optional)"></select>
                 <button type="submit">Add</button>
               </form>
-              <div class="hint">Puedes elegir primero el <strong>local</strong> y se ajusta el global automáticamente.</div>
+              <div class="hint">You can pick the <strong>local</strong> first and the global is filled automatically.</div>
             </div>
           </div>
 
@@ -293,7 +371,7 @@
               <select id="delete-student-select" title="Student to delete"></select>
               <button id="delete-student-btn" class="danger">Delete</button>
             </div>
-            <div class="hint">Elimina al alumno, su usuario (si existe), y limpia membresías/tx (CASCADE/Edge).</div>
+            <div class="hint">Deletes the student, their Auth user (if any), and cleans memberships/tx (CASCADE/Edge).</div>
           </div>
         </div>
 
@@ -301,38 +379,38 @@
 <div class="card">
   <h3 class="section-title">Admin — Resets</h3>
   <div class="row">
-    <button id="btn-open-reset-points" class="danger">Resetear puntos (earn/spend)</button>
-    <button id="btn-open-reset-scores">Resetear puntuaciones de juegos</button>
+    <button id="btn-open-reset-points" class="danger">Reset points (earn/spend)</button>
+    <button id="btn-open-reset-scores">Reset game scores</button>
   </div>
-  <div class="hint">Se archivará todo antes de borrar. Solo profesores.</div>
+  <div class="hint">Everything is archived before deletion. Teachers only.</div>
 </div>
 
-<!-- Modal: Reset de puntos -->
+<!-- Modal: Reset points -->
 <div id="modal-reset-points" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999;">
   <div style="max-width:560px; margin:8vh auto; background:#fff; color:#123; border:1px solid #e2e8f6; border-radius:12px; padding:16px;">
-    <h3 class="section-title">Resetear puntos (earn/spend)</h3>
-    <p>Esto borra <strong>todas</strong> las transacciones de alumnos y de pools, reiniciando los puntos a 0 (con respaldo).</p>
+    <h3 class="section-title">Reset points (earn/spend)</h3>
+    <p>This wipes <strong>all</strong> student and pool transactions, resetting points to 0 (with backup).</p>
     <label class="row" style="margin:8px 0;">
       <input type="checkbox" id="rp-include-scores" />
-      <span>Incluir también los <strong>marcadores de juegos</strong></span>
+      <span>Also include <strong>game leaderboards</strong></span>
     </label>
-    <p style="margin-top:10px;">Escribe <code>RESETEAR PUNTOS</code> para confirmar:</p>
+    <p style="margin-top:10px;">Type <code>RESETEAR PUNTOS</code> to confirm:</p>
     <input id="rp-confirm" placeholder="RESETEAR PUNTOS" style="width:100%; padding:8px; margin-top:4px;" />
     <div class="row" style="margin-top:12px;">
-      <button id="rp-exec" class="danger" disabled>Ejecutar reset de puntos</button>
-      <button id="rp-cancel">Cancelar</button>
+      <button id="rp-exec" class="danger" disabled>Run points reset</button>
+      <button id="rp-cancel">Cancel</button>
     </div>
     <pre id="rp-result" class="muted" style="margin-top:12px; white-space:pre-wrap;"></pre>
   </div>
 </div>
 
-<!-- Modal: Reset de puntuaciones de juegos -->
+<!-- Modal: Reset game scores -->
 <div id="modal-reset-scores" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999;">
   <div style="max-width:560px; margin:8vh auto; background:#fff; color:#123; border:1px solid #e2e8f6; border-radius:12px; padding:16px;">
-    <h3 class="section-title">Resetear puntuaciones de juegos</h3>
-    <p>Esto <strong>no</strong> toca puntos de equipos/alumnos; solo borra leaderboards tras respaldarlos.</p>
+    <h3 class="section-title">Reset game scores</h3>
+    <p>This <strong>does not</strong> touch team/student points; it just clears leaderboards after backing them up.</p>
     <fieldset style="margin:8px 0;">
-      <legend>Juegos a resetear</legend>
+      <legend>Games to reset</legend>
       <label class="row"><input type="checkbox" class="rgs-game" value="flappy" checked /> Flappy</label>
       <label class="row"><input type="checkbox" class="rgs-game" value="snake"  checked /> Snake</label>
       <label class="row"><input type="checkbox" class="rgs-game" value="tetris" checked /> Tetris</label>
@@ -341,8 +419,8 @@
     <p>Escribe <code>RESETEAR PUNTUACIONES</code> para confirmar:</p>
     <input id="rgs-confirm" placeholder="RESETEAR PUNTUACIONES" style="width:100%; padding:8px; margin-top:4px;" />
     <div class="row" style="margin-top:12px;">
-      <button id="rgs-exec" class="danger" disabled>Ejecutar reset de puntuaciones</button>
-      <button id="rgs-cancel">Cancelar</button>
+      <button id="rgs-exec" class="danger" disabled>Run score reset</button>
+      <button id="rgs-cancel">Cancel</button>
     </div>
     <pre id="rgs-result" class="muted" style="margin-top:12px; white-space:pre-wrap;"></pre>
   </div>
@@ -396,7 +474,7 @@
               <tbody id="pool-locals-tbody"></tbody>
             </table>
           </div>
-          <div class="hint">La fila resaltada corresponde a tu equipo local.</div>
+          <div class="hint">The highlighted row is your local team.</div>
         </div>
 
         <!-- Global teams leaderboard (estudiante) -->
@@ -408,7 +486,7 @@
               <tbody></tbody>
             </table>
           </div>
-          <div class="hint">Ranking por puntos del pool global.</div>
+          <div class="hint">Ranking by global pool points.</div>
         </div>
 
         <!-- NUEVO: Top 9 local teams (estudiante) -->
@@ -420,7 +498,7 @@
               <tbody></tbody>
             </table>
           </div>
-          <div class="hint">Se muestran sólo los 9 mejores equipos locales por <em>Total (local) = pool − spent</em>.</div>
+          <div class="hint">Shows only the top 9 local teams by <em>Total (local) = pool − spent</em>.</div>
         </div>
 
          <!-- link al juego que usa puntos del equipo local sin gastarlos-->
@@ -429,9 +507,9 @@
     <button class="primary">Play team game</button>
   </a>
   <a href="https://lihuel-web.github.io/GameAlchemy/" target="_blank" rel="noreferrer">
-    <button>Jugar Alchemy</button>
+    <button>Play Alchemy</button>
   </a>
-  <div class="hint">El juego usa tus puntos del equipo local. No se descuentan.</div>
+  <div class="hint">The game uses your local team points. They are not spent.</div>
 </div>
 
         

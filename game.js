@@ -23,6 +23,76 @@ const DIFF = {
 
 const TEACHER_PRACTICE_ALIAS = 'The_Final_Boss.exe';
 
+// -------- Audio (lightweight Web Audio blips) --------
+let AUDIO_CTX = null;
+function ensureAudio() {
+  if (AUDIO_CTX) return AUDIO_CTX;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  AUDIO_CTX = new Ctx();
+  return AUDIO_CTX;
+}
+function playSound(type='start') {
+  if (localStorage.getItem('pwa-audio') === 'off') return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const cfg = {
+    start:{ tones:[760], dur:0.12, vol:0.16, type:'triangle' },
+    score:{ tones:[420], dur:0.08, vol:0.12, type:'square' },
+    crash:{ tones:[190], dur:0.28, vol:0.22, type:'sawtooth', slide:-120 },
+    power:{ tones:[960], dur:0.1,  vol:0.16, type:'square' },
+    clear:{ tones:[960], dur:0.1,  vol:0.16, type:'square' }, // unified, short, bright
+  }[type] || { tones:[440], dur:0.1, vol:0.12, type:'sine' };
+
+  cfg.tones.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = cfg.type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (cfg.slide){
+      osc.frequency.exponentialRampToValueAtTime(Math.max(60, freq + cfg.slide), now + cfg.dur * 0.9);
+    }
+    const startVol = cfg.vol * (idx === 0 ? 1 : 0.6);
+    gain.gain.setValueAtTime(startVol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + cfg.dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + cfg.dur);
+  });
+}
+
+const THEME_KEY = 'pwa-theme';
+function applyTheme(mode) {
+  const m = mode === 'cyber' ? 'cyber' : 'light';
+  document.body.classList.toggle('theme-cyber', m === 'cyber');
+  localStorage.setItem(THEME_KEY, m);
+  const btn = document.getElementById('theme-toggle-game');
+  if (btn) btn.textContent = m === 'cyber' ? 'Light mode' : 'Neon mode';
+}
+function initThemeToggleGame() {
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
+  applyTheme(saved);
+  const btn = document.getElementById('theme-toggle-game');
+  if (btn) btn.addEventListener('click', () => {
+    const next = document.body.classList.contains('theme-cyber') ? 'light' : 'cyber';
+    applyTheme(next);
+  });
+}
+
+// Audio toggle (games page)
+function initAudioToggle(){
+  const btn = document.getElementById('audio-toggle');
+  const saved = localStorage.getItem('pwa-audio') || 'on';
+  if (btn) btn.textContent = saved === 'off' ? 'Unmute' : 'Mute';
+  if (btn) btn.addEventListener('click', () => {
+    const cur = localStorage.getItem('pwa-audio') || 'on';
+    const next = cur === 'off' ? 'on' : 'off';
+    localStorage.setItem('pwa-audio', next);
+    btn.textContent = next === 'off' ? 'Unmute' : 'Mute';
+  });
+}
+
 let COMMON = {
   user: null,
   student: null,
@@ -65,6 +135,9 @@ async function ensureTeacherAvatar(){
   }
 }
 
+initThemeToggleGame();
+initAudioToggle();
+
 // ---------- Supabase helpers ----------
 async function labelTeam(id){
   const { data } = await sb.from('teams').select('id,name,class').eq('id', id).maybeSingle();
@@ -84,14 +157,14 @@ async function bootstrapCommon(){
 
   const { data: stu } = await sb.from('students').select('id,name,class').eq('auth_user_id', user.id).maybeSingle();
   if (!stu){
-    setGamesUnavailable('Aún no tienes equipo local asignado. Pide a tu profesor que te asigne uno.');
+    setGamesUnavailable('You do not have a local team yet. Ask your teacher to assign you one.');
     return false;
   }
   COMMON.student = { id: stu.id, name: stu.name || 'Student' };
 
   const { data, error } = await sb.rpc('get_my_local_total');
   if (error || !data || data.length===0){
-    setGamesUnavailable('No se pudo obtener tu equipo local.');
+    setGamesUnavailable('Your local team could not be retrieved.');
     return false;
   }
   const row = data[0];
@@ -121,14 +194,14 @@ async function bootstrapTeacherPractice(){
   COMMON.teacherPractice = true;
   const avatar = await ensureTeacherAvatar();
   if (!avatar){
-    setGamesUnavailable('No se pudo preparar el alias del profe para el leaderboard.');
+    setGamesUnavailable('Could not prepare the teacher alias for leaderboards.');
     COMMON.teacherPractice = false;
     return false;
   }
 
   const { data, error } = await sb.rpc('top_local_leaderboard', { _limit: 1 });
   if (error || !data || data.length === 0) {
-    setGamesUnavailable('No hay equipos locales con puntos disponibles para practicar.');
+    setGamesUnavailable('No local teams with points available for practice.');
     COMMON.teacherPractice = false;
     return false;
   }
@@ -154,7 +227,7 @@ async function bootstrapTeacherPractice(){
   text($('common-spent'), COMMON.totals.spent);
   text($('common-total'), COMMON.totals.totalLocal);
 
-  const info = `Modo profesor: usas el tiempo del equipo con más puntos (${COMMON.local.name}).`;
+  const info = `Teacher mode: using the time from the local team with the most points (${COMMON.local.name}). Press any key after Start to begin.`;
   ['flappy','snake','tetris','road'].forEach(key => {
     text($(`${key}-status`), 'ready');
     text($(`${key}-screen`), info);
@@ -175,8 +248,9 @@ function makeGameModule(cfg){
   //        lbLocalId, lbTeamsId,
   //        init(st), tick(st), keydown(e, st) }
   const st = {
-    active:false, paused:false, loop:null, timer:null,
-    frame:0, tickMs:65, spawnEvery:22, timeLeft:0, baseScore:0, _requestStop:null
+    active:false, paused:false, loop:null, timer:null, armTimeout:null,
+    frame:0, tickMs:65, spawnEvery:22, timeLeft:0, baseScore:0, _requestStop:null,
+    awaitingKey:false,
   };
 
   function tuneFromTotals(){
@@ -210,12 +284,22 @@ function makeGameModule(cfg){
         difficulty: ($(cfg.selectId)?.value || 'normal'),
         score: finalScore
       }]);
+      playSound('score');
     }catch(e){ console.warn(`[${cfg.key}] save error`, e); }
+  }
+
+  function getLbLimit(){
+    const inp = $(`${cfg.key}-lb-limit`);
+    const val = parseInt(inp?.value || '10', 10) || 10;
+    const label = $(`${cfg.key}-lb-limit-val`);
+    if (label) label.textContent = String(val);
+    return Math.max(1, Math.min(200, val));
   }
 
   async function loadLocalLeaderboard(){
     const tb = $(cfg.lbLocalId);
     if (!tb) return;
+    const limit = getLbLimit();
     const { data, error } = await sb
       .from(cfg.table)
       .select('student_id,student_name,score')
@@ -227,22 +311,24 @@ function makeGameModule(cfg){
     for (const r of (data||[])) best.set(r.student_id, Math.max(best.get(r.student_id)||0, r.score||0));
     const rows = Array.from(best.entries())
       .map(([sid,score]) => ({ name: (data.find(d=>d.student_id===sid)?.student_name)||`#${sid}`, score }))
-      .sort((a,b)=> b.score - a.score).slice(0, 10);
+      .sort((a,b)=> b.score - a.score).slice(0, limit);
     tb.innerHTML = rows.map((r,i)=> `<tr><td>${i+1}</td><td>${r.name}</td><td><strong>${r.score}</strong></td></tr>`).join('') || `<tr><td colspan="3">—</td></tr>`;
   }
 
   async function loadTeamsLeaderboard(){
     const tb = $(cfg.lbTeamsId);
     if (!tb) return;
+    const limit = getLbLimit();
     const { data, error } = await sb.rpc(cfg.teamRpc, { _limit: 100 });
     if (error){ console.warn(`[${cfg.key}] lb teams`, error); tb.innerHTML = `<tr><td colspan="4">N/A</td></tr>`; return; }
     const rows = (data||[]).map((r,i)=> ({
       rank:i+1,
       localName: r.local_team_name ?? `#${r.local_team_id}`,
       poolName:  r.pool_team_name ?? `#${r.pool_team_id}`,
-      teamBest:  r.team_best ?? 0
-    }));
-    tb.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td>${r.localName}</td><td>${r.poolName}</td><td><strong>${r.teamBest}</strong></td></tr>`).join('') || `<tr><td colspan="4">—</td></tr>`;
+      teamBest:  r.team_best ?? 0,
+      bestPlayer: r.best_student_name ?? '—',
+    })).slice(0, limit);
+    tb.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td>${r.localName}</td><td>${r.poolName}</td><td>${r.bestPlayer}</td><td><strong>${r.teamBest}</strong></td></tr>`).join('') || `<tr><td colspan="5">—</td></tr>`;
   }
 
   function updateHudLive(){
@@ -257,6 +343,8 @@ function makeGameModule(cfg){
   function stop(cause='finished'){
     if (!st.active) return;
     st.active = false;
+    st.awaitingKey = false;
+    if (st.armTimeout){ clearTimeout(st.armTimeout); st.armTimeout=null; }
     if (st.loop){ clearInterval(st.loop); st.loop=null; }
     if (st.timer){ clearInterval(st.timer); st.timer=null; }
     $(cfg.startBtnId).disabled = false;
@@ -274,23 +362,19 @@ Game Over — ${cause}.
 Base score: ${st.baseScore}
 Difficulty: ${(DIFF[$(cfg.selectId)?.value || 'normal']||DIFF.normal).label} ×${mult.toFixed(2)}
 Final score: ${finalScore}
-(Tus puntos de equipo NO cambian.)`;
+(Your team points do NOT change.)`;
     }
+    if (cause==='crashed'){ playSound('crash'); } else { playSound('score'); }
     saveScore(finalScore).then(()=> {
       loadLocalLeaderboard();
       loadTeamsLeaderboard();
     });
   }
 
-  function start(){
-    if (st.active) return;
-    st.baseScore = 0; st.frame = 0; st.paused=false; st._requestStop=null;
-    tuneFromTotals();
-    $(cfg.startBtnId).disabled = true;
-    $(cfg.stopBtnId).disabled  = false;
-    setStatus('playing'); st.active = true;
-
-    cfg.init(st); // el juego puede recalibrar tickMs aquí
+  function beginPlay(){
+    st.awaitingKey = false;
+    playSound('start');
+    setStatus('playing');
 
     st.loop = setInterval(()=>{
       if (!st.paused){
@@ -310,21 +394,61 @@ Final score: ${finalScore}
     }, 1000);
   }
 
-  $(cfg.startBtnId).addEventListener('click', start);
+  function armStart(){
+    if (st.active) return;
+    st.baseScore = 0; st.frame = 0; st.paused=false; st._requestStop=null;
+    st.awaitingKey = true;
+    tuneFromTotals();
+    $(cfg.startBtnId).disabled = true;
+    $(cfg.stopBtnId).disabled  = false;
+    setStatus('press any key to start'); st.active = true;
+
+    cfg.init(st); // game can recalibrate tickMs here
+
+    if (st.armTimeout){ clearTimeout(st.armTimeout); }
+    st.armTimeout = setTimeout(()=> {
+      if (st.awaitingKey) beginPlay();
+    }, 1800);
+  }
+
+  function maybeStartFromKey(e){
+    if (!st.awaitingKey) return false;
+    beginPlay();
+    const handled = cfg.keydown && cfg.keydown(e, st);
+    return handled || true;
+  }
+
+  $(cfg.startBtnId).addEventListener('click', armStart);
   $(cfg.stopBtnId).addEventListener('click', ()=> stop('finished'));
   $(cfg.selectId).addEventListener('change', ()=>{
-    if (st.active){ updateHudLive(); } else { tuneFromTotals(); }
+    if (st.active && !st.awaitingKey){ updateHudLive(); } else { tuneFromTotals(); }
   });
 
-  // Teclado: delega al juego y evita scroll si hay interacción
+  const lbSlider = $(`${cfg.key}-lb-limit`);
+  if (lbSlider && !lbSlider.dataset.bound){
+    lbSlider.dataset.bound = '1';
+    lbSlider.addEventListener('input', ()=> {
+      getLbLimit();
+      loadLocalLeaderboard();
+      loadTeamsLeaderboard();
+    });
+    getLbLimit();
+  }
+
+  // Keyboard: delegate to the game and avoid scroll on interaction
   document.addEventListener('keydown', (e)=>{
     if (!st.active) return;
+    if (st.awaitingKey){
+      const started = maybeStartFromKey(e);
+      if (started) e.preventDefault();
+      return;
+    }
     const handled = cfg.keydown && cfg.keydown(e, st);
     if (handled) e.preventDefault();
     if (e.key==='p' || e.key==='P'){ e.preventDefault(); st.paused = !st.paused; setStatus(st.paused?'paused':'playing'); }
   });
 
-  return { start, stop, loadLocalLeaderboard, loadTeamsLeaderboard, setStatus, updateHudLive, st };
+  return { start: armStart, stop, loadLocalLeaderboard, loadTeamsLeaderboard, setStatus, updateHudLive, st };
 }
 
 // ---------- Juego 1: Flappy ----------
@@ -362,7 +486,7 @@ function makeFlappy(){
       st.tickMs = Math.max(40, st.tickMs + d.tick);
       spawnEvery = Math.max(10, st.spawnEvery + d.spawn);
       gapBase = Math.max(3, 6 + (d.spawn<-2?-1:0));
-      $('flappy-screen').textContent = `ASCII Flappy listo.\nTiempo: ${st.timeLeft}s · Dificultad: ${d.label} ×${d.mult.toFixed(2)}\nSpace/↑ saltar · P pausa · Stop terminar.`;
+      $('flappy-screen').textContent = `ASCII Flappy ready.\nTime: ${st.timeLeft}s · Difficulty: ${d.label} ×${d.mult.toFixed(2)}\nSpace/↑ jump · P pause · Stop ends game.`;
     },
     tick:(st)=>{
       bird.vy += 0.35; bird.y += bird.vy;
@@ -372,7 +496,7 @@ function makeFlappy(){
       if (st.frame % spawnEvery===0) spawnCol();
       let passed=false;
       for (const c of cols){ c.x -= 1; if (c.x === bird.x-1) passed=true; }
-      if (passed) st.baseScore++;
+        if (passed){ st.baseScore++; playSound('clear'); }
       for (const c of cols){
         if (c.x===bird.x){
           const y=Math.round(bird.y);
@@ -386,6 +510,10 @@ function makeFlappy(){
       if (e.code==='Space' || e.key===' ' || e.key==='ArrowUp'){ e.preventDefault(); bird.vy = -1.8; return true; }
       return false;
     }
+  });
+  document.addEventListener('keyup', (e)=>{
+    if (e.key==='ArrowLeft') keysActive.left=false;
+    if (e.key==='ArrowRight') keysActive.right=false;
   });
   return mod;
 }
@@ -426,10 +554,10 @@ function makeSnake(){
     init:(st)=>{
       clear(); snake=[[3,3],[2,3],[1,3]]; dir=[1,0]; rndFood();
       // Velocidad: más lenta en easy/normal
-      const d = ($( 'snake-select').value || 'normal');
+      const d = ($('snake-select')?.value || 'normal');
       const base = d==='easy' ? 140 : d==='normal' ? 120 : d==='hard' ? 95 : 80; // ms
       st.tickMs = Math.max(60, base - Math.floor((COMMON.totals.totalLocal||0)/4));
-      $('snake-screen').textContent = `ASCII Snake listo.\nTiempo: ${st.timeLeft}s · Dificultad: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\nFlechas mover · P pausa · Stop terminar.`;
+      $('snake-screen').textContent = `ASCII Snake ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\nArrows move · P pause · Stop ends game.`;
     },
     tick:(st)=>{
       const head=[snake[0][0]+dir[0], snake[0][1]+dir[1]];
@@ -439,7 +567,7 @@ function makeSnake(){
       if (snake.some(([x,y])=> x===head[0] && y===head[1])){ st._requestStop='crashed'; return; }
       snake.unshift(head);
       if (head[0]===food[0] && head[1]===food[1]){
-        st.baseScore += 5; rndFood();
+        st.baseScore += 5; rndFood(); playSound('clear');
       } else {
         snake.pop();
       }
@@ -500,7 +628,12 @@ function makeTetris(){
     for (let y=H-1;y>=0;y--){
       if (grid[y].every(v=>v)){ grid.splice(y,1); grid.unshift(Array.from({length:W},()=>0)); cleared++; y++; }
     }
-    if (cleared>0){ st.baseScore += cleared*10; }
+    if (cleared>0){
+      st.baseScore += cleared*10;
+      playSound('clear');
+    } else {
+      playSound('place');
+    }
     if (!spawnPiece(st)){ st._requestStop='crashed'; }
   }
   function spawnPiece(st){
@@ -520,11 +653,11 @@ function makeTetris(){
     lbLocalId:'tetris-lb-local', lbTeamsId:'tetris-lb-teams',
     init:(st)=>{
       grid = emptyGrid(); bag=null;
-      const d = ($( 'tetris-select').value || 'normal');
+      const d = ($('tetris-select')?.value || 'normal');
       // Caída más lenta en easy/normal, más rápida en hard/insane
-      const base = d==='easy' ? 900 : d==='normal' ? 750 : d==='hard' ? 550 : 420; // ms
+      const base = d==='easy' ? 630 : d==='normal' ? 525 : d==='hard' ? 385 : 294; // ms (30% faster)
       st.tickMs = Math.max(250, base - Math.floor((COMMON.totals.totalLocal||0)/2));
-      $('tetris-screen').textContent = `ASCII Tetris listo.\nTiempo: ${st.timeLeft}s · Dificultad: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → mover · ↑ rotar · ↓ caer rápido · P pausa · Stop terminar.`;
+      $('tetris-screen').textContent = `ASCII Tetris ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move · ↑ rotate · ↓ fall faster · P pause · Stop ends game.`;
       if (!spawnPiece(st)){ st._requestStop='crashed'; }
     },
     tick:(st)=>{
@@ -552,11 +685,16 @@ function makeTetris(){
 
 // ---------- Juego 4: Road (tipo Road Fighter ASCII) ----------
 function makeRoad(){
-  const W=27, H=22; // un poco más ancho
-  let grid=[], carX, carY, obs=[], left=5, right=W-5, driftTimer=0;
+  const W=40, H=22; // más ancho
+  let grid=[], carX, carY, carPos, obs=[], powerUps=[], left=6, right=W-6, driftTimer=0, slipDir=0, slipFrames=0, hitCooldown=0;
 
   const CAR  = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'\\'] ];   // coche del jugador (~3 ancho)
+  const CAR_L = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'|'] ];    // coche inclinado izq
+  const CAR_R = [ [0,0,'^'], [-1,1,'|'], [0,1,'#'], [1,1,'\\'] ];    // coche inclinado der
   const ENEM = [ [0,0,'A'], [-1,1,'o'], [1,1,'o'] ];                // coche rival simple
+  const HIT_COOLDOWN_FRAMES = 6;
+  const SLIP_SPEED = 0.9;
+  const keysActive = { left:false, right:false };
 
   function clear(){ grid = Array.from({length:H}, ()=> Array.from({length:W}, ()=> ' ')); }
   function put(x,y,ch){ if (x>=0&&x<W&&y>=0&&y<H) grid[y][x]=ch; }
@@ -569,8 +707,10 @@ function makeRoad(){
     const mid = Math.floor((left+right)/2);
     for (let y=0;y<H;y++) if (y%2===0) grid[y][mid]=':';
     // coche y enemigos
-    for (const [dx,dy,ch] of CAR) put(carX+dx, carY+dy, ch);
+    const shape = slipDir<0 ? CAR_L : slipDir>0 ? CAR_R : CAR;
+    for (const [dx,dy,ch] of shape) put(carX+dx, carY+dy, ch);
     for (const o of obs) for (const [dx,dy,ch] of ENEM) put(o.x+dx, o.y+dy, ch);
+    for (const p of powerUps) put(p.x, p.y, '*');
     $('road-screen').textContent = grid.map(r=>r.join('')).join('\n');
   }
 
@@ -580,20 +720,29 @@ function makeRoad(){
     obs.push({ x, y:0 });
   }
 
+  function spawnPower(){
+    const min = left+2, max = right-2;
+    const x = Math.max(min, Math.min(max, Math.floor(Math.random()*(max-min+1))+min));
+    powerUps.push({ x, y:0 });
+  }
+
   function collideCar(){
     // choque con bordes
     for (const [dx,dy] of CAR){
       const x=carX+dx, y=carY+dy;
-      if (x<=left || x>=right) return true;
+      if (x<=left || x>=right) return { hit:true, side: x<=left ? -1 : 1 };
     }
     // choque con enemigos
     const carCells = new Set(CAR.map(([dx,dy])=>`${carX+dx},${carY+dy}`));
     for (const o of obs){
       for (const [dx,dy] of ENEM){
-        if (carCells.has(`${o.x+dx},${o.y+dy}`)) return true;
+        if (carCells.has(`${o.x+dx},${o.y+dy}`)) {
+          const side = (o.x < carX) ? -1 : 1;
+          return { hit:true, side };
+        }
       }
     }
-    return false;
+    return { hit:false, side:0 };
   }
 
   const mod = makeGameModule({
@@ -605,45 +754,99 @@ function makeRoad(){
     timeId:'road-time', scoreId:'road-score', totalId:'road-total', diffId:'road-diff',
     lbLocalId:'road-lb-local', lbTeamsId:'road-lb-teams',
     init:(st)=>{
-      clear(); obs=[]; left=5; right=W-5; carX=Math.floor(W/2); carY=H-3; driftTimer=0;
-      const d = ($( 'road-select').value || 'normal');
+      clear(); obs=[]; powerUps=[]; left=6; right=W-6; carX=Math.floor(W/2); carY=H-3; driftTimer=0; slipDir=0; slipFrames=0; hitCooldown=0; keysActive.left=false; keysActive.right=false;
+      carPos = carX;
+      const d = ($('road-select')?.value || 'normal');
       // velocidad/spawn por dificultad
       const base = d==='easy' ? 110 : d==='normal' ? 95 : d==='hard' ? 80 : 65; // ms
       st.tickMs = Math.max(45, base - Math.floor((COMMON.totals.totalLocal||0)/5));
       st._spawnEvery = d==='easy' ? 12 : d==='normal' ? 9 : d==='hard' ? 7 : 5; // más difícil = más rivales
-      $('road-screen').textContent = `ASCII Road listo.\nTiempo: ${st.timeLeft}s · Dificultad: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → mover · P pausa · Stop terminar.`;
+      $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move · P pause · Stop ends game.`;
     },
     tick:(st)=>{
-      // spawn enemigos
+      // spawn enemigos y powerups
       if (st.frame % st._spawnEvery === 0) spawnEnemy();
-      // mover enemigos
+      if (st.frame % 55 === 0 && Math.random() < 0.6) spawnPower();
+      // mover enemigos/powerups
       for (const o of obs) o.y += 1;
+      for (const p of powerUps) p.y += 1;
       obs = obs.filter(o => o.y < H-1);
+      powerUps = powerUps.filter(p => p.y < H-1);
 
-      // drift de pista: cada cierto tiempo angosta/ensancha
+      // drift de pista: a veces angosta desde izquierda o derecha
       driftTimer++;
       if (driftTimer % 25 === 0){
-        const minWidth = 9, maxWidth = 17;
+        const minWidth = 18, maxWidth = 32;
         const width = right - left;
-        const narrow = Math.random() < 0.6; // más probabilidad de angostar
-        if (narrow && width > minWidth){ left += 1; right -= 1; }
-        else if (!narrow && width < maxWidth){ left -= 1; right += 1; }
+        const narrow = Math.random() < 0.6;
+        const side = Math.random() < 0.5 ? 'left' : 'right';
+        if (narrow && width > minWidth){
+          if (side==='left'){ left += 1; }
+          else { right -= 1; }
+        } else if (!narrow && width < maxWidth){
+          if (side==='left'){ left -= 1; }
+          else { right += 1; }
+        }
         // clamps suaves
-        left = Math.max(2, Math.min(left, Math.floor(W/2)-4));
-        right = Math.min(W-3, Math.max(right, Math.floor(W/2)+4));
+        const margin = 3;
+        left = Math.max(margin, Math.min(left, Math.floor(W/2)-6));
+        right = Math.min(W-1-margin, Math.max(right, Math.floor(W/2)+6));
       }
 
       // puntos por supervivencia + rivales “sobrepasados” (heurística)
       st.baseScore += 1 + obs.filter(o => o.y===carY && Math.abs(o.x - carX) > 2).length;
 
-      // colisiones
-      if (collideCar()){ st._requestStop='crashed'; return; }
+      // recoger powerups
+      const carCells = new Set(CAR.map(([dx,dy])=>`${carX+dx},${carY+dy}`));
+      powerUps = powerUps.filter(p => {
+        if (carCells.has(`${p.x},${p.y}`)){
+          st.baseScore += 5;
+          playSound('power');
+          return false;
+        }
+        return true;
+      });
+
+      // colisiones: activar resbalón y descontar puntos en lugar de terminar (en insane sí termina)
+      if (hitCooldown > 0) hitCooldown--;
+
+      if (slipDir === 0 && hitCooldown === 0){
+        const col = collideCar();
+        if (col.hit){
+          const diffMode = ($('road-select')?.value || 'normal');
+          if (diffMode === 'insane') {
+            st._requestStop='crashed';
+          } else {
+            st.baseScore = Math.max(0, st.baseScore - 8);
+            slipDir = col.side || (Math.random() < 0.5 ? -1 : 1);
+            slipFrames = 0;
+            hitCooldown = HIT_COOLDOWN_FRAMES;
+            playSound('crash');
+          }
+        }
+      }
+
+      // resbalón: mover el coche lateralmente hasta recuperar control
+      if (slipDir !== 0){
+        carPos += slipDir * SLIP_SPEED;
+        carX = Math.round(carPos);
+        slipFrames += 1;
+        const recoverLeft = slipDir === -1 && keysActive.left;
+        const recoverRight = slipDir === 1 && keysActive.right;
+        if (recoverLeft || recoverRight){
+          slipDir = 0;
+          hitCooldown = HIT_COOLDOWN_FRAMES;
+        }
+      }
+
+      // colisión final solo si nos salimos de la pista
+      if (carX <= left || carX >= right){ st._requestStop='crashed'; return; }
 
       render();
     },
     keydown:(e)=>{
-      if (e.key==='ArrowLeft'){ carX -= 1; e.preventDefault(); render(); return true; }
-      if (e.key==='ArrowRight'){ carX += 1; e.preventDefault(); render(); return true; }
+      if (e.key==='ArrowLeft'){ carX -= 1; keysActive.left=true; e.preventDefault(); render(); return true; }
+      if (e.key==='ArrowRight'){ carX += 1; keysActive.right=true; e.preventDefault(); render(); return true; }
       return false;
     }
   });

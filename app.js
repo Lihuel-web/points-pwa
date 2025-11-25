@@ -18,13 +18,34 @@ const text = (el, v) => { if (el) el.textContent = v ?? ''; };
 const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
 function normalizeUID(s) { return String(s || '').toUpperCase().replace(/[^0-9A-F]/g, ''); }
 
+// ---------------- Theme (light / cyber) ----------------
+const THEME_KEY = 'pwa-theme';
+function applyTheme(mode) {
+  const m = mode === 'cyber' ? 'cyber' : 'light';
+  document.body.classList.toggle('theme-cyber', m === 'cyber');
+  localStorage.setItem(THEME_KEY, m);
+  const btn = $('theme-toggle');
+  if (btn) btn.textContent = m === 'cyber' ? 'Light mode' : 'Neon mode';
+}
+function initThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
+  applyTheme(saved);
+  on($('theme-toggle'), 'click', () => {
+    const next = document.body.classList.contains('theme-cyber') ? 'light' : 'cyber';
+    applyTheme(next);
+  });
+}
+
 // Color por pool (pasteles deterministas)
 function colorForPool(poolId) {
-  const hues = [210, 25, 140, 95, 275, 0, 180, 330, 50, 260, 120, 300];
+  const hues = [190, 310, 135, 45, 265, 355, 165, 25, 95, 220, 280, 330];
   const n = Number(poolId);
   const idx = Math.abs(Number.isFinite(n) ? n : String(poolId).split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % hues.length;
   const h = hues[idx];
-  return `hsl(${h}, 90%, 94%)`;
+  // Neon-friendly but softer gradient to avoid eye strain.
+  const c1 = `hsla(${h}, 78%, 76%, 0.92)`;
+  const c2 = `hsla(${h}, 78%, 68%, 0.9)`;
+  return `linear-gradient(90deg, ${c1}, ${c2})`;
 }
 
 // ---------------- Team name cache ----------------
@@ -58,6 +79,8 @@ const whoami = $('whoami');
 const roleBadge = $('role-badge');
 const teacherPanel = $('teacher-panel');
 const studentPanel = $('student-panel');
+
+initThemeToggle();
 
 on($('login-form'), 'submit', async (e) => {
   e.preventDefault();
@@ -349,7 +372,7 @@ async function initAdminResetsUI() {
 
   async function ensureTeacher() {
     const { data:{ user } } = await sb.auth.getUser();
-    if (!user) { alert('Inicia sesión.'); return false; }
+    if (!user) { alert('Please sign in.'); return false; }
     const { data: prof } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
     if (!prof || prof.role !== 'teacher') { alert('Solo profesores.'); return false; }
     return true;
@@ -382,7 +405,7 @@ async function initAdminResetsUI() {
   rpExec.addEventListener('click', async () => {
     if (rpExec.disabled) return;
     const includeScores = !!rpInclude.checked;
-    const ok = confirm(`Esto reseteará TODOS los puntos (earn/spend).${includeScores ? ' También borrará los marcadores de juegos.' : ''}\n¿Confirmas?`);
+    const ok = confirm(`This will reset ALL points (earn/spend).${includeScores ? ' It will also wipe game leaderboards.' : ''}\nConfirm?`);
     if (!ok) return;
 
     rpExec.disabled = true;
@@ -462,7 +485,7 @@ game_scores borradas:  ${data.game_scores_deleted}`;
   rgsExec.addEventListener('click', async ()=>{
     if (rgsExec.disabled) return;
     const games = rgsSelectedGames();
-    const ok = confirm(`Esto reseteará las puntuaciones de: ${games.join(', ')}. ¿Confirmas?`);
+    const ok = confirm(`This will reset the scores for: ${games.join(', ')}. Confirm?`);
     if (!ok) return;
 
     rgsExec.disabled = true;
@@ -778,11 +801,12 @@ async function refreshAsciiLeaderboards() {
       rank: i+1,
       local: r.local_team_name || teamLabel(r.local_team_id),
       pool: r.pool_team_name || teamLabel(r.pool_team_id),
+      bestPlayer: r.best_student_name || '—',
       best: r.team_best ?? 0,
     })).slice(0, 20);
     tbTeams.innerHTML = rankedTeams.map(r => `
-      <tr><td>${r.rank}</td><td>${r.local}</td><td>${r.pool}</td><td><strong>${r.best}</strong></td></tr>
-    `).join('') || `<tr><td colspan="4">—</td></tr>`;
+      <tr><td>${r.rank}</td><td>${r.local}</td><td>${r.pool}</td><td>${r.bestPlayer}</td><td><strong>${r.best}</strong></td></tr>
+    `).join('') || `<tr><td colspan="5">—</td></tr>`;
   }
 }
 
@@ -1091,7 +1115,7 @@ async function initStudentForms() {
     const sel = $('delete-student-select');
     const studentId = parseInt(sel?.value || '0', 10);
     if (!studentId) return alert('Select a student to delete.');
-    const ok = confirm('Delete this student? Esto removerá membresías, tarjetas, transacciones; y si tiene usuario Auth, también se elimina.');
+    const ok = confirm('Delete this student? This removes memberships, cards, transactions; and if an Auth user exists, it is also deleted.');
     if (!ok) return;
 
     try {
@@ -1203,5 +1227,3 @@ async function upsertStudentCard(studentId, uid) {
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
 // setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTransactions().catch(()=>{}); }, 5000);
-
-
