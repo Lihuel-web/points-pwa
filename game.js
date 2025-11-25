@@ -22,6 +22,7 @@ const DIFF = {
 };
 
 const TEACHER_PRACTICE_ALIAS = 'The_Final_Boss.exe';
+const keysActive = { left:false, right:false };
 
 // -------- Audio (lightweight Web Audio blips) --------
 let AUDIO_CTX = null;
@@ -686,15 +687,16 @@ function makeTetris(){
 // ---------- Juego 4: Road (tipo Road Fighter ASCII) ----------
 function makeRoad(){
   const W=40, H=22; // más ancho
-  let grid=[], carX, carY, carPos, obs=[], powerUps=[], left=6, right=W-6, driftTimer=0, slipDir=0, slipFrames=0, hitCooldown=0;
+  let grid=[], carX, carY, carPos, obs=[], powerUps=[], left=6, right=W-6, driftTimer=0, slipDir=0, slipFrames=0, hitCooldown=0, awaitingRecovery=false;
 
   const CAR  = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'\\'] ];   // coche del jugador (~3 ancho)
   const CAR_L = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'|'] ];    // coche inclinado izq
   const CAR_R = [ [0,0,'^'], [-1,1,'|'], [0,1,'#'], [1,1,'\\'] ];    // coche inclinado der
   const ENEM = [ [0,0,'A'], [-1,1,'o'], [1,1,'o'] ];                // coche rival simple
   const HIT_COOLDOWN_FRAMES = 6;
-  const SLIP_SPEED = 0.9;
-  const keysActive = { left:false, right:false };
+  const SLIP_BASE_SPEED = 0.75;
+  const SLIP_ACCEL = 0.18;
+  const SLIP_MAX_SPEED = 1.6;
 
   function clear(){ grid = Array.from({length:H}, ()=> Array.from({length:W}, ()=> ' ')); }
   function put(x,y,ch){ if (x>=0&&x<W&&y>=0&&y<H) grid[y][x]=ch; }
@@ -730,7 +732,7 @@ function makeRoad(){
     // choque con bordes
     for (const [dx,dy] of CAR){
       const x=carX+dx, y=carY+dy;
-      if (x<=left || x>=right) return { hit:true, side: x<=left ? -1 : 1 };
+      if (x<=left || x>=right) return { hit:true, side: x<=left ? -1 : 1, type:'border' };
     }
     // choque con enemigos
     const carCells = new Set(CAR.map(([dx,dy])=>`${carX+dx},${carY+dy}`));
@@ -738,11 +740,26 @@ function makeRoad(){
       for (const [dx,dy] of ENEM){
         if (carCells.has(`${o.x+dx},${o.y+dy}`)) {
           const side = (o.x < carX) ? -1 : 1;
-          return { hit:true, side };
+          return { hit:true, side, type:'enemy' };
         }
       }
     }
-    return { hit:false, side:0 };
+    return { hit:false, side:0, type:null };
+  }
+
+  function startSlip(side){
+    slipDir = side || (Math.random() < 0.5 ? -1 : 1);
+    slipFrames = 0;
+    awaitingRecovery = true;
+    carPos = carX;
+  }
+
+  function recoverSlip(){
+    slipDir = 0;
+    slipFrames = 0;
+    awaitingRecovery = false;
+    hitCooldown = HIT_COOLDOWN_FRAMES;
+    carPos = carX;
   }
 
   const mod = makeGameModule({
@@ -754,14 +771,14 @@ function makeRoad(){
     timeId:'road-time', scoreId:'road-score', totalId:'road-total', diffId:'road-diff',
     lbLocalId:'road-lb-local', lbTeamsId:'road-lb-teams',
     init:(st)=>{
-      clear(); obs=[]; powerUps=[]; left=6; right=W-6; carX=Math.floor(W/2); carY=H-3; driftTimer=0; slipDir=0; slipFrames=0; hitCooldown=0; keysActive.left=false; keysActive.right=false;
+      clear(); obs=[]; powerUps=[]; left=6; right=W-6; carX=Math.floor(W/2); carY=H-3; driftTimer=0; slipDir=0; slipFrames=0; hitCooldown=0; awaitingRecovery=false; keysActive.left=false; keysActive.right=false;
       carPos = carX;
       const d = ($('road-select')?.value || 'normal');
       // velocidad/spawn por dificultad
       const base = d==='easy' ? 110 : d==='normal' ? 95 : d==='hard' ? 80 : 65; // ms
       st.tickMs = Math.max(45, base - Math.floor((COMMON.totals.totalLocal||0)/5));
       st._spawnEvery = d==='easy' ? 12 : d==='normal' ? 9 : d==='hard' ? 7 : 5; // más difícil = más rivales
-      $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move · P pause · Stop ends game.`;
+      $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move (tras choque derrapas: pulsa hacia ese lado para recuperar control) · P pause · Stop ends game.`;
     },
     tick:(st)=>{
       // spawn enemigos y powerups
@@ -814,13 +831,12 @@ function makeRoad(){
         const col = collideCar();
         if (col.hit){
           const diffMode = ($('road-select')?.value || 'normal');
-          if (diffMode === 'insane') {
+          const borderHit = col.type === 'border';
+          if (diffMode === 'insane' || borderHit) {
             st._requestStop='crashed';
           } else {
             st.baseScore = Math.max(0, st.baseScore - 8);
-            slipDir = col.side || (Math.random() < 0.5 ? -1 : 1);
-            slipFrames = 0;
-            hitCooldown = HIT_COOLDOWN_FRAMES;
+            startSlip(col.side);
             playSound('crash');
           }
         }
@@ -828,14 +844,14 @@ function makeRoad(){
 
       // resbalón: mover el coche lateralmente hasta recuperar control
       if (slipDir !== 0){
-        carPos += slipDir * SLIP_SPEED;
+        const slipSpeed = Math.min(SLIP_MAX_SPEED, SLIP_BASE_SPEED + slipFrames * SLIP_ACCEL);
+        carPos += slipDir * slipSpeed;
         carX = Math.round(carPos);
         slipFrames += 1;
         const recoverLeft = slipDir === -1 && keysActive.left;
         const recoverRight = slipDir === 1 && keysActive.right;
-        if (recoverLeft || recoverRight){
-          slipDir = 0;
-          hitCooldown = HIT_COOLDOWN_FRAMES;
+        if (awaitingRecovery && (recoverLeft || recoverRight)){
+          recoverSlip();
         }
       }
 
@@ -845,8 +861,24 @@ function makeRoad(){
       render();
     },
     keydown:(e)=>{
-      if (e.key==='ArrowLeft'){ carX -= 1; keysActive.left=true; e.preventDefault(); render(); return true; }
-      if (e.key==='ArrowRight'){ carX += 1; keysActive.right=true; e.preventDefault(); render(); return true; }
+      if (e.key==='ArrowLeft'){
+        keysActive.left=true; keysActive.right=false;
+        if (slipDir !== 0){
+          if (slipDir === -1 && awaitingRecovery) recoverSlip();
+          e.preventDefault(); render(); return true;
+        }
+        carX -= 1; carPos = carX;
+        e.preventDefault(); render(); return true;
+      }
+      if (e.key==='ArrowRight'){
+        keysActive.right=true; keysActive.left=false;
+        if (slipDir !== 0){
+          if (slipDir === 1 && awaitingRecovery) recoverSlip();
+          e.preventDefault(); render(); return true;
+        }
+        carX += 1; carPos = carX;
+        e.preventDefault(); render(); return true;
+      }
       return false;
     }
   });
