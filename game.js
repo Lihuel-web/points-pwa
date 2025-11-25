@@ -21,12 +21,16 @@ const DIFF = {
   insane: { label:'insane', mult:2.00, tick:-12, spawn:-5  }
 };
 
+const TEACHER_PRACTICE_ALIAS = 'The_Final_Boss.exe';
+
 let COMMON = {
   user: null,
   student: null,
   local:   null,
   pool:    null,
-  totals:  { pool:0, spent:0, totalLocal:0 }
+  totals:  { pool:0, spent:0, totalLocal:0 },
+  teacherPractice: false,
+  teacherAvatar: null,
 };
 
 function setGamesUnavailable(message){
@@ -34,6 +38,31 @@ function setGamesUnavailable(message){
     text($(`${key}-status`), 'no team');
     text($(`${key}-screen`), message);
   });
+}
+
+async function ensureTeacherAvatar(){
+  if (COMMON.teacherAvatar) return COMMON.teacherAvatar;
+  try{
+    const { data: existing } = await sb.from('students')
+      .select('id')
+      .eq('name', TEACHER_PRACTICE_ALIAS)
+      .order('id', { ascending:true })
+      .limit(1);
+    if (existing && existing.length){
+      COMMON.teacherAvatar = { id: existing[0].id, name: TEACHER_PRACTICE_ALIAS };
+      return COMMON.teacherAvatar;
+    }
+    const { data: created, error } = await sb.from('students')
+      .insert([{ name: TEACHER_PRACTICE_ALIAS, class: 'teacher' }])
+      .select('id')
+      .single();
+    if (error) throw error;
+    COMMON.teacherAvatar = { id: created.id, name: TEACHER_PRACTICE_ALIAS };
+    return COMMON.teacherAvatar;
+  }catch(e){
+    console.warn('teacher avatar student unavailable', e);
+    return null;
+  }
 }
 
 // ---------- Supabase helpers ----------
@@ -89,9 +118,18 @@ async function bootstrapCommon(){
 }
 
 async function bootstrapTeacherPractice(){
+  COMMON.teacherPractice = true;
+  const avatar = await ensureTeacherAvatar();
+  if (!avatar){
+    setGamesUnavailable('No se pudo preparar el alias del profe para el leaderboard.');
+    COMMON.teacherPractice = false;
+    return false;
+  }
+
   const { data, error } = await sb.rpc('top_local_leaderboard', { _limit: 1 });
   if (error || !data || data.length === 0) {
     setGamesUnavailable('No hay equipos locales con puntos disponibles para practicar.');
+    COMMON.teacherPractice = false;
     return false;
   }
 
@@ -101,13 +139,15 @@ async function bootstrapTeacherPractice(){
   const poolPointsRaw = Number(top.pool_points);
   const poolPoints = Number.isFinite(poolPointsRaw) ? poolPointsRaw : ((top.total_local ?? 0) + (top.spent ?? 0));
 
+  COMMON.student = avatar;
+  COMMON.teacherAvatar = avatar;
   COMMON.local = { id: top.local_team_id, name: localName };
   COMMON.pool  = { id: top.pool_team_id,  name: poolName  };
   COMMON.totals.pool       = poolPoints || 0;
   COMMON.totals.spent      = top.spent ?? 0;
   COMMON.totals.totalLocal = Math.min(240, top.total_local ?? 0);
 
-  text($('common-user'), `${COMMON.user.email || COMMON.user.id} (teacher practice)`);
+  text($('common-user'), `${COMMON.user.email || COMMON.user.id} (${TEACHER_PRACTICE_ALIAS})`);
   text($('common-local'), COMMON.local.name);
   text($('common-pool'), COMMON.pool.name);
   text($('common-poolpts'), COMMON.totals.pool);
@@ -157,11 +197,14 @@ function makeGameModule(cfg){
 
   async function saveScore(finalScore){
     try{
-      if (!COMMON.user || !COMMON.student || !COMMON.local) return;
+      if (!COMMON.user || !COMMON.local) return;
+      const avatar = COMMON.student || COMMON.teacherAvatar;
+      const studentName = avatar?.name || (COMMON.teacherPractice ? TEACHER_PRACTICE_ALIAS : null);
+      if (!studentName) return;
       await sb.from(cfg.table).insert([{
         user_id: COMMON.user.id,
-        student_id: COMMON.student.id,
-        student_name: COMMON.student.name,
+        student_id: avatar?.id ?? null,
+        student_name: studentName,
         local_team_id: COMMON.local.id,
         local_team_name: COMMON.local.name,
         difficulty: ($(cfg.selectId)?.value || 'normal'),
@@ -635,4 +678,3 @@ async function main(){
   });
 }
 document.addEventListener('DOMContentLoaded', ()=> { main().catch(console.error); });
-
