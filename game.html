@@ -206,13 +206,6 @@
         <button id="flappy-stop" disabled>Stop</button>
         <span class="tag">Controls: Space/↑ jump · P pause</span>
       </div>
-      <div class="touch-controls" data-touch="flappy">
-        <div class="touch-title">Controles tactiles</div>
-        <div class="touch-row">
-          <button type="button" class="touch-btn primary" data-key="Space">Jump</button>
-          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
-        </div>
-      </div>
       <div class="row">
         <label>Gravity tweak (±20%):
           <input type="range" id="flappy-gravity" min="80" max="120" step="1" value="100" class="volume-slider" />
@@ -222,6 +215,13 @@
       </div>
       <div class="help" id="flappy-gravity-note">Base gravity uses real planets (easy = Moon, normal = Earth).</div>
       <pre id="flappy-screen" class="screen">Loading…</pre>
+      <div class="touch-controls" data-touch="flappy">
+        <div class="touch-title">Controles tactiles</div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn primary" data-key="Space">Jump</button>
+          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
+        </div>
+      </div>
       <div class="help">Final score = obstacles cleared × multiplier. System points do not change.</div>
       <div class="row">
         <label>Rows to show:
@@ -267,6 +267,7 @@
         <button id="snake-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → ↑ ↓ move · P pause</span>
       </div>
+      <pre id="snake-screen" class="screen">Loading…</pre>
       <div class="touch-controls" data-touch="snake">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-pad">
@@ -281,7 +282,6 @@
           <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
         </div>
       </div>
-      <pre id="snake-screen" class="screen">Loading…</pre>
       <div class="help">Eat “*” to add weight (score = kg). Avoid walls/obstacles/body; weight slows speed (capped at -40%). Obstacles spawn on normal+.</div>
       <div class="row">
         <label>Rows to show:
@@ -325,6 +325,14 @@
         <button id="tetris-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → move · ↑ rotate · ↓ drop faster · P pause</span>
       </div>
+      <div class="row">
+        <label>Fall speed (±40%):
+          <input type="range" id="tetris-fall-slider" min="60" max="140" step="5" value="100" />
+          <span id="tetris-fall-speed">0.00 m/s</span>
+        </label>
+        <span class="tag">Adjust anytime while playing to fine-tune drop speed.</span>
+      </div>
+      <pre id="tetris-screen" class="screen">Loading…</pre>
       <div class="touch-controls" data-touch="tetris">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-row">
@@ -337,14 +345,6 @@
           <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
         </div>
       </div>
-      <div class="row">
-        <label>Fall speed (±40%):
-          <input type="range" id="tetris-fall-slider" min="60" max="140" step="5" value="100" />
-          <span id="tetris-fall-speed">0.00 m/s</span>
-        </label>
-        <span class="tag">Adjust anytime while playing to fine-tune drop speed.</span>
-      </div>
-      <pre id="tetris-screen" class="screen">Loading…</pre>
       <div class="help">Score from cleared lines. Simplified for ASCII (I, O, L, T pieces).</div>
       <div class="row">
         <label>Rows to show:
@@ -388,6 +388,7 @@
         <button id="road-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → move · P pause</span>
       </div>
+      <pre id="road-screen" class="screen">Loading…</pre>
       <div class="touch-controls" data-touch="road">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-row">
@@ -396,7 +397,6 @@
           <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
         </div>
       </div>
-      <pre id="road-screen" class="screen">Loading…</pre>
       <div class="help">Avoid falling obstacles. Score by distance/obstacles dodged.</div>
       <div class="row">
         <label>Rows to show:
