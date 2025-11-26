@@ -1,0 +1,118 @@
+2. Prerrequisitos para actualizar el esquema
+
+Este flujo está pensado para WSL con Ubuntu.
+
+Antes de actualizar prod.sql necesitas:
+
+Tener instalado el cliente de PostgreSQL 17 (no el servidor completo).
+Debería existir el binario:
+
+/usr/lib/postgresql/17/bin/pg_dump --version
+
+
+y mostrar algo como:
+
+pg_dump (PostgreSQL) 17.x
+
+
+Tener una connection string válida de Supabase (desde el Dashboard → botón “Connect” → opción psql o “session pooler”).
+Tendrá esta forma general (ejemplo genérico):
+
+postgresql://postgres.[PROJECT_REF]:TU_PASSWORD@aws-0-XXXXXXXX-YYYY-1-ZZ-1.db.XXXXX.supabase.com:5432/postgres
+
+
+⚠️ Nunca commitear esta cadena en Git. Usarla sólo en local (como variable de entorno).
+
+3. Cómo actualizar supabase/schemas/prod.sql (paso a paso)
+
+Siempre desde la raíz del proyecto (por ejemplo: ~/projects/pwa-points/points-pwa):
+
+Exportar la connection string como variable de entorno (ajustar con tus datos reales de Supabase):
+
+export PG_CONN_STR="postgresql://postgres.[PROJECT_REF]:TU_PASSWORD@aws-0-XXXXXXXX-YYYY-1-ZZ-1.db.XXXXX.supabase.com:5432/postgres"
+
+
+[PROJECT_REF] es el identificador del proyecto en Supabase.
+
+TU_PASSWORD es la contraseña que te muestra Supabase en la sección de conexión.
+
+No guardes esta línea en ningún archivo versionado.
+
+Asegurarse de que existe la carpeta de schemas:
+
+mkdir -p supabase/schemas
+
+
+Generar el dump del esquema usando el cliente de PostgreSQL 17:
+
+/usr/lib/postgresql/17/bin/pg_dump \
+  --schema-only \
+  --no-owner \
+  --no-privileges \
+  "$PG_CONN_STR" \
+  > supabase/schemas/prod.sql
+
+
+Revisar el diff antes de commitear (para ver qué cambió en la DB):
+
+git diff supabase/schemas/prod.sql
+
+
+Si el cambio tiene sentido, commitear la nueva versión:
+
+git add supabase/schemas/prod.sql
+git commit -m "Update Supabase schema snapshot"
+
+4. Uso recomendado con Codex (VS Code)
+
+Cuando se trabaje con Codex (o cualquier agente que edite código y SQL):
+
+Recordarle que use este archivo como referencia de la base:
+
+Use @supabase/schemas/prod.sql as the source of truth for the database schema
+(tables, relationships, RLS, functions) when making changes to any Supabase-related
+code in this project.
+
+
+Antes de pedir cambios grandes a la DB (nuevas tablas, RLS, funciones):
+
+Pedirle que primero lea el esquema actual (prod.sql).
+
+Luego que proponga migraciones o cambios consistentes con lo que ve ahí, en lugar de inventar la estructura.
+
+Si se aplica un cambio directo en Supabase (desde el dashboard):
+
+Volver a generar prod.sql con el procedimiento de la sección 3.
+
+Commitear el cambio para que el repo siga siendo la fuente de verdad del estado de la DB.
+
+5. Buenas prácticas
+
+No guardar ni commitear la connection string completa (con contraseña) en ningún archivo del repo.
+
+Si Supabase cambia la versión de PostgreSQL en el futuro:
+
+Habrá que instalar el cliente correspondiente (por ejemplo postgresql-client-18) y actualizar la ruta de pg_dump.
+
+Si más adelante se introduce un sistema de migraciones (por ejemplo supabase db diff / db push):
+
+Este archivo puede convivir con una carpeta de migraciones (supabase/migrations/) y seguir utilizándose como snapshot de referencia.
+
+Si el archivo se vuelve muy grande:
+
+En general es útil mantener una sola “foto” global, pero si es necesario se podría separar por esquemas.
+
+6. Resumen rápido
+
+supabase/schemas/prod.sql es la foto actual del esquema de producción.
+
+Se actualiza manualmente con pg_dump (cliente Postgres 17) usando la connection string de Supabase.
+
+Se versiona en Git para:
+
+tener histórico de cambios de la DB,
+
+ayudar a Codex/IA a entender la estructura de la base,
+
+evitar copiar/pegar RLS y funciones desde el dashboard.
+EOF
