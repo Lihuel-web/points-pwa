@@ -1172,37 +1172,93 @@ begin
   -- Flappy
   if want_flappy and to_regclass('public.game_scores') is not null then
     lock table public.game_scores in access exclusive mode;
-    insert into public.game_scores_archive
-      select g.*, now() as archived_at, u as actor from public.game_scores g;
+    perform setval(
+      'public.game_scores_id_seq',
+      greatest(
+        coalesce((select max(id) from public.game_scores_archive), 0),
+        coalesce((select max(id) from public.game_scores), 0)
+      ),
+      true
+    );
+    insert into public.game_scores_archive (
+      user_id, student_id, student_name, local_team_id, local_team_name,
+      difficulty, score, created_at, archived_at, actor
+    )
+    select
+      g.user_id, g.student_id, g.student_name, g.local_team_id, g.local_team_name,
+      g.difficulty, g.score, g.created_at, now(), u
+    from public.game_scores g;
     get diagnostics rc = row_count; c_flappy := c_flappy + rc;
-    truncate table public.game_scores restart identity;
+    truncate table public.game_scores;
   end if;
 
   -- Snake
   if want_snake and to_regclass('public.game_scores_snake') is not null then
     lock table public.game_scores_snake in access exclusive mode;
-    insert into public.game_scores_snake_archive
-      select g.*, now() as archived_at, u as actor from public.game_scores_snake g;
+    perform setval(
+      'public.game_scores_snake_id_seq',
+      greatest(
+        coalesce((select max(id) from public.game_scores_snake_archive), 0),
+        coalesce((select max(id) from public.game_scores_snake), 0)
+      ),
+      true
+    );
+    insert into public.game_scores_snake_archive (
+      user_id, student_id, student_name, local_team_id, local_team_name,
+      difficulty, score, created_at, archived_at, actor
+    )
+    select
+      g.user_id, g.student_id, g.student_name, g.local_team_id, g.local_team_name,
+      g.difficulty, g.score, g.created_at, now(), u
+    from public.game_scores_snake g;
     get diagnostics rc = row_count; c_snake := c_snake + rc;
-    truncate table public.game_scores_snake restart identity;
+    truncate table public.game_scores_snake;
   end if;
 
   -- Tetris
   if want_tetris and to_regclass('public.game_scores_tetris') is not null then
     lock table public.game_scores_tetris in access exclusive mode;
-    insert into public.game_scores_tetris_archive
-      select g.*, now() as archived_at, u as actor from public.game_scores_tetris g;
+    perform setval(
+      'public.game_scores_tetris_id_seq',
+      greatest(
+        coalesce((select max(id) from public.game_scores_tetris_archive), 0),
+        coalesce((select max(id) from public.game_scores_tetris), 0)
+      ),
+      true
+    );
+    insert into public.game_scores_tetris_archive (
+      user_id, student_id, student_name, local_team_id, local_team_name,
+      difficulty, score, created_at, archived_at, actor
+    )
+    select
+      g.user_id, g.student_id, g.student_name, g.local_team_id, g.local_team_name,
+      g.difficulty, g.score, g.created_at, now(), u
+    from public.game_scores_tetris g;
     get diagnostics rc = row_count; c_tetris := c_tetris + rc;
-    truncate table public.game_scores_tetris restart identity;
+    truncate table public.game_scores_tetris;
   end if;
 
   -- Road
   if want_road and to_regclass('public.game_scores_road') is not null then
     lock table public.game_scores_road in access exclusive mode;
-    insert into public.game_scores_road_archive
-      select g.*, now() as archived_at, u as actor from public.game_scores_road g;
+    perform setval(
+      'public.game_scores_road_id_seq',
+      greatest(
+        coalesce((select max(id) from public.game_scores_road_archive), 0),
+        coalesce((select max(id) from public.game_scores_road), 0)
+      ),
+      true
+    );
+    insert into public.game_scores_road_archive (
+      user_id, student_id, student_name, local_team_id, local_team_name,
+      difficulty, score, created_at, archived_at, actor
+    )
+    select
+      g.user_id, g.student_id, g.student_name, g.local_team_id, g.local_team_name,
+      g.difficulty, g.score, g.created_at, now(), u
+    from public.game_scores_road g;
     get diagnostics rc = row_count; c_road := c_road + rc;
-    truncate table public.game_scores_road restart identity;
+    truncate table public.game_scores_road;
   end if;
 
   -- Auditoría
@@ -7054,4 +7110,3 @@ CREATE EVENT TRIGGER pgrst_drop_watch ON sql_drop
 --
 
 \unrestrict 8asgWVs2bzEpwDhT43ZEqgDxqs3pi0TzhbkLNJ2OafQFfi8Xjae54sKV8wNjYx5
-

@@ -284,6 +284,13 @@
         <button id="tetris-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → move · ↑ rotate · ↓ drop faster · P pause</span>
       </div>
+      <div class="row">
+        <label>Fall speed (±40%):
+          <input type="range" id="tetris-fall-slider" min="60" max="140" step="5" value="100" />
+          <span id="tetris-fall-speed">0.00 m/s</span>
+        </label>
+        <span class="tag">Adjust anytime while playing to fine-tune drop speed.</span>
+      </div>
       <pre id="tetris-screen" class="screen">Loading…</pre>
       <div class="help">Score from cleared lines. Simplified for ASCII (I, O, L, T pieces).</div>
       <div class="row">

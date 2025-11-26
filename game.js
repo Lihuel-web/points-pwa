@@ -76,6 +76,138 @@ function playSound(type='start') {
   });
 }
 
+// ---------- Tetris theme (background loop) ----------
+const NOTE_TO_SEMI = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11 };
+function noteToFreq(note){
+  if (!note) return null;
+  const m = /^([A-Ga-g])([#b]?)(\d)$/.exec(note);
+  if (!m) return null;
+  const key = m[1].toUpperCase() + (m[2] || '');
+  const semi = NOTE_TO_SEMI[key];
+  if (semi === undefined) return null;
+  const octave = parseInt(m[3], 10);
+  const midi = semi + (octave + 1) * 12;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+const TETRIS_THEME_BPM = 148; // mantiene tempo original cercano a NES
+// Notación: beats relativos a negra=1 (4), blanca=2, corchea=0.5; puntillo = *1.5
+const TETRIS_PHRASE_A_ORIG = [
+  { note:'E5', beats:1 },   { note:'B4', beats:0.5 }, { note:'C5', beats:0.5 }, { note:'D5', beats:1 },
+  { note:'C5', beats:0.5 }, { note:'B4', beats:0.5 }, { note:'A4', beats:1 },   { note:'A4', beats:0.5 },
+  { note:'C5', beats:0.5 }, { note:'E5', beats:1 },   { note:'D5', beats:0.5 }, { note:'C5', beats:0.5 },
+  { note:'B4', beats:1 },   { note:'B4', beats:0.5 }, { note:'C5', beats:0.5 }, { note:'D5', beats:1 },
+  { note:'E5', beats:1 },   { note:'C5', beats:1 },   { note:'A4', beats:1 },   { note:'A4', beats:1 },
+];
+const TETRIS_PHRASE_B_NEW = [
+  { note:'F5', beats:1.5 }, { note:'G5', beats:0.5 }, { note:'A5', beats:1 },   { note:'G5', beats:0.5 }, { note:'F5', beats:0.5 },
+  { note:'E5', beats:1.5 }, { note:'F5', beats:0.5 }, { note:'E5', beats:1 },   { note:'D5', beats:0.5 }, { note:'C5', beats:0.5 },
+  { note:'B4', beats:1.5 }, { note:'C5', beats:0.5 }, { note:'D5', beats:1 },   { note:'E5', beats:1 },   { note:'C5', beats:1 },
+  { note:'A4', beats:1 },   { note:'A4', beats:2 },
+];
+const TETRIS_THEME = [
+  ...TETRIS_PHRASE_A_ORIG,
+  ...TETRIS_PHRASE_B_NEW,
+  ...TETRIS_PHRASE_B_NEW,
+  { note:null, beats:0.5 }
+];
+const TETRIS_MUSIC_STATE = { timer:null, nodes:[], playing:false, cancelled:false, intent:false, masterGain:null };
+
+function ensureTetrisMasterGain(ctx){
+  if (TETRIS_MUSIC_STATE.masterGain) return TETRIS_MUSIC_STATE.masterGain;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(Math.max(0.0001, AUDIO_VOL), ctx.currentTime);
+  g.connect(ctx.destination);
+  TETRIS_MUSIC_STATE.masterGain = g;
+  return g;
+}
+
+function setTetrisMasterVolume(v){
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const g = ensureTetrisMasterGain(ctx);
+  const now = ctx.currentTime;
+  g.gain.cancelScheduledValues(now);
+  g.gain.setTargetAtTime(Math.max(0.0001, v), now, 0.04);
+}
+
+function clearTetrisNodes(){
+  TETRIS_MUSIC_STATE.nodes.forEach(n => {
+    try{ n.stop?.(); }catch(_e){}
+    try{ n.disconnect?.(); }catch(_e){}
+  });
+  TETRIS_MUSIC_STATE.nodes = [];
+}
+
+function stopTetrisMusicLoop(){
+  TETRIS_MUSIC_STATE.cancelled = true;
+  TETRIS_MUSIC_STATE.playing = false;
+  if (TETRIS_MUSIC_STATE.timer){ clearTimeout(TETRIS_MUSIC_STATE.timer); TETRIS_MUSIC_STATE.timer = null; }
+  clearTetrisNodes();
+  if (TETRIS_MUSIC_STATE.masterGain){
+    const ctx = AUDIO_CTX;
+    const now = ctx?.currentTime || 0;
+    try{ TETRIS_MUSIC_STATE.masterGain.gain.setTargetAtTime(0.0001, now, 0.03); }catch(_e){}
+  }
+}
+
+function scheduleTetrisTheme(ctx){
+  if (TETRIS_MUSIC_STATE.cancelled || !TETRIS_MUSIC_STATE.intent) return;
+  if (localStorage.getItem('pwa-audio') === 'off'){ stopTetrisMusicLoop(); return; }
+  const beat = 60 / TETRIS_THEME_BPM;
+  const startAt = ctx.currentTime + 0.08;
+  let t = startAt;
+  clearTetrisNodes();
+  for (const step of TETRIS_THEME){
+    const dur = (step.beats || 0.5) * beat;
+    const freq = noteToFreq(step.note);
+    if (freq){
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = step.wave || 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      const vol = (step.vol ?? 0.09) * AUDIO_VOL;
+      const attack = Math.min(0.03, dur * 0.3);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol), t + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.92);
+      osc.connect(gain).connect(ensureTetrisMasterGain(ctx));
+      osc.start(t);
+      osc.stop(t + dur);
+      TETRIS_MUSIC_STATE.nodes.push(osc, gain);
+    }
+    t += dur;
+  }
+  const totalMs = (t - startAt) * 1000;
+  TETRIS_MUSIC_STATE.timer = setTimeout(()=> scheduleTetrisTheme(ctx), Math.max(80, totalMs + 40));
+}
+
+function startTetrisMusicLoop(){
+  if (TETRIS_MUSIC_STATE.playing || !TETRIS_MUSIC_STATE.intent) return;
+  if (localStorage.getItem('pwa-audio') === 'off') return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  if (ctx.state === 'suspended'){ ctx.resume().catch(()=>{}); }
+  ensureTetrisMasterGain(ctx);
+  setTetrisMasterVolume(AUDIO_VOL);
+  TETRIS_MUSIC_STATE.cancelled = false;
+  TETRIS_MUSIC_STATE.playing = true;
+  scheduleTetrisTheme(ctx);
+}
+
+function syncTetrisMusic(){
+  if (!TETRIS_MUSIC_STATE.intent || localStorage.getItem('pwa-audio') === 'off'){
+    stopTetrisMusicLoop();
+    return;
+  }
+  startTetrisMusicLoop();
+}
+
+function setTetrisMusicIntent(shouldPlay){
+  TETRIS_MUSIC_STATE.intent = !!shouldPlay;
+  syncTetrisMusic();
+}
+
 const THEME_KEY = 'pwa-theme';
 function applyTheme(mode) {
   const m = mode === 'cyber' ? 'cyber' : 'light';
@@ -104,6 +236,7 @@ function initAudioToggle(){
     const next = cur === 'off' ? 'on' : 'off';
     localStorage.setItem('pwa-audio', next);
     btn.textContent = next === 'off' ? 'Unmute' : 'Mute';
+    syncTetrisMusic();
   });
 }
 
@@ -111,12 +244,14 @@ function initAudioVolume(){
   const slider = document.getElementById('audio-volume');
   const saved = parseFloat(localStorage.getItem(VOLUME_KEY) || '1');
   AUDIO_VOL = Number.isFinite(saved) ? Math.min(1, Math.max(0, saved)) : 1;
+  setTetrisMasterVolume(AUDIO_VOL);
   if (slider){
     slider.value = String(Math.round(AUDIO_VOL * 100));
     slider.addEventListener('input', () => {
       const v = Math.min(1, Math.max(0, (parseInt(slider.value, 10) || 0) / 100));
       AUDIO_VOL = v;
       localStorage.setItem(VOLUME_KEY, String(v));
+      setTetrisMasterVolume(AUDIO_VOL);
     });
   }
 }
@@ -275,7 +410,9 @@ function makeGameModule(cfg){
   //        screenId, statusId, selectId, startBtnId, stopBtnId,
   //        timeId, scoreId, totalId, diffId,
   //        lbLocalId, lbTeamsId,
-  //        init(st), tick(st), keydown(e, st) }
+  //        init(st), tick(st), keydown(e, st),
+  //        onHudUpdate?(st, hud), onStart?(st), onStop?(cause, st), onPauseChange?(paused, st),
+  //        formatScore?(v) }
   const st = {
     active:false, paused:false, loop:null, timer:null, armTimeout:null,
     frame:0, tickMs:65, spawnEvery:22, timeLeft:0, baseScore:0, _requestStop:null,
@@ -381,6 +518,7 @@ function makeGameModule(cfg){
     if (st.armTimeout){ clearTimeout(st.armTimeout); st.armTimeout=null; }
     if (st.loop){ clearTimeout(st.loop); st.loop=null; }
     if (st.timer){ clearInterval(st.timer); st.timer=null; }
+    if (cfg.onStop){ try{ cfg.onStop(cause, st); }catch(e){ console.warn(`[${cfg.key}] onStop`, e); } }
     $(cfg.startBtnId).disabled = false;
     $(cfg.stopBtnId).disabled  = true;
     setStatus(cause==='time' ? 'time up' : (cause==='crashed'?'crashed':'finished'));
@@ -410,6 +548,7 @@ Final score: ${finalScore}
     st.awaitingKey = false;
     playSound('start');
     setStatus('playing');
+    if (cfg.onStart){ try{ cfg.onStart(st); }catch(e){ console.warn(`[${cfg.key}] onStart`, e); } }
 
     const runTick = ()=>{
       if (!st.active) return;
@@ -475,17 +614,22 @@ Final score: ${finalScore}
   }
 
   // Keyboard: delegate to the game and avoid scroll on interaction
-  document.addEventListener('keydown', (e)=>{
-    if (!st.active) return;
-    if (st.awaitingKey){
-      const started = maybeStartFromKey(e);
-      if (started) e.preventDefault();
-      return;
-    }
-    const handled = cfg.keydown && cfg.keydown(e, st);
-    if (handled) e.preventDefault();
-    if (e.key==='p' || e.key==='P'){ e.preventDefault(); st.paused = !st.paused; setStatus(st.paused?'paused':'playing'); }
-  });
+    document.addEventListener('keydown', (e)=>{
+      if (!st.active) return;
+      if (st.awaitingKey){
+        const started = maybeStartFromKey(e);
+        if (started) e.preventDefault();
+        return;
+      }
+      const handled = cfg.keydown && cfg.keydown(e, st);
+      if (handled) e.preventDefault();
+      if (e.key==='p' || e.key==='P'){
+        e.preventDefault();
+        st.paused = !st.paused;
+        setStatus(st.paused?'paused':'playing');
+        if (cfg.onPauseChange){ try{ cfg.onPauseChange(st.paused, st); }catch(err){ console.warn(`[${cfg.key}] onPauseChange`, err); } }
+      }
+    });
 
   return { start: armStart, stop, loadLocalLeaderboard, loadTeamsLeaderboard, setStatus, updateHudLive, st };
 }
@@ -776,6 +920,40 @@ function makeTetris(){
     T: [[[1,1,1],[0,1,0]], [[1,0],[1,1],[1,0]], [[0,1,0],[1,1,1]], [[0,1],[1,1],[0,1]]]
   };
 
+  const FALL_CFG = { minPct:60, maxPct:140, defPct:100, minTick:70 };
+  const fallSlider = document.getElementById('tetris-fall-slider');
+  const fallLabel = document.getElementById('tetris-fall-speed');
+  let currentState = null;
+
+  const clampPct = (v)=> Math.min(FALL_CFG.maxPct, Math.max(FALL_CFG.minPct, v));
+  const currentDiff = ()=> ($('tetris-select')?.value || 'normal');
+  function baseTickMs(){
+    const d = currentDiff();
+    const base = d==='easy' ? 252 : d==='normal' ? 210 : d==='hard' ? 154 : 118;
+    const adjusted = base - Math.floor((COMMON.totals.totalLocal||0)/2);
+    return Math.max(90, adjusted);
+  }
+  function updateFallLabel(tick, pct){
+    if (!fallLabel) return;
+    const speedMs = 1000 / Math.max(1, tick); // 1 row per tick, 1 m per row for readability
+    fallLabel.textContent = `${speedMs.toFixed(2)} m/s (${pct}% base)`;
+  }
+  function applyFallSpeed(st){
+    const pctRaw = parseInt(fallSlider?.value || FALL_CFG.defPct, 10) || FALL_CFG.defPct;
+    const pct = clampPct(pctRaw);
+    const tick = Math.max(FALL_CFG.minTick, Math.round(baseTickMs() * (100 / pct)));
+    if (st) st.tickMs = tick;
+    updateFallLabel(tick, pct);
+  }
+  if (fallSlider){
+    fallSlider.addEventListener('input', ()=> applyFallSpeed(currentState));
+  }
+  const tetrisDiffSelect = document.getElementById('tetris-select');
+  if (tetrisDiffSelect){
+    tetrisDiffSelect.addEventListener('change', ()=> applyFallSpeed(currentState));
+  }
+  applyFallSpeed(null); // initialize label even before playing
+
   function emptyGrid(){ return Array.from({length:H}, ()=> Array.from({length:W}, ()=> 0)); }
   function draw(){
     const buf = Array.from({length:H}, (_,y)=> Array.from({length:W}, (_,x)=> grid[y][x] ? '[]' : ' .'));
@@ -829,13 +1007,19 @@ function makeTetris(){
     selectId:'tetris-select', startBtnId:'tetris-start', stopBtnId:'tetris-stop',
     timeId:'tetris-time', scoreId:'tetris-score', totalId:'tetris-total', diffId:'tetris-diff',
     lbLocalId:'tetris-lb-local', lbTeamsId:'tetris-lb-teams',
+    onStart: ()=> setTetrisMusicIntent(true),
+    onStop: ()=> setTetrisMusicIntent(false),
+    onPauseChange:(paused)=> setTetrisMusicIntent(!paused),
     init:(st)=>{
-      grid = emptyGrid(); bag=null;
-      const d = ($('tetris-select')?.value || 'normal');
-      // Caída más lenta en easy/normal, más rápida en hard/insane
-      const base = d==='easy' ? 630 : d==='normal' ? 525 : d==='hard' ? 385 : 294; // ms (30% faster)
-      st.tickMs = Math.max(250, base - Math.floor((COMMON.totals.totalLocal||0)/2));
-      $('tetris-screen').textContent = `ASCII Tetris ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move · ↑ rotate · ↓ fall faster · P pause · Stop ends game.`;
+      setTetrisMusicIntent(false);
+      grid = emptyGrid(); bag=null; currentState = st;
+      const d = currentDiff();
+      applyFallSpeed(st);
+      const speedLabel = fallLabel?.textContent || '';
+      $('tetris-screen').textContent = `ASCII Tetris ready.
+Time: ${st.timeLeft}s - Difficulty: ${d} x${(DIFF[d]||DIFF.normal).mult.toFixed(2)} - Fall: ${speedLabel}
+<- -> move - ^ rotate - v fall faster - P pause - Stop ends game.
+Adjust fall speed slider anytime (+/-40% of base).`;
       if (!spawnPiece(st)){ st._requestStop='crashed'; }
     },
     tick:(st)=>{
