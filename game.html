@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b1120'/%3E%3Ctext x='14' y='46' font-size='38' fill='%2393c5fd'%3EA%3C/text%3E%3C/svg%3E">
   <title>Team Games — ASCII Suite</title>
   <style>
     :root { color-scheme: light dark; }
@@ -105,6 +106,9 @@
 
     .lb-scroll { max-height: 240px; overflow: auto; border:1px solid #1f2937; border-radius:10px; }
     body.theme-cyber .lb-scroll { border-color: rgba(124,244,255,0.2); box-shadow: inset 0 0 12px rgba(124,244,255,0.15); }
+    .volume-slider { width: 90px; accent-color:#1d4ed8; }
+    body.theme-cyber .volume-slider { accent-color:#7cf4ff; }
+    .volume-label { font-size:12px; color:#94a3b8; }
   </style>
 </head>
   <body>
@@ -112,7 +116,11 @@
       <h1>ASCII Classroom Games</h1>
       <span class="tag">read-only (system points do not change)</span>
       <div class="row" style="margin-left:auto">
-        <button id="audio-toggle" class="ghost">Mute</button>
+        <div class="row" style="gap:6px; align-items:center;">
+          <button id="audio-toggle" class="ghost">Mute</button>
+          <label for="audio-volume" class="volume-label">Vol</label>
+          <input id="audio-volume" type="range" min="0" max="100" step="5" value="100" class="volume-slider" />
+        </div>
         <button id="theme-toggle-game" class="ghost">Neon mode</button>
         <a href="./index.html"><button>← Back</button></a>
       </div>
@@ -178,6 +186,14 @@
         <button id="flappy-stop" disabled>Stop</button>
         <span class="tag">Controls: Space/↑ jump · P pause</span>
       </div>
+      <div class="row">
+        <label>Gravity tweak (±20%):
+          <input type="range" id="flappy-gravity" min="80" max="120" step="1" value="100" class="volume-slider" />
+        </label>
+        <span class="tag" id="flappy-gravity-planet">Earth - 9.81 m/s^2</span>
+        <span class="tag" id="flappy-gravity-current">100% -> 9.81 m/s^2</span>
+      </div>
+      <div class="help" id="flappy-gravity-note">Base gravity uses real planets (easy = Moon, normal = Earth).</div>
       <pre id="flappy-screen" class="screen">Loading…</pre>
       <div class="help">Final score = obstacles cleared × multiplier. System points do not change.</div>
       <div class="row">
@@ -204,8 +220,10 @@
       <h2>ASCII Snake</h2>
       <div class="hud">
         <div class="cell"><strong>Play time:</strong> <span id="snake-time">0</span> s</div>
-        <div class="cell"><strong>Score:</strong> <span id="snake-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Score:</strong> <span id="snake-score">0 kg -> x1.25</span></div>
         <div class="cell"><strong>Total score:</strong> <span id="snake-total">0</span></div>
+        <div class="cell"><strong>Speed:</strong> <span id="snake-speed">0 cm/s</span></div>
+        <div class="cell"><strong>Weight:</strong> <span id="snake-weight">0 kg</span></div>
         <div class="cell"><strong>Difficulty:</strong> <span id="snake-diff">normal ×1.25</span></div>
         <div class="cell"><strong>Status:</strong> <span id="snake-status">loading…</span></div>
       </div>
@@ -223,7 +241,7 @@
         <span class="tag">Controls: ← → ↑ ↓ move · P pause</span>
       </div>
       <pre id="snake-screen" class="screen">Loading…</pre>
-      <div class="help">Eat “*” to score. Hitting walls or yourself ends the game.</div>
+      <div class="help">Eat “*” to add weight (score = kg). Avoid walls/obstacles/body; weight slows speed (capped at -40%). Obstacles spawn on normal+.</div>
       <div class="row">
         <label>Rows to show:
           <input type="range" id="snake-lb-limit" min="5" max="50" step="5" value="10" />
@@ -332,12 +350,10 @@
     </section>
   </main>
 
-  <!-- Supabase UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
   </script>
-  <script src="./game.js"></script>
+  <script type="module" src="./game.js"></script>
 </body>
 </html>

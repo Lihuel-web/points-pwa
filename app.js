@@ -1,7 +1,7 @@
 // app.js — PWA Points Control (incluye Top-9 locales para estudiantes)
 
-// ---------------- Supabase client (UMD) ----------------
-const { createClient } = supabase;
+// ---------------- Supabase client (ESM) ----------------
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
 
@@ -79,6 +79,7 @@ const whoami = $('whoami');
 const roleBadge = $('role-badge');
 const teacherPanel = $('teacher-panel');
 const studentPanel = $('student-panel');
+const FORCE_STUDENT_PREVIEW = new URLSearchParams(location.search).get('studentPreview') === '1';
 
 initThemeToggle();
 
@@ -138,23 +139,38 @@ async function refreshUI() {
   const role = profile?.role || 'student';
   text(roleBadge, role.toUpperCase());
 
-  if (role === 'teacher') {
+  const forceStudentView = FORCE_STUDENT_PREVIEW && role === 'teacher';
+
+  if (role === 'teacher' && !forceStudentView) {
     if (teacherPanel) teacherPanel.style.display = 'block';
     if (studentPanel) studentPanel.style.display = 'none';
     await loadTeacher();
   } else {
     if (teacherPanel) teacherPanel.style.display = 'none';
     if (studentPanel) studentPanel.style.display = 'block';
-    await loadStudent(user.id);
+    if (forceStudentView) {
+      await loadStudent(null, { preview:true });
+    } else {
+      await loadStudent(user.id);
+    }
   }
 }
 
 // ---------------- Student panel ----------------
-async function loadStudent(userId) {
-  const { data: student } = await sb.from('students').select('id,name,class').eq('auth_user_id', userId).maybeSingle();
+async function loadStudent(userId, opts = {}) {
+  const preview = !!opts.preview;
+  let student = null;
+
+  if (preview) {
+    const { data } = await sb.from('students').select('id,name,class').order('id', { ascending:true }).limit(1);
+    student = data && data.length ? data[0] : null;
+  } else {
+    const { data: stu } = await sb.from('students').select('id,name,class').eq('auth_user_id', userId).maybeSingle();
+    student = stu || null;
+  }
 
   if (!student) {
-    text($('student-info'), 'Your account is not linked to a student record yet. Ask your teacher.');
+    text($('student-info'), preview ? 'Vista generica: aun no hay estudiantes cargados.' : 'Your account is not linked to a student record yet. Ask your teacher.');
     text($('balance'), '—');
     const mt = $('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
     text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
@@ -165,7 +181,8 @@ async function loadStudent(userId) {
     return;
   }
 
-  text($('student-info'), `${student.name ?? 'Unnamed'} (${student.class ?? '—'})`);
+  const label = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})${preview ? ' - vista generica' : ''}`;
+  text($('student-info'), label);
 
   const { data: bal } = await sb.from('balances').select('points').eq('student_id', student.id).maybeSingle();
   text($('balance'), bal?.points ?? 0);
@@ -352,7 +369,19 @@ async function loadTeacher() {
   await initAllLocalsLeaderboardUI();
   await initAsciiLeaderboardsUI();
   await initAdminResetsUI();   // <— NUEVO: inicializa botones de reset
+  initStudentPreviewLink();
 
+}
+
+function initStudentPreviewLink(){
+  const btn = $('student-preview-btn');
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', () => {
+    const url = new URL(location.href);
+    url.searchParams.set('studentPreview', '1');
+    window.open(url.toString(), '_blank', 'noopener');
+  });
 }
 
 async function initAdminResetsUI() {

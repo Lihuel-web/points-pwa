@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b1120'/%3E%3Ctext x='14' y='46' font-size='38' fill='%2393c5fd'%3EA%3C/text%3E%3C/svg%3E">
   <title>Points Control</title>
   <style>
     :root { color-scheme: light dark; }
@@ -142,6 +143,13 @@
 
       <!-- TEACHER -->
       <section id="teacher-panel">
+        <div class="card">
+          <div class="row">
+            <div class="muted">Vista previa del alumno (abre en nueva pestaña)</div>
+            <button id="student-preview-btn" type="button">Abrir panel de estudiante genérico</button>
+          </div>
+          <div class="hint">Usa esta vista para comprobar qué ve un alumno promedio sin cerrar sesión como profesor.</div>
+        </div>
         <div class="grid-2">
           <!-- Latest tx -->
           <div class="card">
@@ -517,13 +525,11 @@
     </section>
   </main>
 
-  <!-- Supabase UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <!-- Config pública -->
   <script>
     window.SUPABASE_URL = "https://rmhwafuymxcicxaructc.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHdhZnV5bXhjaWN4YXJ1Y3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MzAxNDcsImV4cCI6MjA3MTIwNjE0N30.u3p-n0mwER9jXvfefuG8VASFPa6TKUlCaYVbp4TW9-w";
   </script>
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

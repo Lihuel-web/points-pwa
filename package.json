@@ -1,0 +1,24 @@
+{
+  "name": "points-pwa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lihuel-web/points-pwa.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Lihuel-web/points-pwa/issues"
+  },
+  "homepage": "https://github.com/Lihuel-web/points-pwa#readme",
+  "devDependencies": {
+    "supabase": "^2.62.5"
+  }
+}

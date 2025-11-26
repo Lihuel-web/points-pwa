@@ -1,1 +1,4 @@
 # nada crítico aquí por ser estático
+node_modules/
+.env
+.DS_Store

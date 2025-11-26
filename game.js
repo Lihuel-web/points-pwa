@@ -6,7 +6,7 @@
 // - Road: cuerpo ASCII para coches; game over por bordes/choques; pista con ancho variable.
 // - HUD: "base → ×mult" y "Total score" en vivo en cada juego.
 
-const { createClient } = supabase;
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
 const sb = createClient(SUPA_URL, SUPA_KEY);
@@ -21,8 +21,21 @@ const DIFF = {
   insane: { label:'insane', mult:2.00, tick:-12, spawn:-5  }
 };
 
+// Gravities mapped to real worlds for ASCII Flappy (m/s^2). Display uses real values.
+const FLAPPY_PLANET_GRAVITY = {
+  easy:   { planet:'Moon',    ms2:1.62 },
+  normal: { planet:'Earth',   ms2:9.81 },
+  hard:   { planet:'Neptune', ms2:11.15 },
+  insane: { planet:'Jupiter', ms2:24.79 }
+};
+const FLAPPY_GRAVITY_INTERNAL = { easy:1.2, normal:1, hard:1, insane:0.8 }; // hidden gameplay tweak
+const FLAPPY_GRAVITY_SLIDER = { min:80, max:120, def:100 }; // ±20%
+const FLAPPY_GRAVITY_SCALE = 0.35 / FLAPPY_PLANET_GRAVITY.normal.ms2; // keep Earth ≈ previous gravity
+
 const TEACHER_PRACTICE_ALIAS = 'The_Final_Boss.exe';
+const VOLUME_KEY = 'pwa-volume';
 const keysActive = { left:false, right:false };
+let AUDIO_VOL = 1;
 
 // -------- Audio (lightweight Web Audio blips) --------
 let AUDIO_CTX = null;
@@ -54,7 +67,7 @@ function playSound(type='start') {
     if (cfg.slide){
       osc.frequency.exponentialRampToValueAtTime(Math.max(60, freq + cfg.slide), now + cfg.dur * 0.9);
     }
-    const startVol = cfg.vol * (idx === 0 ? 1 : 0.6);
+    const startVol = cfg.vol * (idx === 0 ? 1 : 0.6) * AUDIO_VOL;
     gain.gain.setValueAtTime(startVol, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + cfg.dur);
     osc.connect(gain).connect(ctx.destination);
@@ -92,6 +105,20 @@ function initAudioToggle(){
     localStorage.setItem('pwa-audio', next);
     btn.textContent = next === 'off' ? 'Unmute' : 'Mute';
   });
+}
+
+function initAudioVolume(){
+  const slider = document.getElementById('audio-volume');
+  const saved = parseFloat(localStorage.getItem(VOLUME_KEY) || '1');
+  AUDIO_VOL = Number.isFinite(saved) ? Math.min(1, Math.max(0, saved)) : 1;
+  if (slider){
+    slider.value = String(Math.round(AUDIO_VOL * 100));
+    slider.addEventListener('input', () => {
+      const v = Math.min(1, Math.max(0, (parseInt(slider.value, 10) || 0) / 100));
+      AUDIO_VOL = v;
+      localStorage.setItem(VOLUME_KEY, String(v));
+    });
+  }
 }
 
 let COMMON = {
@@ -138,6 +165,7 @@ async function ensureTeacherAvatar(){
 
 initThemeToggleGame();
 initAudioToggle();
+initAudioVolume();
 
 // ---------- Supabase helpers ----------
 async function labelTeam(id){
@@ -332,11 +360,16 @@ function makeGameModule(cfg){
     tb.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td>${r.localName}</td><td>${r.poolName}</td><td>${r.bestPlayer}</td><td><strong>${r.teamBest}</strong></td></tr>`).join('') || `<tr><td colspan="5">—</td></tr>`;
   }
 
+  function formatBaseScore(v){
+    return cfg.formatScore ? cfg.formatScore(v) : String(v);
+  }
+
   function updateHudLive(){
     const mult = (DIFF[$(cfg.selectId)?.value || 'normal'] || DIFF.normal).mult;
     const totalNow = Math.max(0, Math.round(st.baseScore * mult));
-    text($(cfg.scoreId), `${st.baseScore} → ×${mult.toFixed(2)}`);
+    text($(cfg.scoreId), `${formatBaseScore(st.baseScore)} → ×${mult.toFixed(2)}`);
     text($(cfg.totalId), String(totalNow));
+    if (cfg.onHudUpdate) cfg.onHudUpdate(st, { mult, totalNow });
   }
 
   function setStatus(s){ text($(cfg.statusId), s); }
@@ -346,13 +379,14 @@ function makeGameModule(cfg){
     st.active = false;
     st.awaitingKey = false;
     if (st.armTimeout){ clearTimeout(st.armTimeout); st.armTimeout=null; }
-    if (st.loop){ clearInterval(st.loop); st.loop=null; }
+    if (st.loop){ clearTimeout(st.loop); st.loop=null; }
     if (st.timer){ clearInterval(st.timer); st.timer=null; }
     $(cfg.startBtnId).disabled = false;
     $(cfg.stopBtnId).disabled  = true;
     setStatus(cause==='time' ? 'time up' : (cause==='crashed'?'crashed':'finished'));
 
     const mult = (DIFF[$(cfg.selectId)?.value || 'normal'] || DIFF.normal).mult;
+    const baseLabel = formatBaseScore(st.baseScore);
     const finalScore = Math.max(0, Math.round(st.baseScore * mult));
     // Append “Game Over” al screen (opcional si existe)
     const pre = $(cfg.screenId);
@@ -360,7 +394,7 @@ function makeGameModule(cfg){
       pre.textContent += `
 
 Game Over — ${cause}.
-Base score: ${st.baseScore}
+Base score: ${baseLabel}
 Difficulty: ${(DIFF[$(cfg.selectId)?.value || 'normal']||DIFF.normal).label} ×${mult.toFixed(2)}
 Final score: ${finalScore}
 (Your team points do NOT change.)`;
@@ -377,14 +411,17 @@ Final score: ${finalScore}
     playSound('start');
     setStatus('playing');
 
-    st.loop = setInterval(()=>{
+    const runTick = ()=>{
+      if (!st.active) return;
       if (!st.paused){
         st.frame++;
         cfg.tick(st);
         updateHudLive();
-        if (st._requestStop){ const why = st._requestStop; st._requestStop=null; stop(why); }
+        if (st._requestStop){ const why = st._requestStop; st._requestStop=null; stop(why); return; }
       }
-    }, st.tickMs);
+      st.loop = setTimeout(runTick, st.tickMs);
+    };
+    runTick();
 
     st.timer = setInterval(()=>{
       if (!st.paused){
@@ -405,6 +442,7 @@ Final score: ${finalScore}
     setStatus('press any key to start'); st.active = true;
 
     cfg.init(st); // game can recalibrate tickMs here
+    updateHudLive();
 
     if (st.armTimeout){ clearTimeout(st.armTimeout); }
     st.armTimeout = setTimeout(()=> {
@@ -455,11 +493,36 @@ Final score: ${finalScore}
 // ---------- Juego 1: Flappy ----------
 function makeFlappy(){
   const W=60, H=20, GROUND=H-2;
-  let grid=[], bird, cols=[], gapBase=6, spawnEvery=22;
+  let grid=[], bird, cols=[], gapBase=6, spawnEvery=22, gravityPerTick=0.35;
+
+  const gravSlider = $('flappy-gravity');
+  const gravPlanetTag = $('flappy-gravity-planet');
+  const gravCurrentTag = $('flappy-gravity-current');
+  const gravNote = $('flappy-gravity-note');
+
+  const clampGravityPct = (v)=> Math.min(FLAPPY_GRAVITY_SLIDER.max, Math.max(FLAPPY_GRAVITY_SLIDER.min, v));
+  function gravitySetting(){
+    const diff = $('flappy-select')?.value || 'normal';
+    const base = FLAPPY_PLANET_GRAVITY[diff] || FLAPPY_PLANET_GRAVITY.normal;
+    const internalBoost = FLAPPY_GRAVITY_INTERNAL[diff] || 1;
+    const raw = parseInt(gravSlider?.value || `${FLAPPY_GRAVITY_SLIDER.def}`, 10);
+    const pct = clampGravityPct(Number.isFinite(raw) ? raw : FLAPPY_GRAVITY_SLIDER.def);
+    if (gravSlider && String(pct) !== gravSlider.value) gravSlider.value = String(pct);
+    const adjustedMs2Hidden = base.ms2 * internalBoost * (pct/100);
+    return { base, pct, adjustedMs2Hidden, gameGravity: adjustedMs2Hidden * FLAPPY_GRAVITY_SCALE };
+  }
+  function refreshGravityUi(){
+    const g = gravitySetting();
+    gravityPerTick = g.gameGravity;
+    if (gravPlanetTag) gravPlanetTag.textContent = `${g.base.planet} - ${g.base.ms2.toFixed(2)} m/s^2 (real)`;
+    if (gravCurrentTag) gravCurrentTag.textContent = `Slider: ${g.pct}% (affects gameplay only)`;
+    if (gravNote) gravNote.textContent = 'Visible values are real planet gravity; slider tweaks hidden gameplay gravity.';
+  }
 
   function clear(){ grid = Array.from({length:H}, ()=> Array.from({length:W}, ()=> ' ')); }
   function put(x,y,ch){ if (x>=0&&x<W&&y>=0&&y<H) grid[y][x]=ch; }
-  function render(){
+  function render(st){
+    if (st) lastFuel = st.timeLeft;
     for (let y=0;y<H;y++) for (let x=0;x<W;x++) grid[y][x]=' ';
     for (let x=0;x<W;x++){ grid[GROUND][x]='_'; if (grid[GROUND+1]) grid[GROUND+1][x]='_'; }
     for (const c of cols){ for (let y=0;y<H;y++){ if (y<c.gapY || y>=c.gapY+c.gapH){ if (y<GROUND) put(c.x,y,'|'); } } }
@@ -486,11 +549,15 @@ function makeFlappy(){
       const d = DIFF[$('flappy-select').value||'normal']||DIFF.normal;
       st.tickMs = Math.max(40, st.tickMs + d.tick);
       spawnEvery = Math.max(10, st.spawnEvery + d.spawn);
-      gapBase = Math.max(3, 6 + (d.spawn<-2?-1:0));
-      $('flappy-screen').textContent = `ASCII Flappy ready.\nTime: ${st.timeLeft}s · Difficulty: ${d.label} ×${d.mult.toFixed(2)}\nSpace/↑ jump · P pause · Stop ends game.`;
+      const baseGap = 6 + (d.spawn<-2?-1:0);
+      const gapMult = (d.label === 'normal' || d.label === 'hard') ? 1 : 1.15;
+      gapBase = Math.max(3, Math.round(baseGap * gapMult));
+      const g = gravitySetting();
+      gravityPerTick = g.gameGravity;
+      $('flappy-screen').textContent = `ASCII Flappy ready.\nTime: ${st.timeLeft}s - Difficulty: ${d.label} x${d.mult.toFixed(2)}\nGravity: ${g.base.planet} (${g.base.ms2.toFixed(2)} m/s^2 real) · Slider ${g.pct}% (gameplay)\nSpace/ArrowUp jump - P pause - Stop ends game.`;
     },
     tick:(st)=>{
-      bird.vy += 0.35; bird.y += bird.vy;
+      bird.vy += gravityPerTick; bird.y += bird.vy;
       if (bird.y<1){ bird.y=1; bird.vy=0; }
       const GROUND=H-2;
       if (bird.y>=GROUND){ st._requestStop='crashed'; return; }
@@ -512,6 +579,18 @@ function makeFlappy(){
       return false;
     }
   });
+  refreshGravityUi();
+
+  if (gravSlider && !gravSlider.dataset.bound){
+    gravSlider.dataset.bound = '1';
+    gravSlider.addEventListener('input', refreshGravityUi);
+  }
+  const flappySelect = $('flappy-select');
+  if (flappySelect && !flappySelect.dataset.gravityBound){
+    flappySelect.dataset.gravityBound = '1';
+    flappySelect.addEventListener('change', refreshGravityUi);
+  }
+
   document.addEventListener('keyup', (e)=>{
     if (e.key==='ArrowLeft') keysActive.left=false;
     if (e.key==='ArrowRight') keysActive.right=false;
@@ -522,7 +601,16 @@ function makeFlappy(){
 // ---------- Juego 2: Snake ----------
 function makeSnake(){
   const W=28, H=18; // zona jugable interior; dibujamos borde '#'
-  let grid=[], snake=[], dir=[1,0], food=[10,8];
+  const CELL_CM = 25; // cada celda ~25 cm para que la velocidad se sienta realista
+  const START_WEIGHT_KG = 1.6;
+  const FOOD_WEIGHT_KG = 0.6;
+  const WEIGHT_SLOW_PER_KG = 0.04; // cada kg extra reduce 4% la velocidad base
+  const MAX_SLOWDOWN = 0.4; // maximo 40% mas lento
+  const OBSTACLE_DENSITY = { easy:0, normal:0.03, hard:0.06, insane:0.09 };
+  const OBSTACLE_SHAPES = { easy:0, normal:6, hard:9, insane:12 };
+  const SAFE_START = { xMin:3, xMax:10, yMin:2, yMax:4 }; // delante de la cabeza inicial
+
+  let grid=[], snake=[], dir=[1,0], food=[10,8], obstacles=[], baseTickMs=100, speedCms=0;
 
   function clear(){ grid = Array.from({length:H+2}, ()=> Array.from({length:W+2}, ()=> ' ')); }
   function put(x,y,ch){ if (x>=0&&x<W+2&&y>=0&&y<H+2) grid[y][x]=ch; }
@@ -530,18 +618,98 @@ function makeSnake(){
     for (let x=0;x<W+2;x++){ put(x,0,'#'); put(x,H+1,'#'); }
     for (let y=0;y<H+2;y++){ put(0,y,'#'); put(W+1,y,'#'); }
   }
-  function rndFood(){
-    while(true){
-      const x = 1 + Math.floor(Math.random()*W), y = 1 + Math.floor(Math.random()*H);
-      if (!snake.some(([sx,sy])=> sx===x && sy===y)){ food=[x,y]; return; }
+  function isSnake(x,y){ return snake.some(([sx,sy])=> sx===x && sy===y); }
+  function isObstacle(x,y){ return obstacles.some(([ox,oy])=> ox===x && oy===y); }
+  function blocked(x,y){ return isSnake(x,y) || isObstacle(x,y); }
+  function inSafeStart(x,y){ return x>=SAFE_START.xMin && x<=SAFE_START.xMax && y>=SAFE_START.yMin && y<=SAFE_START.yMax; }
+
+  function randomShape(ox, oy){
+    const cells=[];
+    const roll = Math.random();
+    if (roll < 0.4){
+      const w = 1 + Math.floor(Math.random()*3); // 1-3
+      const h = 1 + Math.floor(Math.random()*2); // 1-2
+      for (let y=0;y<h;y++) for (let x=0;x<w;x++) cells.push([ox+x, oy+y]);
+    } else if (roll < 0.75){
+      const len = 2 + Math.floor(Math.random()*3); // barra 2-4
+      const horizontal = Math.random() > 0.5;
+      for (let i=0;i<len;i++) cells.push(horizontal ? [ox+i, oy] : [ox, oy+i]);
+    } else {
+      const size = 2 + Math.floor(Math.random()*2); // L compacta
+      for (let i=0;i<size;i++){ cells.push([ox+i, oy]); cells.push([ox, oy+i]); }
+      if (Math.random()>0.5){ cells.push([ox+size-1, oy+1]); } else { cells.push([ox+1, oy+size-1]); }
+    }
+    const uniq=[], seen=new Set();
+    for (const [x,y] of cells){
+      const k=`${x},${y}`;
+      if (!seen.has(k)){ seen.add(k); uniq.push([x,y]); }
+    }
+    return uniq;
+  }
+
+  function canPlace(shape){
+    return shape.every(([cx,cy])=>
+      cx>0 && cx<W+1 && cy>0 && cy<H+1 &&
+      !blocked(cx,cy) && !inSafeStart(cx,cy)
+    );
+  }
+
+  function generateObstacles(diff){
+    obstacles = [];
+    const density = OBSTACLE_DENSITY[diff] || 0;
+    const targetCells = Math.floor(W * H * density);
+    const maxShapes = OBSTACLE_SHAPES[diff] || 0;
+    let placed=0, tries=0, shapes=0;
+    while (placed < targetCells && tries < 220 && shapes < maxShapes){
+      const ox = 1 + Math.floor(Math.random()*W);
+      const oy = 1 + Math.floor(Math.random()*H);
+      const shape = randomShape(ox, oy);
+      if (!shape || shape.length===0){ tries++; continue; }
+      if (!canPlace(shape)){ tries++; continue; }
+      obstacles.push(...shape);
+      placed += shape.length;
+      shapes++;
     }
   }
+
+  function rndFood(){
+    let attempts=0;
+    while(true){
+      const x = 1 + Math.floor(Math.random()*W), y = 1 + Math.floor(Math.random()*H);
+      if (!blocked(x,y)){ food=[x,y]; return; }
+      attempts++; if (attempts>160) break;
+    }
+    for (let y=1;y<=H;y++){
+      for (let x=1;x<=W;x++){
+        if (!blocked(x,y)){ food=[x,y]; return; }
+      }
+    }
+    food=[1,1];
+  }
+
+  function slowdownFor(st){
+    const extra = Math.max(0, st.baseScore - START_WEIGHT_KG);
+    return Math.min(MAX_SLOWDOWN, extra * WEIGHT_SLOW_PER_KG);
+  }
+  function refreshSpeed(st){
+    const slow = slowdownFor(st);
+    const effective = Math.max(55, Math.round(baseTickMs / Math.max(0.2, 1 - slow)));
+    st.tickMs = effective;
+    const cellsPerSec = 1000 / effective;
+    speedCms = Math.round(cellsPerSec * CELL_CM);
+  }
+  function updateMeters(st){
+    text(document.getElementById('snake-speed'), `${speedCms} cm/s`);
+    text(document.getElementById('snake-weight'), `${st.baseScore.toFixed(1)} kg`);
+  }
+
   function render(){
     for (let y=0;y<H+2;y++) for (let x=0;x<W+2;x++) grid[y][x]=' ';
     drawBorder();
+    obstacles.forEach(([x,y])=> put(x,y,'X'));
     put(food[0], food[1], '*');
     snake.forEach(([x,y],i)=> put(x,y, i===0?'@':'o'));
-    $('snake-screen').textContent = grid.map(r=>r.join('')).join('\n');
+    document.getElementById('snake-screen').textContent = grid.map(r=>r.join('')).join('\n');
   }
 
   const mod = makeGameModule({
@@ -552,23 +720,33 @@ function makeSnake(){
     selectId:'snake-select', startBtnId:'snake-start', stopBtnId:'snake-stop',
     timeId:'snake-time', scoreId:'snake-score', totalId:'snake-total', diffId:'snake-diff',
     lbLocalId:'snake-lb-local', lbTeamsId:'snake-lb-teams',
+    formatScore:(v)=> `${(v||0).toFixed(1)} kg`,
+    onHudUpdate:(st)=> updateMeters(st),
     init:(st)=>{
-      clear(); snake=[[3,3],[2,3],[1,3]]; dir=[1,0]; rndFood();
-      // Velocidad: más lenta en easy/normal
-      const d = ($('snake-select')?.value || 'normal');
-      const base = d==='easy' ? 140 : d==='normal' ? 120 : d==='hard' ? 95 : 80; // ms
-      st.tickMs = Math.max(60, base - Math.floor((COMMON.totals.totalLocal||0)/4));
-      $('snake-screen').textContent = `ASCII Snake ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\nArrows move · P pause · Stop ends game.`;
+      clear(); snake=[[3,3],[2,3],[1,3]]; dir=[1,0]; st.baseScore = START_WEIGHT_KG;
+      const d = (document.getElementById('snake-select')?.value || 'normal');
+      const base = d==='easy' ? 126 : d==='normal' ? 108 : d==='hard' ? 86 : 72; // 10% faster
+      baseTickMs = Math.max(55, base - Math.floor((COMMON.totals.totalLocal||0)/4));
+      if (d!=='easy') generateObstacles(d);
+      rndFood();
+      refreshSpeed(st);
+      updateMeters(st);
+      document.getElementById('snake-screen').textContent = `ASCII Snake ready.
+Time: ${st.timeLeft}s - Difficulty: ${d} x${(DIFF[d]||DIFF.normal).mult.toFixed(2)}
+Arrows move - P pause - Stop ends game.
+Obstacles scale with difficulty (not in easy). Weight slows you up to 40%.`;
     },
     tick:(st)=>{
       const head=[snake[0][0]+dir[0], snake[0][1]+dir[1]];
       // pared (borde '#'): si toca, fin
       if (head[0] <= 0 || head[0] >= W+1 || head[1] <= 0 || head[1] >= H+1){ st._requestStop='crashed'; return; }
+      if (isObstacle(head[0], head[1])){ st._requestStop='crashed'; return; }
       // self
       if (snake.some(([x,y])=> x===head[0] && y===head[1])){ st._requestStop='crashed'; return; }
       snake.unshift(head);
       if (head[0]===food[0] && head[1]===food[1]){
-        st.baseScore += 5; rndFood(); playSound('clear');
+        st.baseScore = parseFloat((st.baseScore + FOOD_WEIGHT_KG).toFixed(1));
+        rndFood(); refreshSpeed(st); playSound('clear');
       } else {
         snake.pop();
       }
@@ -586,7 +764,6 @@ function makeSnake(){
   });
   return mod;
 }
-
 // ---------- Juego 3: Tetris (simplificado) ----------
 function makeTetris(){
   const W=10, H=18;
@@ -688,6 +865,7 @@ function makeTetris(){
 function makeRoad(){
   const W=40, H=22; // más ancho
   let grid=[], carX, carY, carPos, obs=[], powerUps=[], left=6, right=W-6, driftTimer=0, slipDir=0, slipFrames=0, hitCooldown=0, awaitingRecovery=false;
+  let speedKmh=0, speedTarget=0, lastFuel=0;
 
   const CAR  = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'\\'] ];   // coche del jugador (~3 ancho)
   const CAR_L = [ [0,0,'^'], [-1,1,'/'], [0,1,'#'], [1,1,'|'] ];    // coche inclinado izq
@@ -713,7 +891,8 @@ function makeRoad(){
     for (const [dx,dy,ch] of shape) put(carX+dx, carY+dy, ch);
     for (const o of obs) for (const [dx,dy,ch] of ENEM) put(o.x+dx, o.y+dy, ch);
     for (const p of powerUps) put(p.x, p.y, '*');
-    $('road-screen').textContent = grid.map(r=>r.join('')).join('\n');
+    const hud = `SPD: ${Math.round(speedKmh).toString().padStart(3,' ')} km/h | Fuel: ${Math.max(0, Math.round(lastFuel))} L`;
+    $('road-screen').textContent = `${hud}\n${grid.map(r=>r.join('')).join('\n')}`;
   }
 
   function spawnEnemy(){
@@ -752,6 +931,7 @@ function makeRoad(){
     slipFrames = 0;
     awaitingRecovery = true;
     carPos = carX;
+    speedKmh = Math.max(40, speedKmh - 25);
   }
 
   function recoverSlip(){
@@ -773,11 +953,15 @@ function makeRoad(){
     init:(st)=>{
       clear(); obs=[]; powerUps=[]; left=6; right=W-6; carX=Math.floor(W/2); carY=H-3; driftTimer=0; slipDir=0; slipFrames=0; hitCooldown=0; awaitingRecovery=false; keysActive.left=false; keysActive.right=false;
       carPos = carX;
+      const speedMap = { easy:160, normal:180, hard:200, insane:220 };
       const d = ($('road-select')?.value || 'normal');
       // velocidad/spawn por dificultad
       const base = d==='easy' ? 110 : d==='normal' ? 95 : d==='hard' ? 80 : 65; // ms
       st.tickMs = Math.max(45, base - Math.floor((COMMON.totals.totalLocal||0)/5));
       st._spawnEvery = d==='easy' ? 12 : d==='normal' ? 9 : d==='hard' ? 7 : 5; // más difícil = más rivales
+      speedTarget = speedMap[d] || speedMap.normal;
+      speedKmh = speedTarget - 20;
+      lastFuel = st.timeLeft;
       $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move (tras choque derrapas: pulsa hacia ese lado para recuperar control) · P pause · Stop ends game.`;
     },
     tick:(st)=>{
@@ -789,6 +973,16 @@ function makeRoad(){
       for (const p of powerUps) p.y += 1;
       obs = obs.filter(o => o.y < H-1);
       powerUps = powerUps.filter(p => p.y < H-1);
+
+      // HUD dinámico: velocidad y combustible
+      lastFuel = st.timeLeft;
+      if (slipDir !== 0){
+        speedKmh = Math.max(40, speedKmh - 6);
+      } else {
+        const accel = 3;
+        if (speedKmh < speedTarget) speedKmh = Math.min(speedTarget, speedKmh + accel);
+        else if (speedKmh > speedTarget) speedKmh = Math.max(speedTarget, speedKmh - 2);
+      }
 
       // drift de pista: a veces angosta desde izquierda o derecha
       driftTimer++;
@@ -858,26 +1052,26 @@ function makeRoad(){
       // colisión final solo si nos salimos de la pista
       if (carX <= left || carX >= right){ st._requestStop='crashed'; return; }
 
-      render();
+      render(st);
     },
     keydown:(e)=>{
       if (e.key==='ArrowLeft'){
         keysActive.left=true; keysActive.right=false;
         if (slipDir !== 0){
           if (slipDir === -1 && awaitingRecovery) recoverSlip();
-          e.preventDefault(); render(); return true;
+          e.preventDefault(); render(st); return true;
         }
         carX -= 1; carPos = carX;
-        e.preventDefault(); render(); return true;
+        e.preventDefault(); render(st); return true;
       }
       if (e.key==='ArrowRight'){
         keysActive.right=true; keysActive.left=false;
         if (slipDir !== 0){
           if (slipDir === 1 && awaitingRecovery) recoverSlip();
-          e.preventDefault(); render(); return true;
+          e.preventDefault(); render(st); return true;
         }
         carX += 1; carPos = carX;
-        e.preventDefault(); render(); return true;
+        e.preventDefault(); render(st); return true;
       }
       return false;
     }
