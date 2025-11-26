@@ -111,7 +111,7 @@ const TETRIS_THEME = [
   ...TETRIS_PHRASE_B_NEW,
   { note:null, beats:0.5 }
 ];
-const TETRIS_MUSIC_STATE = { timer:null, nodes:[], playing:false, cancelled:false, intent:false, masterGain:null };
+const TETRIS_MUSIC_STATE = { timer:null, nodes:[], playing:false, cancelled:false, intent:false, masterGain:null, pitch:1 };
 
 function ensureTetrisMasterGain(ctx){
   if (TETRIS_MUSIC_STATE.masterGain) return TETRIS_MUSIC_STATE.masterGain;
@@ -129,6 +129,31 @@ function setTetrisMasterVolume(v){
   const now = ctx.currentTime;
   g.gain.cancelScheduledValues(now);
   g.gain.setTargetAtTime(Math.max(0.0001, v), now, 0.04);
+}
+
+function setTetrisPitchFactor(mult){
+  const factor = Math.min(2.5, Math.max(0.35, mult || 1));
+  TETRIS_MUSIC_STATE.pitch = factor;
+}
+
+function retuneTetrisOscillators(pitch){
+  const ctx = AUDIO_CTX;
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  TETRIS_MUSIC_STATE.nodes.forEach(n=>{
+    const base = n?._baseFreq;
+    if (typeof base === 'number' && n.frequency?.setValueAtTime){
+      try{
+        const startT = typeof n._startTime === 'number' ? n._startTime : now;
+        n.frequency.cancelScheduledValues?.(0);
+        if (now < startT){
+          n.frequency.setValueAtTime(base * pitch, startT);
+        } else {
+          n.frequency.setTargetAtTime(base * pitch, now, 0.015);
+        }
+      }catch(_e){}
+    }
+  });
 }
 
 function clearTetrisNodes(){
@@ -156,16 +181,20 @@ function scheduleTetrisTheme(ctx){
   if (localStorage.getItem('pwa-audio') === 'off'){ stopTetrisMusicLoop(); return; }
   const beat = 60 / TETRIS_THEME_BPM;
   const startAt = ctx.currentTime + 0.08;
+  const pitch = Math.max(0.35, TETRIS_MUSIC_STATE.pitch || 1);
   let t = startAt;
   clearTetrisNodes();
   for (const step of TETRIS_THEME){
     const dur = (step.beats || 0.5) * beat;
     const freq = noteToFreq(step.note);
-    if (freq){
+    const finalFreq = freq ? freq * pitch : null;
+    if (finalFreq){
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = step.wave || 'square';
-      osc.frequency.setValueAtTime(freq, t);
+      osc._baseFreq = freq;
+      osc._startTime = t;
+      osc.frequency.setValueAtTime(finalFreq, t);
       const vol = (step.vol ?? 0.09) * AUDIO_VOL;
       const attack = Math.min(0.03, dur * 0.3);
       gain.gain.setValueAtTime(0.0001, t);
@@ -921,6 +950,7 @@ function makeTetris(){
   };
 
   const FALL_CFG = { minPct:60, maxPct:140, defPct:100, minTick:70 };
+  const PITCH_CFG = { base:FALL_CFG.defPct, semisUp:4, semisDown:4 };
   const fallSlider = document.getElementById('tetris-fall-slider');
   const fallLabel = document.getElementById('tetris-fall-speed');
   let currentState = null;
@@ -938,10 +968,23 @@ function makeTetris(){
     const speedMs = 1000 / Math.max(1, tick); // 1 row per tick, 1 m per row for readability
     fallLabel.textContent = `${speedMs.toFixed(2)} m/s (${pct}% base)`;
   }
+  function pitchFromPct(pct){
+    const delta = pct - PITCH_CFG.base;
+    const upSpan = Math.max(1, FALL_CFG.maxPct - PITCH_CFG.base);
+    const downSpan = Math.max(1, PITCH_CFG.base - FALL_CFG.minPct);
+    const semis = delta >= 0
+      ? (delta / upSpan) * PITCH_CFG.semisUp
+      : (delta / downSpan) * PITCH_CFG.semisDown;
+    const factor = Math.pow(2, semis / 12);
+    return Math.min(1.35, Math.max(0.7, factor));
+  }
   function applyFallSpeed(st){
     const pctRaw = parseInt(fallSlider?.value || FALL_CFG.defPct, 10) || FALL_CFG.defPct;
     const pct = clampPct(pctRaw);
     const tick = Math.max(FALL_CFG.minTick, Math.round(baseTickMs() * (100 / pct)));
+    const pitch = pitchFromPct(pct);
+    setTetrisPitchFactor(pitch);
+    retuneTetrisOscillators(pitch);
     if (st) st.tickMs = tick;
     updateFallLabel(tick, pct);
   }
