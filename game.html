@@ -23,7 +23,7 @@
     .card { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:14px; margin:16px 0; box-shadow:0 16px 40px rgba(0,0,0,0.25); }
     .hud { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
     .hud .cell { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:8px 10px; }
-    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; color:#9cf6ff; text-shadow:0 0 6px rgba(0,255,255,0.2), 0 0 12px rgba(124,244,255,0.18); letter-spacing:0.2px; }
+    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; color:#9cf6ff; text-shadow:0 0 6px rgba(0,255,255,0.2), 0 0 12px rgba(124,244,255,0.18); letter-spacing:0.2px; overflow:auto; }
     .help { color:#94a3b8; font-size:12px; margin-top:6px; }
     h2 { margin: 8px 0 4px; color:#93c5fd; font-size:18px; }
     h3 { margin: 6px 0 8px; color:#bfdbfe; font-size:14px; }
@@ -109,6 +109,26 @@
     .volume-slider { width: 90px; accent-color:#1d4ed8; }
     body.theme-cyber .volume-slider { accent-color:#7cf4ff; }
     .volume-label { font-size:12px; color:#94a3b8; }
+
+    .touch-controls { display:none; margin-top:10px; padding:10px; border:1px dashed #243048; border-radius:12px; background:#0d152a; }
+    .touch-title { font-size:12px; color:#94a3b8; margin-bottom:6px; letter-spacing:0.3px; }
+    .touch-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .touch-pad { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; max-width:280px; }
+    .touch-btn { min-height:48px; flex:1 1 110px; font-size:14px; touch-action: manipulation; }
+    .touch-spacer { visibility:hidden; }
+    .touch-btn.pressed { box-shadow:0 0 0 2px rgba(124,244,255,0.18); }
+    @media (max-width: 1100px), (pointer: coarse){ .touch-controls { display:block; } }
+
+    @media (max-width: 720px){
+      header { flex-wrap:wrap; gap:8px; }
+      main { padding: 12px; }
+      .card { padding:12px; }
+      .shortcut-card { width:100%; }
+      .hud { flex-direction:column; align-items:stretch; }
+      .hud .cell { width:100%; }
+      pre.screen { min-height: 240px; font-size:12px; }
+      button, select { font-size:14px; }
+    }
   </style>
 </head>
   <body>
@@ -186,6 +206,13 @@
         <button id="flappy-stop" disabled>Stop</button>
         <span class="tag">Controls: Space/↑ jump · P pause</span>
       </div>
+      <div class="touch-controls" data-touch="flappy">
+        <div class="touch-title">Controles tactiles</div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn primary" data-key="Space">Jump</button>
+          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
+        </div>
+      </div>
       <div class="row">
         <label>Gravity tweak (±20%):
           <input type="range" id="flappy-gravity" min="80" max="120" step="1" value="100" class="volume-slider" />
@@ -240,6 +267,20 @@
         <button id="snake-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → ↑ ↓ move · P pause</span>
       </div>
+      <div class="touch-controls" data-touch="snake">
+        <div class="touch-title">Controles tactiles</div>
+        <div class="touch-pad">
+          <div class="touch-spacer"></div>
+          <button type="button" class="touch-btn" data-key="ArrowUp">Up</button>
+          <div class="touch-spacer"></div>
+          <button type="button" class="touch-btn" data-key="ArrowLeft" data-repeat="true">Left</button>
+          <button type="button" class="touch-btn" data-key="ArrowDown" data-repeat="true">Down</button>
+          <button type="button" class="touch-btn" data-key="ArrowRight" data-repeat="true">Right</button>
+        </div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
+        </div>
+      </div>
       <pre id="snake-screen" class="screen">Loading…</pre>
       <div class="help">Eat “*” to add weight (score = kg). Avoid walls/obstacles/body; weight slows speed (capped at -40%). Obstacles spawn on normal+.</div>
       <div class="row">
@@ -283,6 +324,18 @@
         <button id="tetris-start" class="primary" disabled>Start</button>
         <button id="tetris-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → move · ↑ rotate · ↓ drop faster · P pause</span>
+      </div>
+      <div class="touch-controls" data-touch="tetris">
+        <div class="touch-title">Controles tactiles</div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn" data-key="ArrowLeft" data-repeat="true">Left</button>
+          <button type="button" class="touch-btn" data-key="ArrowUp">Rotate</button>
+          <button type="button" class="touch-btn" data-key="ArrowRight" data-repeat="true">Right</button>
+        </div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn" data-key="ArrowDown" data-repeat="true">Down</button>
+          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
+        </div>
       </div>
       <div class="row">
         <label>Fall speed (±40%):
@@ -334,6 +387,14 @@
         <button id="road-start" class="primary" disabled>Start</button>
         <button id="road-stop" disabled>Stop</button>
         <span class="tag">Controls: ← → move · P pause</span>
+      </div>
+      <div class="touch-controls" data-touch="road">
+        <div class="touch-title">Controles tactiles</div>
+        <div class="touch-row">
+          <button type="button" class="touch-btn" data-key="ArrowLeft" data-repeat="true">Left</button>
+          <button type="button" class="touch-btn" data-key="ArrowRight" data-repeat="true">Right</button>
+          <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
+        </div>
       </div>
       <pre id="road-screen" class="screen">Loading…</pre>
       <div class="help">Avoid falling obstacles. Score by distance/obstacles dodged.</div>

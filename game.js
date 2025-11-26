@@ -625,6 +625,31 @@ Final score: ${finalScore}
     return handled || true;
   }
 
+  function togglePause(){
+    st.paused = !st.paused;
+    setStatus(st.paused ? 'paused' : 'playing');
+    if (cfg.onPauseChange){ try{ cfg.onPauseChange(st.paused, st); }catch(err){ console.warn(`[${cfg.key}] onPauseChange`, err); } }
+  }
+
+  function handleKey(e){
+    if (!st.active) return false;
+    if (st.awaitingKey){
+      const started = maybeStartFromKey(e);
+      if (started) e?.preventDefault?.();
+      return started;
+    }
+    let handled = false;
+    const gameHandled = cfg.keydown && cfg.keydown(e, st);
+    if (gameHandled){ handled = true; }
+    const key = (e.key || e.code || '').toLowerCase();
+    if (key === 'p'){
+      togglePause();
+      handled = true;
+    }
+    if (handled) e?.preventDefault?.();
+    return handled;
+  }
+
   $(cfg.startBtnId).addEventListener('click', armStart);
   $(cfg.stopBtnId).addEventListener('click', ()=> stop('finished'));
   $(cfg.selectId).addEventListener('change', ()=>{
@@ -643,24 +668,52 @@ Final score: ${finalScore}
   }
 
   // Keyboard: delegate to the game and avoid scroll on interaction
-    document.addEventListener('keydown', (e)=>{
-      if (!st.active) return;
-      if (st.awaitingKey){
-        const started = maybeStartFromKey(e);
-        if (started) e.preventDefault();
-        return;
-      }
-      const handled = cfg.keydown && cfg.keydown(e, st);
-      if (handled) e.preventDefault();
-      if (e.key==='p' || e.key==='P'){
-        e.preventDefault();
-        st.paused = !st.paused;
-        setStatus(st.paused?'paused':'playing');
-        if (cfg.onPauseChange){ try{ cfg.onPauseChange(st.paused, st); }catch(err){ console.warn(`[${cfg.key}] onPauseChange`, err); } }
-      }
-    });
+  document.addEventListener('keydown', (e)=>{
+    const handled = handleKey(e);
+    if (handled) e.preventDefault();
+  });
 
-  return { start: armStart, stop, loadLocalLeaderboard, loadTeamsLeaderboard, setStatus, updateHudLive, st };
+  return { key: cfg.key, start: armStart, stop, loadLocalLeaderboard, loadTeamsLeaderboard, setStatus, updateHudLive, st, handleKey };
+}
+
+// Bind on-screen buttons (touch-friendly) to the same key handlers
+function setupTouchControls(game){
+  if (!game || !game.handleKey) return;
+  const root = document.querySelector(`[data-touch="${game.key}"]`);
+  if (!root) return;
+
+  const fire = (key)=> {
+    if (!key) return;
+    const code = key === ' ' || key === 'Space' ? 'Space' : key;
+    game.handleKey({ key, code, preventDefault:()=>{} });
+  };
+
+  root.querySelectorAll('[data-key]').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    const key = btn.dataset.key;
+    const repeatable = btn.dataset.repeat === 'true';
+    const repeatMs = Math.max(70, parseInt(btn.dataset.repeatMs || '120', 10));
+    let timer=null;
+
+    const release = ()=>{
+      if (timer){ clearInterval(timer); timer=null; }
+      if (key === 'ArrowLeft') keysActive.left = false;
+      if (key === 'ArrowRight') keysActive.right = false;
+      btn.classList.remove('pressed');
+    };
+    const press = (e)=>{
+      e?.preventDefault?.();
+      btn.classList.add('pressed');
+      fire(key);
+      if (repeatable && !timer){
+        timer = setInterval(()=> fire(key), repeatMs);
+      }
+    };
+    btn.addEventListener('pointerdown', press);
+    ['pointerup','pointercancel','pointerleave','pointerout','mouseup','touchend'].forEach(ev=> btn.addEventListener(ev, release));
+    btn.addEventListener('click', (e)=> e.preventDefault());
+  });
 }
 
 // ---------- Juego 1: Flappy ----------
@@ -1320,6 +1373,7 @@ async function main(){
 
   ALL_GAMES.push(flappy, snake, tetris, road);
 
+  [flappy, snake, tetris, road].forEach(setupTouchControls);
   [flappy, snake, tetris, road].forEach(m => {
     m.loadLocalLeaderboard();
     m.loadTeamsLeaderboard();
