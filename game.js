@@ -1,10 +1,10 @@
-// game.js — Suite de 4 juegos ASCII
+// game.js - Suite de 5 juegos ASCII (incluye Orbit)
 // - Leaderboards por alumno (local) y por equipo (mejor individual del equipo).
 // - Teclado sin scroll: preventDefault en cada juego + fallback global.
 // - Snake: bordes + game over por pared/cuerpo.
-// - Tetris: game over al llegar arriba; caída más lenta en easy/normal.
+// - Tetris: game over al llegar arriba; caida mas lenta en easy/normal.
 // - Road: cuerpo ASCII para coches; game over por bordes/choques; pista con ancho variable.
-// - HUD: "base → ×mult" y "Total score" en vivo en cada juego.
+// - HUD: "base + mult" y "Total score" en vivo en cada juego.
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
@@ -21,6 +21,20 @@ const DIFF = {
   insane: { label:'insane', mult:2.00, tick:-12, spawn:-5  }
 };
 
+// Orbit (gravedad central) - constantes
+const ORBIT_CENTERS = {
+  easy:   { body:'Ceres',        mu:72,  starR:1.2 },
+  normal: { body:'Earth',        mu:111, starR:1.5 },
+  hard:   { body:'Jupiter',      mu:163, starR:1.8 },
+  insane: { body:'Neutron star', mu:234, starR:2.1 },
+};
+const ORBIT_GRAVITY_SLIDER = { min:70, max:130, def:100 }; // +-30% sobre mu base
+const ORBIT_DT = 0.018;
+const ORBIT_VEL_SCALE = 1.8;    // drag length -> velocidad inicial (muy rapido)
+const ORBIT_MAX_SPEED = 60;     // clamp para estabilidad
+const ORBIT_SOFTEN = 0.26;      // epsilon para evitar singularidad
+const ORBIT_SUBSTEPS = 4;       // subpasos por tick para suavidad
+
 // Gravities mapped to real worlds for ASCII Flappy (m/s^2). Display uses real values.
 const FLAPPY_PLANET_GRAVITY = {
   easy:   { planet:'Moon',    ms2:1.62 },
@@ -29,8 +43,8 @@ const FLAPPY_PLANET_GRAVITY = {
   insane: { planet:'Jupiter', ms2:24.79 }
 };
 const FLAPPY_GRAVITY_INTERNAL = { easy:1.2, normal:1, hard:1, insane:0.8 }; // hidden gameplay tweak
-const FLAPPY_GRAVITY_SLIDER = { min:80, max:120, def:100 }; // ±20%
-const FLAPPY_GRAVITY_SCALE = 0.35 / FLAPPY_PLANET_GRAVITY.normal.ms2; // keep Earth ≈ previous gravity
+const FLAPPY_GRAVITY_SLIDER = { min:80, max:120, def:100 }; // +/-20%
+const FLAPPY_GRAVITY_SCALE = 0.35 / FLAPPY_PLANET_GRAVITY.normal.ms2; // keep Earth similar to previous gravity
 
 const TEACHER_PRACTICE_ALIAS = 'The_Final_Boss.exe';
 const VOLUME_KEY = 'pwa-volume';
@@ -91,7 +105,7 @@ function noteToFreq(note){
 }
 
 const TETRIS_THEME_BPM = 148; // mantiene tempo original cercano a NES
-// Notación: beats relativos a negra=1 (4), blanca=2, corchea=0.5; puntillo = *1.5
+// Notacion: beats relativos a negra=1 (4), blanca=2, corchea=0.5; puntillo = *1.5
 const TETRIS_PHRASE_A_ORIG = [
   { note:'E5', beats:1 },   { note:'B4', beats:0.5 }, { note:'C5', beats:0.5 }, { note:'D5', beats:1 },
   { note:'C5', beats:0.5 }, { note:'B4', beats:0.5 }, { note:'A4', beats:1 },   { note:'A4', beats:0.5 },
@@ -296,7 +310,7 @@ let COMMON = {
 };
 
 function setGamesUnavailable(message){
-  ['flappy','snake','tetris','road'].forEach(key => {
+  ['orbit','flappy','snake','tetris','road'].forEach(key => {
     text($(`${key}-status`), 'no team');
     text($(`${key}-screen`), message);
   });
@@ -376,7 +390,7 @@ async function bootstrapCommon(){
   text($('common-spent'),   COMMON.totals.spent);
   text($('common-total'),   COMMON.totals.totalLocal);
 
-  ['flappy','snake','tetris','road'].forEach(k => {
+  ['orbit','flappy','snake','tetris','road'].forEach(k => {
     const b = $(`${k}-start`);
     if (b) b.disabled = COMMON.totals.totalLocal <= 0;
   });
@@ -421,7 +435,7 @@ async function bootstrapTeacherPractice(){
   text($('common-total'), COMMON.totals.totalLocal);
 
   const info = `Teacher mode: using the time from the local team with the most points (${COMMON.local.name}). Press any key after Start to begin.`;
-  ['flappy','snake','tetris','road'].forEach(key => {
+  ['orbit','flappy','snake','tetris','road'].forEach(key => {
     text($(`${key}-status`), 'ready');
     text($(`${key}-screen`), info);
     const startBtn = $(`${key}-start`);
@@ -440,8 +454,8 @@ function makeGameModule(cfg){
   //        timeId, scoreId, totalId, diffId,
   //        lbLocalId, lbTeamsId,
   //        init(st), tick(st), keydown(e, st),
-  //        onHudUpdate?(st, hud), onStart?(st), onStop?(cause, st), onPauseChange?(paused, st),
-  //        formatScore?(v) }
+  //        onHudUpdate-(st, hud), onStart-(st), onStop-(cause, st), onPauseChange-(paused, st),
+  //        formatScore-(v) }
   const st = {
     active:false, paused:false, loop:null, timer:null, armTimeout:null,
     frame:0, tickMs:65, spawnEvery:22, timeLeft:0, baseScore:0, _requestStop:null,
@@ -451,7 +465,7 @@ function makeGameModule(cfg){
   function tuneFromTotals(){
     const totalLocal = COMMON.totals.totalLocal || 0;
     st.timeLeft = totalLocal;
-    // base según total_local
+    // base segun total_local
     st.tickMs = Math.max(50, 70 - Math.floor(totalLocal/6));
     st.spawnEvery = Math.max(14, 24 - Math.floor(totalLocal/5));
 
@@ -460,7 +474,7 @@ function makeGameModule(cfg){
     st.tickMs = Math.max(40, st.tickMs + d.tick);
     st.spawnEvery = Math.max(8, st.spawnEvery + d.spawn);
 
-    text($(cfg.diffId), `${d.label} ×${d.mult.toFixed(2)}`);
+    text($(cfg.diffId), `${d.label} x${d.mult.toFixed(2)}`);
     text($(cfg.timeId), String(st.timeLeft));
   }
 
@@ -507,7 +521,7 @@ function makeGameModule(cfg){
     const rows = Array.from(best.entries())
       .map(([sid,score]) => ({ name: (data.find(d=>d.student_id===sid)?.student_name)||`#${sid}`, score }))
       .sort((a,b)=> b.score - a.score).slice(0, limit);
-    tb.innerHTML = rows.map((r,i)=> `<tr><td>${i+1}</td><td>${r.name}</td><td><strong>${r.score}</strong></td></tr>`).join('') || `<tr><td colspan="3">—</td></tr>`;
+    tb.innerHTML = rows.map((r,i)=> `<tr><td>${i+1}</td><td>${r.name}</td><td><strong>${r.score}</strong></td></tr>`).join('') || `<tr><td colspan="3">-</td></tr>`;
   }
 
   async function loadTeamsLeaderboard(){
@@ -521,9 +535,9 @@ function makeGameModule(cfg){
       localName: r.local_team_name ?? `#${r.local_team_id}`,
       poolName:  r.pool_team_name ?? `#${r.pool_team_id}`,
       teamBest:  r.team_best ?? 0,
-      bestPlayer: r.best_student_name ?? '—',
+      bestPlayer: r.best_student_name ?? '-',
     })).slice(0, limit);
-    tb.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td>${r.localName}</td><td>${r.poolName}</td><td>${r.bestPlayer}</td><td><strong>${r.teamBest}</strong></td></tr>`).join('') || `<tr><td colspan="5">—</td></tr>`;
+    tb.innerHTML = rows.map(r => `<tr><td>${r.rank}</td><td>${r.localName}</td><td>${r.poolName}</td><td>${r.bestPlayer}</td><td><strong>${r.teamBest}</strong></td></tr>`).join('') || `<tr><td colspan="5">-</td></tr>`;
   }
 
   function formatBaseScore(v){
@@ -533,7 +547,7 @@ function makeGameModule(cfg){
   function updateHudLive(){
     const mult = (DIFF[$(cfg.selectId)?.value || 'normal'] || DIFF.normal).mult;
     const totalNow = Math.max(0, Math.round(st.baseScore * mult));
-    text($(cfg.scoreId), `${formatBaseScore(st.baseScore)} → ×${mult.toFixed(2)}`);
+    text($(cfg.scoreId), `${formatBaseScore(st.baseScore)} x${mult.toFixed(2)}`);
     text($(cfg.totalId), String(totalNow));
     if (cfg.onHudUpdate) cfg.onHudUpdate(st, { mult, totalNow });
   }
@@ -555,14 +569,14 @@ function makeGameModule(cfg){
     const mult = (DIFF[$(cfg.selectId)?.value || 'normal'] || DIFF.normal).mult;
     const baseLabel = formatBaseScore(st.baseScore);
     const finalScore = Math.max(0, Math.round(st.baseScore * mult));
-    // Append “Game Over” al screen (opcional si existe)
+    // Append "Game Over" al screen (opcional si existe)
     const pre = $(cfg.screenId);
     if (pre) {
       pre.textContent += `
 
-Game Over — ${cause}.
+Game Over - ${cause}.
 Base score: ${baseLabel}
-Difficulty: ${(DIFF[$(cfg.selectId)?.value || 'normal']||DIFF.normal).label} ×${mult.toFixed(2)}
+Difficulty: ${(DIFF[$(cfg.selectId)?.value || 'normal']||DIFF.normal).label} x${mult.toFixed(2)}
 Final score: ${finalScore}
 (Your team points do NOT change.)`;
     }
@@ -716,6 +730,243 @@ function setupTouchControls(game){
   });
 }
 
+// ---------- Juego nuevo: Orbit ----------
+function makeOrbit(){
+  const W=64, H=28, CX=Math.floor(W/2), CY=Math.floor(H/2);
+  let planets=[], trail=[], aimStart=null, aimEnd=null, dragging=false, muAdj=ORBIT_CENTERS.normal.mu, starR=ORBIT_CENTERS.normal.starR, allowTwo=false, stRef=null;
+
+  const screen = document.getElementById('orbit-screen');
+  const gravSlider = document.getElementById('orbit-gravity');
+  const gravBodyTag = document.getElementById('orbit-gravity-body');
+  const gravCurrentTag = document.getElementById('orbit-gravity-current');
+  const gravNote = document.getElementById('orbit-gravity-note');
+  const orbitsTag = document.getElementById('orbit-orbits');
+  const planetsTag = document.getElementById('orbit-planets');
+
+  const clamp = (v,min,max)=> Math.min(max, Math.max(min, v));
+
+  function diffState(){
+    const diff = document.getElementById('orbit-select')?.value || 'normal';
+    const cfg = ORBIT_CENTERS[diff] || ORBIT_CENTERS.normal;
+    const raw = parseInt(gravSlider?.value || `${ORBIT_GRAVITY_SLIDER.def}`, 10);
+    const pct = clamp(Number.isFinite(raw) ? raw : ORBIT_GRAVITY_SLIDER.def, ORBIT_GRAVITY_SLIDER.min, ORBIT_GRAVITY_SLIDER.max);
+    if (gravSlider && String(pct) !== gravSlider.value) gravSlider.value = String(pct);
+    muAdj = cfg.mu * (pct/100);
+    starR = cfg.starR;
+    allowTwo = diff === 'insane';
+    if (gravBodyTag) gravBodyTag.textContent = `${cfg.body} gravity focus`;
+    if (gravCurrentTag) gravCurrentTag.textContent = `Gameplay mu scale: ${pct}%`;
+    if (gravNote) gravNote.textContent = 'Drag backwards to set launch speed; central gravity uses a single body. Slider tweaks gameplay only.';
+    return { diff, cfg, pct };
+  }
+
+  function reset(){
+    planets = [];
+    trail = [];
+    aimStart = null; aimEnd = null; dragging=false;
+  }
+
+  function addPlanet(pos, vel){
+    const maxPlanets = allowTwo ? 2 : 1;
+    if (planets.length >= maxPlanets) planets.shift();
+    planets.push({ x:pos.x, y:pos.y, vx:vel.vx, vy:vel.vy, lastAngle:null, angleAcc:0, orbits:0 });
+  }
+
+  function launchFromDrag(){
+    if (!aimStart || !aimEnd || !stRef || !stRef.active || stRef.paused) return;
+    const dx = aimStart.x - aimEnd.x;
+    const dy = aimStart.y - aimEnd.y;
+    const mag = Math.hypot(dx, dy);
+    if (mag < 0.2) return;
+    let pos = { x: clamp(aimStart.x, 1, W-2), y: clamp(aimStart.y, 1, H-2) };
+    const distStar = Math.hypot(pos.x - CX, pos.y - CY);
+    if (distStar <= starR){
+      const nx = (dx === 0 && dy === 0) ? 1 : dx / Math.max(0.0001, Math.hypot(dx, dy));
+      const ny = (dy === 0 && dx === 0) ? 0 : dy / Math.max(0.0001, Math.hypot(dx, dy));
+      pos = { x: CX + nx * (starR + 0.4), y: CY + ny * (starR + 0.4) };
+    }
+    const vel = { vx: dx * ORBIT_VEL_SCALE, vy: dy * ORBIT_VEL_SCALE };
+    addPlanet(pos, vel);
+    aimEnd = null;
+  }
+
+  function stepPlanet(p, st){
+    const dx = p.x - CX, dy = p.y - CY;
+    const r2 = dx*dx + dy*dy + ORBIT_SOFTEN;
+    const invR3 = 1 / Math.pow(r2, 1.5);
+    const ax = -muAdj * dx * invR3;
+    const ay = -muAdj * dy * invR3;
+    p.vx += ax * ORBIT_DT;
+    p.vy += ay * ORBIT_DT;
+    const speed = Math.hypot(p.vx, p.vy);
+    if (speed > ORBIT_MAX_SPEED){
+      const k = ORBIT_MAX_SPEED / Math.max(speed, 0.0001);
+      p.vx *= k; p.vy *= k;
+    }
+    p.x += p.vx * ORBIT_DT;
+    p.y += p.vy * ORBIT_DT;
+
+    const ang = Math.atan2(dy, dx);
+    if (p.lastAngle !== null){
+      let delta = ang - p.lastAngle;
+      if (delta > Math.PI) delta -= 2*Math.PI;
+      if (delta < -Math.PI) delta += 2*Math.PI;
+      p.angleAcc += delta;
+      if (Math.abs(p.angleAcc) >= 2*Math.PI){
+        p.angleAcc = p.angleAcc % (2*Math.PI);
+        p.orbits += 1;
+        st.baseScore += 20;
+      }
+    }
+    p.lastAngle = ang;
+  }
+
+  function render(st){
+    const grid = Array.from({length:H}, ()=> Array.from({length:W}, ()=> ' '));
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const d = Math.hypot(x-CX, y-CY);
+        if (d <= starR) grid[y][x] = '*';
+        else if (d <= starR+1.2) grid[y][x] = '.';
+      }
+    }
+    for (const t of trail){
+      const x=Math.round(t.x), y=Math.round(t.y);
+      if (x>=0&&x<W&&y>=0&&y<H && grid[y][x]===' ') grid[y][x]='.';
+    }
+    planets.forEach((p, idx)=>{
+      const x=Math.round(p.x), y=Math.round(p.y);
+      if (x>=0&&x<W&&y>=0&&y<H) grid[y][x] = idx===0 ? 'o' : 'O';
+    });
+    if (aimStart){
+      const sx=Math.round(aimStart.x), sy=Math.round(aimStart.y);
+      if (sx>=0&&sx<W&&sy>=0&&sy<H) grid[sy][sx] = '+';
+      if (aimEnd){
+        const ex=Math.round(aimEnd.x), ey=Math.round(aimEnd.y);
+        const steps = Math.max(Math.abs(ex-sx), Math.abs(ey-sy), 1);
+        for (let i=1;i<steps;i++){
+          const x = Math.round(sx + (ex-sx)*i/steps);
+          const y = Math.round(sy + (ey-sy)*i/steps);
+          if (x>=0&&x<W&&y>=0&&y<H && grid[y][x]===' ') grid[y][x]='.';
+        }
+      }
+    }
+    if (screen) screen.textContent = grid.map(r=>r.join('')).join('\n');
+    const totalOrbits = planets.reduce((s,p)=> s + p.orbits, 0);
+    if (orbitsTag) orbitsTag.textContent = String(totalOrbits);
+    if (planetsTag) planetsTag.textContent = String(planets.length);
+  }
+
+  function handlePointer(){
+    if (!screen || screen.dataset.boundOrbit) return;
+    screen.dataset.boundOrbit = '1';
+    screen.style.touchAction = 'none';
+    const toGrid = (ev)=>{
+      const rect = screen.getBoundingClientRect();
+      const cs = window.getComputedStyle(screen);
+      const padL = parseFloat(cs.paddingLeft)  || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      const padT = parseFloat(cs.paddingTop)   || 0;
+      const padB = parseFloat(cs.paddingBottom)|| 0;
+      const borderL = parseFloat(cs.borderLeftWidth)   || 0;
+      const borderR = parseFloat(cs.borderRightWidth)  || 0;
+      const borderT = parseFloat(cs.borderTopWidth)    || 0;
+      const borderB = parseFloat(cs.borderBottomWidth) || 0;
+      const w = rect.width  - padL - padR - borderL - borderR;
+      const h = rect.height - padT - padB - borderT - borderB;
+      const x = (ev.clientX - rect.left - padL - borderL) / Math.max(1, w);
+      const y = (ev.clientY - rect.top  - padT - borderT) / Math.max(1, h);
+      return { x: clamp(x * W, 0, W-1), y: clamp(y * H, 0, H-1) };
+    };
+    screen.addEventListener('pointerdown', (e)=>{
+      dragging=true;
+      aimStart = toGrid(e);
+      aimEnd = aimStart;
+      screen.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    });
+    screen.addEventListener('pointermove', (e)=>{
+      if (!dragging) return;
+      aimEnd = toGrid(e);
+      e.preventDefault();
+    });
+    const finish = (e)=>{
+      if (!dragging) return;
+      dragging=false;
+      aimEnd = toGrid(e);
+      launchFromDrag();
+      e.preventDefault();
+    };
+    screen.addEventListener('pointerup', finish);
+    screen.addEventListener('pointercancel', finish);
+    screen.addEventListener('pointerleave', finish);
+  }
+  handlePointer();
+
+  if (gravSlider && !gravSlider.dataset.orbitBound){
+    gravSlider.dataset.orbitBound = '1';
+    gravSlider.addEventListener('input', diffState);
+  }
+  const orbitSelect = document.getElementById('orbit-select');
+  if (orbitSelect && !orbitSelect.dataset.orbitBound){
+    orbitSelect.dataset.orbitBound='1';
+    orbitSelect.addEventListener('change', diffState);
+  }
+
+  const mod = makeGameModule({
+    key:'orbit',
+    table:'game_scores_orbit',
+    teamRpc:'game_local_team_leaderboard_orbit',
+    screenId:'orbit-screen', statusId:'orbit-status',
+    selectId:'orbit-select', startBtnId:'orbit-start', stopBtnId:'orbit-stop',
+    timeId:'orbit-time', scoreId:'orbit-score', totalId:'orbit-total', diffId:'orbit-diff',
+    lbLocalId:'orbit-lb-local', lbTeamsId:'orbit-lb-teams',
+    onStop:(_cause, st)=>{ reset(); render(st); },
+    onHudUpdate:()=>{
+      if (orbitsTag) orbitsTag.textContent = String(planets.reduce((s,p)=> s+p.orbits, 0));
+      if (planetsTag) planetsTag.textContent = String(planets.length);
+    },
+    init:(st)=>{
+      stRef = st;
+      reset();
+      const d = document.getElementById('orbit-select')?.value || 'normal';
+      diffState();
+      st.tickMs = Math.max(14, st.tickMs - 14);
+      if (screen) screen.textContent = `ASCII Orbit ready.
+Time: ${st.timeLeft}s - Difficulty: ${d} x${(DIFF[d]||DIFF.normal).mult.toFixed(2)}
+Click/touch anywhere, drag backwards and release to launch the planet.
+Easy/Normal/Hard: 1 planet. Insane: up to 2 (do not collide).
+Survive without touching the central star.`;
+    },
+    tick:(st)=>{
+      diffState();
+      for (let s=0; s<ORBIT_SUBSTEPS; s++){
+        for (const p of planets){
+          if (s===0) trail.push({ x:p.x, y:p.y, ttl:6 });
+          stepPlanet(p, st);
+        }
+      }
+      trail = trail.map(t => ({...t, ttl:t.ttl-1})).filter(t => t.ttl > 0);
+
+      for (const p of planets){
+        const dStar = Math.hypot(p.x - CX, p.y - CY);
+        if (dStar <= starR){ st._requestStop='crashed'; return; }
+        if (p.x < 1 || p.x > W-2 || p.y < 1 || p.y > H-2){ st._requestStop='escaped'; return; }
+      }
+      if (allowTwo && planets.length === 2){
+        const dx = planets[0].x - planets[1].x;
+        const dy = planets[0].y - planets[1].y;
+        if (Math.hypot(dx, dy) < 1.2){ st._requestStop='collision'; return; }
+      }
+
+      if (planets.length > 0) st.baseScore += planets.length * 0.6;
+      render(st);
+    },
+    keydown:()=> false
+  });
+  return mod;
+}
+
 // ---------- Juego 1: Flappy ----------
 function makeFlappy(){
   const W=60, H=20, GROUND=H-2;
@@ -780,7 +1031,7 @@ function makeFlappy(){
       gapBase = Math.max(3, Math.round(baseGap * gapMult));
       const g = gravitySetting();
       gravityPerTick = g.gameGravity;
-      $('flappy-screen').textContent = `ASCII Flappy ready.\nTime: ${st.timeLeft}s - Difficulty: ${d.label} x${d.mult.toFixed(2)}\nGravity: ${g.base.planet} (${g.base.ms2.toFixed(2)} m/s^2 real) · Slider ${g.pct}% (gameplay)\nSpace/ArrowUp jump - P pause - Stop ends game.`;
+      $('flappy-screen').textContent = `ASCII Flappy ready.\nTime: ${st.timeLeft}s - Difficulty: ${d.label} x${d.mult.toFixed(2)}\nGravity: ${g.base.planet} (${g.base.ms2.toFixed(2)} m/s^2 real) - Slider ${g.pct}% (gameplay)\nSpace/ArrowUp jump - P pause - Stop ends game.`;
     },
     tick:(st)=>{
       bird.vy += gravityPerTick; bird.y += bird.vy;
@@ -1075,7 +1326,7 @@ function makeTetris(){
     for (let y=0;y<s.length;y++)
       for (let x=0;x<s[0].length;x++)
         if (s[y][x] && cy+y>=0) grid[cy+y][cx+x]=1;
-    // líneas
+    // lineas
     let cleared=0;
     for (let y=H-1;y>=0;y--){
       if (grid[y].every(v=>v)){ grid.splice(y,1); grid.unshift(Array.from({length:W},()=>0)); cleared++; y++; }
@@ -1119,7 +1370,7 @@ Adjust fall speed slider anytime (+/-40% of base).`;
       if (!spawnPiece(st)){ st._requestStop='crashed'; }
     },
     tick:(st)=>{
-      // caída
+      // caida
       if (!collide(cx, cy+1, rot)){ cy++; }
       else {
         if (cy<0){ st._requestStop='crashed'; return; }
@@ -1143,7 +1394,7 @@ Adjust fall speed slider anytime (+/-40% of base).`;
 
 // ---------- Juego 4: Road (tipo Road Fighter ASCII) ----------
 function makeRoad(){
-  const W=40, H=22; // más ancho
+  const W=40, H=22; // mas ancho
   let grid=[], carX, carY, carPos, obs=[], powerUps=[], left=6, right=W-6, driftTimer=0, slipDir=0, slipFrames=0, hitCooldown=0, awaitingRecovery=false;
   let speedKmh=0, speedTarget=0, lastFuel=0;
 
@@ -1163,7 +1414,7 @@ function makeRoad(){
     for (let y=0;y<H;y++) for (let x=0;x<W;x++) grid[y][x]=' ';
     // bordes de pista
     for (let y=0;y<H;y++){ grid[y][left]='|'; grid[y][right]='|'; }
-    // línea central
+    // linea central
     const mid = Math.floor((left+right)/2);
     for (let y=0;y<H;y++) if (y%2===0) grid[y][mid]=':';
     // coche y enemigos
@@ -1238,11 +1489,11 @@ function makeRoad(){
       // velocidad/spawn por dificultad
       const base = d==='easy' ? 110 : d==='normal' ? 95 : d==='hard' ? 80 : 65; // ms
       st.tickMs = Math.max(45, base - Math.floor((COMMON.totals.totalLocal||0)/5));
-      st._spawnEvery = d==='easy' ? 12 : d==='normal' ? 9 : d==='hard' ? 7 : 5; // más difícil = más rivales
+      st._spawnEvery = d==='easy' ? 12 : d==='normal' ? 9 : d==='hard' ? 7 : 5; // mas dificil = mas rivales
       speedTarget = speedMap[d] || speedMap.normal;
       speedKmh = speedTarget - 20;
       lastFuel = st.timeLeft;
-      $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s · Difficulty: ${d} ×${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n← → move (tras choque derrapas: pulsa hacia ese lado para recuperar control) · P pause · Stop ends game.`;
+      $('road-screen').textContent = `ASCII Road ready.\nTime: ${st.timeLeft}s - Difficulty: ${d} x${(DIFF[d]||DIFF.normal).mult.toFixed(2)}\n<- -> move (tras choque derrapas: pulsa hacia ese lado para recuperar control) - P pause - Stop ends game.`;
     },
     tick:(st)=>{
       // spawn enemigos y powerups
@@ -1254,7 +1505,7 @@ function makeRoad(){
       obs = obs.filter(o => o.y < H-1);
       powerUps = powerUps.filter(p => p.y < H-1);
 
-      // HUD dinámico: velocidad y combustible
+      // HUD dinamico: velocidad y combustible
       lastFuel = st.timeLeft;
       if (slipDir !== 0){
         speedKmh = Math.max(40, speedKmh - 6);
@@ -1284,7 +1535,7 @@ function makeRoad(){
         right = Math.min(W-1-margin, Math.max(right, Math.floor(W/2)+6));
       }
 
-      // puntos por supervivencia + rivales “sobrepasados” (heurística)
+      // puntos por supervivencia + rivales sobrepasados (heuristica)
       st.baseScore += 1 + obs.filter(o => o.y===carY && Math.abs(o.x - carX) > 2).length;
 
       // recoger powerups
@@ -1298,7 +1549,7 @@ function makeRoad(){
         return true;
       });
 
-      // colisiones: activar resbalón y descontar puntos en lugar de terminar (en insane sí termina)
+      // colisiones: activar resbalon y descontar puntos en lugar de terminar (en insane si termina)
       if (hitCooldown > 0) hitCooldown--;
 
       if (slipDir === 0 && hitCooldown === 0){
@@ -1316,7 +1567,7 @@ function makeRoad(){
         }
       }
 
-      // resbalón: mover el coche lateralmente hasta recuperar control
+      // resbalon: mover el coche lateralmente hasta recuperar control
       if (slipDir !== 0){
         const slipSpeed = Math.min(SLIP_MAX_SPEED, SLIP_BASE_SPEED + slipFrames * SLIP_ACCEL);
         carPos += slipDir * slipSpeed;
@@ -1329,7 +1580,7 @@ function makeRoad(){
         }
       }
 
-      // colisión final solo si nos salimos de la pista
+      // colision final solo si nos salimos de la pista
       if (carX <= left || carX >= right){ st._requestStop='crashed'; return; }
 
       render(st);
@@ -1366,20 +1617,21 @@ async function main(){
   const ok = await bootstrapCommon();
   if (!ok) return;
 
+  const orbit  = makeOrbit();
   const flappy = makeFlappy();
   const snake  = makeSnake();
   const tetris = makeTetris();
   const road   = makeRoad();
 
-  ALL_GAMES.push(flappy, snake, tetris, road);
+  ALL_GAMES.push(orbit, flappy, snake, tetris, road);
 
   [flappy, snake, tetris, road].forEach(setupTouchControls);
-  [flappy, snake, tetris, road].forEach(m => {
+  [orbit, flappy, snake, tetris, road].forEach(m => {
     m.loadLocalLeaderboard();
     m.loadTeamsLeaderboard();
   });
 
-  // Fallback global anti-scroll: si cualquier juego está activo, bloquea scroll en flechas/espacio
+  // Fallback global anti-scroll: si cualquier juego esta activo, bloquea scroll en flechas/espacio
   document.addEventListener('keydown', (e)=>{
     const key = e.key || e.code;
     const scrollingKey = key==='ArrowUp' || key==='ArrowDown' || key==='ArrowLeft' || key==='ArrowRight' || key===' ' || key==='Space' || e.code==='Space';

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b1120'/%3E%3Ctext x='14' y='46' font-size='38' fill='%2393c5fd'%3EA%3C/text%3E%3C/svg%3E">
-  <title>Team Games — ASCII Suite</title>
+  <title>Team Games  ASCII Suite</title>
   <style>
     :root { color-scheme: light dark; }
     body { font-family: "Space Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; margin:0; background:#0b1120; color:#e2e8f0; transition: background 0.3s ease, color 0.3s ease; }
@@ -92,17 +92,18 @@
     body.theme-cyber table tbody td { color:#e8f5ff; text-shadow:0 0 6px rgba(0,255,255,0.25); font-weight:600; }
     body.theme-cyber table tbody tr { backdrop-filter: saturate(1.05); }
 
-    .shortcut-card {
+        .shortcut-card {
       display:flex; align-items:center; gap:10px;
       padding:10px 12px; border:1px solid #243048; border-radius:12px; background:#0f172a;
       color:#e2e8f0;
     }
     .shortcut-thumb { width:48px; height:48px; border-radius:10px; background:linear-gradient(135deg,#1d4ed8,#0ea5e9); }
     .shortcut-title { font-weight:700; }
-    .flappy-thumb { background:linear-gradient(135deg,#38bdf8,#8b5cf6), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"12\" y=\"44\" font-size=\"32\">🐦</text></svg>') center/70% no-repeat; }
-    .snake-thumb  { background:linear-gradient(135deg,#22c55e,#0ea5e9), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"12\" y=\"44\" font-size=\"32\">🐍</text></svg>') center/70% no-repeat; }
-    .tetris-thumb { background:linear-gradient(135deg,#f59e0b,#6366f1), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"10\" y=\"44\" font-size=\"32\">🧊</text></svg>') center/70% no-repeat; }
-    .road-thumb   { background:linear-gradient(135deg,#f43f5e,#14b8a6), url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><text x=\"10\" y=\"44\" font-size=\"32\">🚗</text></svg>') center/70% no-repeat; }
+    .orbit-thumb  { background:linear-gradient(135deg,#06b6d4,#4f46e5), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="none" stroke="white" stroke-width="4"/><circle cx="18" cy="32" r="4" fill="white"/></svg>') center/80% no-repeat; }
+    .flappy-thumb { background:linear-gradient(135deg,#38bdf8,#8b5cf6), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="12" y="44" font-size="32">></text></svg>') center/70% no-repeat; }
+    .snake-thumb  { background:linear-gradient(135deg,#22c55e,#0ea5e9), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="12" y="44" font-size="32">S</text></svg>') center/70% no-repeat; }
+    .tetris-thumb { background:linear-gradient(135deg,#f59e0b,#6366f1), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="10" y="44" font-size="32">[]</text></svg>') center/70% no-repeat; }
+    .road-thumb   { background:linear-gradient(135deg,#f43f5e,#14b8a6), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="10" y="44" font-size="32">^</text></svg>') center/70% no-repeat; }
 
     .lb-scroll { max-height: 240px; overflow: auto; border:1px solid #1f2937; border-radius:10px; }
     body.theme-cyber .lb-scroll { border-color: rgba(124,244,255,0.2); box-shadow: inset 0 0 12px rgba(124,244,255,0.15); }
@@ -160,6 +161,10 @@
     <section class="card">
       <h3>Jump to a game</h3>
       <div class="row" style="gap:12px; flex-wrap:wrap;">
+        <a href="#orbit" class="shortcut-card" style="text-decoration:none;">
+          <div class="shortcut-thumb orbit-thumb"></div>
+          <div class="shortcut-title">ASCII Orbit</div>
+        </a>
         <a href="#flappy" class="shortcut-card" style="text-decoration:none;">
           <div class="shortcut-thumb flappy-thumb"></div>
           <div class="shortcut-title">ASCII Flappy</div>
@@ -182,9 +187,9 @@
     <!-- Common block -->
     <section class="card">
       <div class="row">
-        <div class="tag">User: <span id="common-user">—</span></div>
-        <div class="tag">Local: <span id="common-local">—</span></div>
-        <div class="tag">Global: <span id="common-pool">—</span></div>
+        <div class="tag">User: <span id="common-user"></span></div>
+        <div class="tag">Local: <span id="common-local"></span></div>
+        <div class="tag">Global: <span id="common-pool"></span></div>
         <div class="tag">Pool: <span id="common-poolpts">0</span></div>
         <div class="tag">Spent: <span id="common-spent">0</span></div>
         <div class="tag">Total (local): <span id="common-total">0</span></div>
@@ -192,38 +197,92 @@
       <div class="help">Play time per game = <strong>Total (local)</strong> (max 240 s). Changing difficulty does not affect system points, only the game.</div>
     </section>
 
+    <!-- ==== JUEGO 0: ORBIT ==== -->
+    <section class="card" id="orbit">
+      <h2>ASCII Orbit</h2>
+      <div class="hud">
+        <div class="cell"><strong>Play time:</strong> <span id="orbit-time">0</span> s</div>
+        <div class="cell"><strong>Score:</strong> <span id="orbit-score">0 x1.25</span></div>
+        <div class="cell"><strong>Total score:</strong> <span id="orbit-total">0</span></div>
+        <div class="cell"><strong>Orbits:</strong> <span id="orbit-orbits">0</span></div>
+        <div class="cell"><strong>Planets:</strong> <span id="orbit-planets">0</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="orbit-diff">normal x1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="orbit-status">loading...</span></div>
+      </div>
+      <div class="row">
+        <label>Difficulty:
+          <select id="orbit-select">
+            <option value="easy">easy x1.00</option>
+            <option value="normal" selected>normal x1.25</option>
+            <option value="hard">hard x1.60</option>
+            <option value="insane">insane x2.00</option>
+          </select>
+        </label>
+        <button id="orbit-start" class="primary" disabled>Start</button>
+        <button id="orbit-stop" disabled>Stop</button>
+        <span class="tag">Controls: drag + release to launch  P pause</span>
+      </div>
+      <div class="row">
+        <label>Gravity mu tweak (+/-30%):
+          <input type="range" id="orbit-gravity" min="70" max="130" step="1" value="100" class="volume-slider" />
+        </label>
+        <span class="tag" id="orbit-gravity-body">Earth gravity focus</span>
+        <span class="tag" id="orbit-gravity-current">Gameplay mu scale: 100%</span>
+      </div>
+      <div class="help" id="orbit-gravity-note">Central gravity uses real-ish bodies; slider tweaks gameplay only.</div>
+      <pre id="orbit-screen" class="screen">Loading...</pre>
+      <div class="help">Manten tu planeta orbitando sin tocar la estrella central. En insane puedes llevar 2 planetas (mas puntos), pero no choques entre ellos.</div>
+      <div class="row">
+        <label>Rows to show:
+          <input type="range" id="orbit-lb-limit" min="5" max="50" step="5" value="10" />
+          <span id="orbit-lb-limit-val">10</span>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <h3>Leaderboard  best scores (your local team)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="orbit-lb-local"></tbody></table></div>
+        </div>
+        <div>
+          <h3>Leaderboard  local teams (global, best individual)</h3>
+          <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="orbit-lb-teams"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ==== JUEGO 1: FLAPPY ==== -->
     <section class="card" id="flappy">
       <h2>ASCII Flappy</h2>
       <div class="hud">
         <div class="cell"><strong>Play time:</strong> <span id="flappy-time">0</span> s</div>
-        <div class="cell"><strong>Score:</strong> <span id="flappy-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Score:</strong> <span id="flappy-score">0  1.25</span></div>
         <div class="cell"><strong>Total score:</strong> <span id="flappy-total">0</span></div>
-        <div class="cell"><strong>Difficulty:</strong> <span id="flappy-diff">normal ×1.25</span></div>
-        <div class="cell"><strong>Status:</strong> <span id="flappy-status">loading…</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="flappy-diff">normal 1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="flappy-status">loading...</span></div>
       </div>
       <div class="row">
         <label>Difficulty:
           <select id="flappy-select">
-            <option value="easy">easy ×1.00</option>
-            <option value="normal" selected>normal ×1.25</option>
-            <option value="hard">hard ×1.60</option>
-            <option value="insane">insane ×2.00</option>
+            <option value="easy">easy 1.00</option>
+            <option value="normal" selected>normal 1.25</option>
+            <option value="hard">hard 1.60</option>
+            <option value="insane">insane 2.00</option>
           </select>
         </label>
         <button id="flappy-start" class="primary" disabled>Start</button>
         <button id="flappy-stop" disabled>Stop</button>
-        <span class="tag">Controls: Space/↑ jump · P pause</span>
+        <span class="tag">Controls: Space/ jump  P pause</span>
       </div>
       <div class="row">
-        <label>Gravity tweak (±20%):
+        <label>Gravity tweak (20%):
           <input type="range" id="flappy-gravity" min="80" max="120" step="1" value="100" class="volume-slider" />
         </label>
         <span class="tag" id="flappy-gravity-planet">Earth - 9.81 m/s^2</span>
         <span class="tag" id="flappy-gravity-current">100% -> 9.81 m/s^2</span>
       </div>
       <div class="help" id="flappy-gravity-note">Base gravity uses real planets (easy = Moon, normal = Earth).</div>
-      <pre id="flappy-screen" class="screen">Loading…</pre>
+      <pre id="flappy-screen" class="screen">Loading...</pre>
       <div class="touch-controls" data-touch="flappy">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-row">
@@ -231,7 +290,7 @@
           <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
         </div>
       </div>
-      <div class="help">Final score = obstacles cleared × multiplier. System points do not change.</div>
+      <div class="help">Final score = obstacles cleared  multiplier. System points do not change.</div>
       <div class="row">
         <label>Rows to show:
           <input type="range" id="flappy-lb-limit" min="5" max="50" step="5" value="10" />
@@ -241,11 +300,11 @@
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — best scores (your local team)</h3>
+          <h3>Leaderboard  best scores (your local team)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="flappy-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <h3>Leaderboard  local teams (global, best individual)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="flappy-lb-teams"></tbody></table></div>
         </div>
       </div>
@@ -260,23 +319,23 @@
         <div class="cell"><strong>Total score:</strong> <span id="snake-total">0</span></div>
         <div class="cell"><strong>Speed:</strong> <span id="snake-speed">0 cm/s</span></div>
         <div class="cell"><strong>Weight:</strong> <span id="snake-weight">0 kg</span></div>
-        <div class="cell"><strong>Difficulty:</strong> <span id="snake-diff">normal ×1.25</span></div>
-        <div class="cell"><strong>Status:</strong> <span id="snake-status">loading…</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="snake-diff">normal 1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="snake-status">loading...</span></div>
       </div>
       <div class="row">
         <label>Difficulty:
           <select id="snake-select">
-            <option value="easy">easy ×1.00</option>
-            <option value="normal" selected>normal ×1.25</option>
-            <option value="hard">hard ×1.60</option>
-            <option value="insane">insane ×2.00</option>
+            <option value="easy">easy 1.00</option>
+            <option value="normal" selected>normal 1.25</option>
+            <option value="hard">hard 1.60</option>
+            <option value="insane">insane 2.00</option>
           </select>
         </label>
         <button id="snake-start" class="primary" disabled>Start</button>
         <button id="snake-stop" disabled>Stop</button>
-        <span class="tag">Controls: ← → ↑ ↓ move · P pause</span>
+        <span class="tag">Controls:     move  P pause</span>
       </div>
-      <pre id="snake-screen" class="screen">Loading…</pre>
+      <pre id="snake-screen" class="screen">Loading...</pre>
       <div class="touch-controls" data-touch="snake">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-pad">
@@ -291,7 +350,7 @@
           <button type="button" class="touch-btn ghost" data-key="p">Pause</button>
         </div>
       </div>
-      <div class="help">Eat “*” to add weight (score = kg). Avoid walls/obstacles/body; weight slows speed (capped at -40%). Obstacles spawn on normal+.</div>
+      <div class="help">Eat * to add weight (score = kg). Avoid walls/obstacles/body; weight slows speed (capped at -40%). Obstacles spawn on normal+.</div>
       <div class="row">
         <label>Rows to show:
           <input type="range" id="snake-lb-limit" min="5" max="50" step="5" value="10" />
@@ -301,11 +360,11 @@
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — best scores (your local team)</h3>
+          <h3>Leaderboard  best scores (your local team)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="snake-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <h3>Leaderboard  local teams (global, best individual)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="snake-lb-teams"></tbody></table></div>
         </div>
       </div>
@@ -316,32 +375,32 @@
       <h2>ASCII Tetris (simplificado)</h2>
       <div class="hud">
         <div class="cell"><strong>Play time:</strong> <span id="tetris-time">0</span> s</div>
-        <div class="cell"><strong>Score:</strong> <span id="tetris-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Score:</strong> <span id="tetris-score">0  1.25</span></div>
         <div class="cell"><strong>Total score:</strong> <span id="tetris-total">0</span></div>
-        <div class="cell"><strong>Difficulty:</strong> <span id="tetris-diff">normal ×1.25</span></div>
-        <div class="cell"><strong>Status:</strong> <span id="tetris-status">loading…</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="tetris-diff">normal 1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="tetris-status">loading...</span></div>
       </div>
       <div class="row">
         <label>Difficulty:
           <select id="tetris-select">
-            <option value="easy">easy ×1.00</option>
-            <option value="normal" selected>normal ×1.25</option>
-            <option value="hard">hard ×1.60</option>
-            <option value="insane">insane ×2.00</option>
+            <option value="easy">easy 1.00</option>
+            <option value="normal" selected>normal 1.25</option>
+            <option value="hard">hard 1.60</option>
+            <option value="insane">insane 2.00</option>
           </select>
         </label>
         <button id="tetris-start" class="primary" disabled>Start</button>
         <button id="tetris-stop" disabled>Stop</button>
-        <span class="tag">Controls: ← → move · ↑ rotate · ↓ drop faster · P pause</span>
+        <span class="tag">Controls:   move   rotate   drop faster  P pause</span>
       </div>
       <div class="row">
-        <label>Fall speed (±40%):
+        <label>Fall speed (40%):
           <input type="range" id="tetris-fall-slider" min="60" max="140" step="5" value="100" />
           <span id="tetris-fall-speed">0.00 m/s</span>
         </label>
         <span class="tag">Adjust anytime while playing to fine-tune drop speed.</span>
       </div>
-      <pre id="tetris-screen" class="screen">Loading…</pre>
+      <pre id="tetris-screen" class="screen">Loading...</pre>
       <div class="touch-controls" data-touch="tetris">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-row">
@@ -364,11 +423,11 @@
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — best scores (your local team)</h3>
+          <h3>Leaderboard  best scores (your local team)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="tetris-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <h3>Leaderboard  local teams (global, best individual)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="tetris-lb-teams"></tbody></table></div>
         </div>
       </div>
@@ -379,25 +438,25 @@
       <h2>ASCII Road</h2>
       <div class="hud">
         <div class="cell"><strong>Play time:</strong> <span id="road-time">0</span> s</div>
-        <div class="cell"><strong>Score:</strong> <span id="road-score">0 → ×1.25</span></div>
+        <div class="cell"><strong>Score:</strong> <span id="road-score">0  1.25</span></div>
         <div class="cell"><strong>Total score:</strong> <span id="road-total">0</span></div>
-        <div class="cell"><strong>Difficulty:</strong> <span id="road-diff">normal ×1.25</span></div>
-        <div class="cell"><strong>Status:</strong> <span id="road-status">loading…</span></div>
+        <div class="cell"><strong>Difficulty:</strong> <span id="road-diff">normal 1.25</span></div>
+        <div class="cell"><strong>Status:</strong> <span id="road-status">loading...</span></div>
       </div>
       <div class="row">
         <label>Difficulty:
           <select id="road-select">
-            <option value="easy">easy ×1.00</option>
-            <option value="normal" selected>normal ×1.25</option>
-            <option value="hard">hard ×1.60</option>
-            <option value="insane">insane ×2.00</option>
+            <option value="easy">easy 1.00</option>
+            <option value="normal" selected>normal 1.25</option>
+            <option value="hard">hard 1.60</option>
+            <option value="insane">insane 2.00</option>
           </select>
         </label>
         <button id="road-start" class="primary" disabled>Start</button>
         <button id="road-stop" disabled>Stop</button>
-        <span class="tag">Controls: ← → move · P pause</span>
+        <span class="tag">Controls:   move  P pause</span>
       </div>
-      <pre id="road-screen" class="screen">Loading…</pre>
+      <pre id="road-screen" class="screen">Loading...</pre>
       <div class="touch-controls" data-touch="road">
         <div class="touch-title">Controles tactiles</div>
         <div class="touch-row">
@@ -416,11 +475,11 @@
 
       <div class="grid2">
         <div>
-          <h3>Leaderboard — best scores (your local team)</h3>
+          <h3>Leaderboard  best scores (your local team)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Student</th><th>Best</th></tr></thead><tbody id="road-lb-local"></tbody></table></div>
         </div>
         <div>
-          <h3>Leaderboard — local teams (global, best individual)</h3>
+          <h3>Leaderboard  local teams (global, best individual)</h3>
           <div class="lb-scroll"><table><thead><tr><th>#</th><th>Local team</th><th>Global</th><th>Player</th><th>Team best</th></tr></thead><tbody id="road-lb-teams"></tbody></table></div>
         </div>
       </div>

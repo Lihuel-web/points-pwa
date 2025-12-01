@@ -760,6 +760,7 @@ const ASCII_GAME_CFG = {
   snake:  { label:'ASCII Snake',  table:'game_scores_snake', teamRpc:'game_local_team_leaderboard_snake' },
   tetris: { label:'ASCII Tetris', table:'game_scores_tetris', teamRpc:'game_local_team_leaderboard_tetris' },
   road:   { label:'ASCII Road',   table:'game_scores_road', teamRpc:'game_local_team_leaderboard_road' },
+  orbit:  { label:'ASCII Orbit',  table:'game_scores_orbit', teamRpc:'game_local_team_leaderboard_orbit' },
 };
 
 async function initAsciiLeaderboardsUI() {
