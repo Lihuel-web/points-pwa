@@ -6,7 +6,7 @@
 // - Road: cuerpo ASCII para coches; game over por bordes/choques; pista con ancho variable.
 // - HUD: "base + mult" y "Total score" en vivo en cada juego.
 
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.87.1';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
 const sb = createClient(SUPA_URL, SUPA_KEY);
