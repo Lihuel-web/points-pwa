@@ -1,4 +1,0 @@
-[submodule "GameAlchemy"]
-	path = GameAlchemy
-	url = https://github.com/Lihuel-web/GameAlchemy.git
-	branch = main
