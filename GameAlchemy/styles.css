@@ -1,0 +1,229 @@
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+body.theme-dark { background: #0b1120; color: #e2e8f0; }
+body.theme-light { background: #f7f9ff; color: #0b1a35; }
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.nav-title { font-weight: 700; letter-spacing: 0.3px; color: #93c5fd; }
+.nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav-btn {
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 600;
+  border: 1px solid #2563eb;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+}
+.nav-btn:hover { background: #1e40af; border-color: #1e40af; }
+.nav-btn.alt { background: #0ea5e9; border-color: #0284c7; box-shadow: 0 6px 20px rgba(14, 165, 233, 0.35); }
+.nav-btn.alt:hover { background: #0284c7; }
+.nav-btn.ghost { background: transparent; color: #93c5fd; border-color: #30415f; box-shadow: none; }
+.nav-btn.ghost:hover { background: rgba(147,197,253,0.08); }
+body.theme-light .navbar { background: #ffffff; border-bottom: 1px solid #e5edff; box-shadow: 0 8px 24px rgba(15,23,42,0.08); }
+body.theme-light .nav-title { color: #1d4ed8; }
+body.theme-light .nav-btn { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+body.theme-light .nav-btn.alt { background: #0ea5e9; }
+body.theme-light .nav-btn.ghost { color: #0b1a35; border-color: #cdd8f3; background: #eef3ff; }
+
+#game-container {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-areas:
+    "elements pedia"
+    "crafting pedia"
+    "results pedia"
+    "session pedia"
+    "controls pedia"
+    "noncomb pedia";
+  gap: 16px;
+  min-height: 100vh;
+  margin: 12px auto 0;
+  max-width: 1100px;
+  padding: 16px;
+}
+
+#elements { grid-area: elements; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+#crafting-area { grid-area: crafting; border: 2px dashed #666; min-height: 150px; display: flex; align-items: center; justify-content: center; }
+#combination-results { grid-area: results; min-height: 40px; color: #e2e8f0; }
+#session-box {
+  grid-area: session;
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+}
+.session-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.session-title { font-weight: 700; color:#93c5fd; letter-spacing:0.2px; }
+.session-btn {
+  background:#0ea5e9;
+  color:#fff;
+  border:1px solid #0284c7;
+  border-radius:8px;
+  padding:6px 10px;
+  cursor:pointer;
+  box-shadow:0 6px 20px rgba(14,165,233,0.35);
+}
+.session-btn:hover { background:#0284c7; }
+.session-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:6px 12px; font-size:14px; }
+.session-stats strong { color:#fff; }
+.session-message { margin-top:8px; font-size:13px; color:#cbd5e1; opacity:0.9; }
+.session-teacher { margin-top:8px; padding:8px 10px; border:1px dashed #243048; border-radius:10px; background:#0d1426; }
+.session-switch { display:flex; gap:8px; align-items:center; font-size:14px; color:#cbd5e1; }
+.session-switch input { accent-color:#0ea5e9; }
+.session-teacher-note { margin-top:4px; font-size:13px; color:#93c5fd; }
+#controls { grid-area: controls; display: flex; gap: 8px; flex-wrap: wrap; }
+#non-combinable-section { grid-area: noncomb; }
+#non-combinable-elements { display: flex; flex-direction: column; gap: 6px; }
+#pedia { grid-area: pedia; border-left: 1px solid #243048; padding-left: 14px; }
+#pedia h2 { margin-top: 0; }
+
+.element {
+  width: 140px;
+  min-height: 44px;
+  padding: 8px;
+  margin: 4px;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  text-align: center;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #0b1a35;
+  transition: box-shadow .15s ease-in-out, transform .05s ease-in-out;
+}
+.element:active { cursor: grabbing; }
+.element.selected { box-shadow: 0 0 0 2px #8e24aa inset; }
+.element.non-combinable {
+  background: linear-gradient(135deg, #2d1b1b, #3b0f0f);
+  color: #fca5a5;
+  border-color: #ef4444;
+  box-shadow: none;
+  cursor: not-allowed;
+  position: relative;
+  opacity: 0.9;
+  filter: saturate(0.7);
+}
+.element.non-combinable::after {
+  content: attr(data-label-noncomb);
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #ffcdd2;
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  letter-spacing: 0.2px;
+}
+.element.in-crafting-area { background: #eef7ff; border-color: #42a5f5; }
+.element.in-menu { width: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: default; }
+body.theme-dark .element { background:#101827; border-color:#1f2937; color:#e2e8f0; }
+body.theme-dark .element.in-crafting-area { background:#12203a; border-color:#2563eb; }
+body.theme-dark #crafting-area { border-color:#1f2937; color:#cbd5e1; }
+body.theme-light #crafting-area { border-color:#cdd8f3; color:#41506b; }
+body.theme-light .element.non-combinable {
+  background: linear-gradient(135deg, #ffeaea, #ffdede);
+  color: #9f1239;
+  border-color: #f87171;
+}
+body.theme-light .element.non-combinable::after {
+  color: #b91c1c;
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+#reset-button, #diagram-toggle-button, #story-toggle-button, #lang-toggle-button {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color .2s;
+}
+#reset-button { background-color: #f44336; }
+#diagram-toggle-button { background-color: #1976d2; }
+#story-toggle-button { background-color: #6a1b9a; }
+#lang-toggle-button { background-color: #00897b; } /* teal */
+#reset-button:hover { background-color: #d32f2f; }
+#diagram-toggle-button:hover { background-color: #115293; }
+#story-toggle-button:hover { background-color: #4a148c; }
+#lang-toggle-button:hover { background-color: #00695c; }
+
+#diagram-modal, #story-modal {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+#diagram-modal.visible, #story-modal.visible { display: flex; }
+
+#diagram-content, #story-content {
+  background: #fff;
+  width: 80%; height: 80%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 15px rgba(0,0,0,0.5);
+}
+#network-container, #story-container {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+#diagram-close-button, #story-close-button {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #666;
+}
+#diagram-close-button:hover, #story-close-button:hover { color: #000; }
+
+.story-segment { border-left: 4px solid #6a1b9a; padding: 8px 12px; margin: 8px 0; background: #faf5ff; }
+.story-locked { opacity: 0.6; filter: grayscale(0.3); border-left-color: #bbb; background: #f5f5f5; }
+.story-title { margin: 0 0 4px 0; }
+.story-requires { font-size: 12px; color: #666; }
+body.theme-dark .story-segment { background: #141927; border-left-color: #9c27b0; color: #e5d9ff; }
+body.theme-dark .story-locked { background: #0f1320; border-left-color: #4b5563; color: #cbd5e1; }
+body.theme-dark .story-title { color: #f3e8ff; }
+body.theme-dark .story-requires { color: #cbd5e1; }
+
+/* Light theme overrides */
+body.theme-light #session-box { background:#ffffff; border-color:#e2e8f6; color:#0b1a35; }
+body.theme-light .session-message { color:#475569; }
+body.theme-light .session-teacher { background:#f3f6ff; border-color:#cdd8f3; }
+body.theme-light #combination-results { color:#0b1a35; }
+body.theme-light #non-combinable-section h2 { color:#0b1a35; }
+body.theme-light #pedia { border-left-color:#e2e8f6; }
+body.theme-light .story-segment { background:#ffffff; border-left-color:#6a1b9a; }

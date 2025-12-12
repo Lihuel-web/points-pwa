@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Alchemy Game — Cosmología rigurosa</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.css" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-title">Alchemy Game</div>
+    <div class="nav-links">
+      <a class="nav-btn" href="../game.html">Minigames hub</a>
+      <a class="nav-btn alt" href="../index.html">Points panel</a>
+      <button class="nav-btn ghost" id="theme-toggle" type="button">Tema: Neón</button>
+    </div>
+  </header>
+  <div id="game-container">
+    <section id="elements"></section>
+
+    <section id="crafting-area">Arrastra aquí dos elementos para combinarlos</section>
+
+    <div id="combination-results"></div>
+
+    <section id="session-box" class="session-box">
+      <div class="session-head">
+        <div id="session-title" class="session-title">Turno de combinaciones</div>
+      </div>
+      <div class="session-stats">
+        <div><span id="session-label-points">Puntos</span>: <strong id="session-points">—</strong></div>
+        <div><span id="session-label-total">Combos por sesión</span>: <strong id="session-combos">—</strong></div>
+        <div><span id="session-label-remaining">Restantes</span>: <strong id="session-remaining">—</strong></div>
+      </div>
+      <div id="session-teacher-row" class="session-teacher" style="display:none">
+        <label class="session-switch">
+          <input type="checkbox" id="session-use-top" />
+          <span id="session-teacher-toggle-label">Simular puntos del mejor equipo</span>
+        </label>
+        <div id="session-teacher-note" class="session-teacher-note"></div>
+      </div>
+      <div id="session-message" class="session-message">Carga tus puntos para habilitar combinaciones.</div>
+    </section>
+
+    <div id="controls">
+      <button id="reset-button">Reiniciar juego</button>
+      <button id="diagram-toggle-button">Ver diagrama</button>
+      <button id="story-toggle-button">Ver relato</button>
+      <button id="lang-toggle-button" aria-pressed="false" title="Cambiar idioma">English</button>
+    </div>
+
+    <div id="non-combinable-section">
+      <h2>Elementos no combinables por ahora</h2>
+      <div id="non-combinable-elements"></div>
+    </div>
+
+    <aside id="pedia">
+      <h2 id="glossary-title">Glosario</h2>
+      <div id="pedia-content">
+        <p id="pedia-intro">
+          Haz clic en un elemento para ver su definición rigurosa y su explicación en palabras sencillas.
+          Al crear una combinación, se mostrará su justificación.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal Diagrama -->
+  <div id="diagram-modal" aria-hidden="true">
+    <div id="diagram-content">
+      <button id="diagram-close-button" class="close-btn" aria-label="Cerrar diagrama">&times;</button>
+      <div id="network-container"></div>
+    </div>
+  </div>
+
+  <!-- Modal Relato -->
+  <div id="story-modal" aria-hidden="true">
+    <div id="story-content">
+      <button id="story-close-button" class="close-btn" aria-label="Cerrar relato">&times;</button>
+      <div id="story-container"></div>
+    </div>
+  </div>
+
+  <script src="../config.js"></script>
+  <script>
+    window.SUPABASE_URL = window.__SUPABASE_CONFIG?.url || localStorage.getItem('SUPABASE_URL') || '';
+    window.SUPABASE_ANON_KEY = window.__SUPABASE_CONFIG?.anonKey || localStorage.getItem('SUPABASE_ANON_KEY') || '';
+  </script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

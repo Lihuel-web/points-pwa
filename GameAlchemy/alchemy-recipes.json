@@ -1,0 +1,1188 @@
+{
+  "elements": {
+    "base": [
+      "Singularidad",
+      "Expansión"
+    ],
+    "combined": [
+      "Big Bang",
+      "Energía Primordial",
+      "Espacio-Tiempo",
+      "Vacío cuántico",
+      "Superfuerza",
+      "Gravedad",
+      "Fuerza nuclear fuerte",
+      "Fuerza nuclear débil",
+      "Electromagnetismo",
+      "Bosones",
+      "Fermiones",
+      "Fotón",
+      "Gluón",
+      "Bosón de Higgs",
+      "Bosones W/Z",
+      "Partícula",
+      "Quark",
+      "Leptón",
+      "Electrón",
+      "Hadrón",
+      "Barión",
+      "Mesón",
+      "Protón",
+      "Neutrón",
+      "Núcleo atómico",
+      "Materia",
+      "Antimateria",
+      "Espuma cuántica",
+      "Átomo",
+      "Molécula",
+      "Radiación electromagnética",
+      "Partícula con masa",
+      "Fusión nuclear",
+      "Núcleos ligeros",
+      "Hidrógeno",
+      "Helio",
+      "Aniquilación",
+      "Nucleosíntesis primordial",
+      "Gas interestelar",
+      "Polvo interestelar",
+      "Enfriamiento radiativo",
+      "Nube molecular",
+      "Colapso gravitatorio",
+      "Protoestrella",
+      "Estrella de secuencia principal",
+      "Gigante roja",
+      "Nucleosíntesis estelar",
+      "Viento estelar",
+      "Nebulosa",
+      "Supernova",
+      "Restos de supernova",
+      "Carbono",
+      "Oxígeno",
+      "Nitrógeno",
+      "Silicio",
+      "Azufre",
+      "Sodio",
+      "Magnesio",
+      "Aluminio",
+      "Calcio",
+      "Hierro",
+      "Níquel",
+      "Hidrógeno molecular (H2)",
+      "Oxígeno molecular (O2)",
+      "Nitrógeno molecular (N2)",
+      "Monóxido de carbono (CO)",
+      "Dióxido de carbono (CO2)",
+      "Agua (H2O)",
+      "Metano (CH4)",
+      "Amoniaco (NH3)",
+      "Dióxido de silicio (SiO2)",
+      "Disco protoplanetario",
+      "Planeta rocoso",
+      "Planeta gigante gaseoso"
+    ]
+  },
+  "aliases": {
+    "Fza nuclear fuerte": "Fuerza nuclear fuerte",
+    "Fza nuclear débil": "Fuerza nuclear débil",
+    "Átomos": "Átomo",
+    "Fotones": "Fotón",
+    "Quarks": "Quark",
+    "Leptones": "Leptón",
+    "Partículas": "Partícula",
+    "Protones": "Protón",
+    "Neutrones": "Neutrón",
+    "Núcleo Atómico": "Núcleo atómico",
+    "Vacío Cuántico": "Vacío cuántico",
+    "Molecula": "Molécula",
+    "H2": "Hidrógeno molecular (H2)",
+    "O2": "Oxígeno molecular (O2)",
+    "N2": "Nitrógeno molecular (N2)",
+    "CO": "Monóxido de carbono (CO)",
+    "CO2": "Dióxido de carbono (CO2)",
+    "H2O": "Agua (H2O)",
+    "CH4": "Metano (CH4)",
+    "NH3": "Amoniaco (NH3)",
+    "SiO2": "Dióxido de silicio (SiO2)"
+  },
+  "recipes": [
+    {
+      "inputs": [
+        "Singularidad",
+        "Expansión"
+      ],
+      "outputs": [
+        "Big Bang"
+      ]
+    },
+    {
+      "inputs": [
+        "Big Bang",
+        "Expansión"
+      ],
+      "outputs": [
+        "Espacio-Tiempo",
+        "Vacío cuántico"
+      ]
+    },
+    {
+      "inputs": [
+        "Big Bang",
+        "Singularidad"
+      ],
+      "outputs": [
+        "Energía Primordial",
+        "Superfuerza"
+      ]
+    },
+    {
+      "inputs": [
+        "Expansión",
+        "Superfuerza"
+      ],
+      "outputs": [
+        "Gravedad",
+        "Fuerza nuclear fuerte",
+        "Fuerza nuclear débil",
+        "Electromagnetismo"
+      ]
+    },
+    {
+      "inputs": [
+        "Vacío cuántico",
+        "Vacío cuántico"
+      ],
+      "outputs": [
+        "Materia",
+        "Antimateria",
+        "Espuma cuántica"
+      ]
+    },
+    {
+      "inputs": [
+        "Energía Primordial",
+        "Expansión"
+      ],
+      "outputs": [
+        "Bosones",
+        "Fermiones"
+      ]
+    },
+    {
+      "inputs": [
+        "Bosones",
+        "Expansión"
+      ],
+      "outputs": [
+        "Fotón",
+        "Gluón",
+        "Bosón de Higgs",
+        "Bosones W/Z"
+      ]
+    },
+    {
+      "inputs": [
+        "Fermiones",
+        "Expansión"
+      ],
+      "outputs": [
+        "Quark",
+        "Leptón",
+        "Partícula",
+        "Electrón"
+      ]
+    },
+    {
+      "inputs": [
+        "Quark",
+        "Quark"
+      ],
+      "outputs": [
+        "Hadrón"
+      ]
+    },
+    {
+      "inputs": [
+        "Hadrón",
+        "Quark"
+      ],
+      "outputs": [
+        "Barión",
+        "Mesón"
+      ]
+    },
+    {
+      "inputs": [
+        "Quark",
+        "Gluón"
+      ],
+      "outputs": [
+        "Protón",
+        "Neutrón"
+      ]
+    },
+    {
+      "inputs": [
+        "Protón",
+        "Neutrón"
+      ],
+      "outputs": [
+        "Núcleo atómico"
+      ]
+    },
+    {
+      "inputs": [
+        "Bosón de Higgs",
+        "Partícula"
+      ],
+      "outputs": [
+        "Partícula con masa"
+      ]
+    },
+    {
+      "inputs": [
+        "Núcleo atómico",
+        "Leptón"
+      ],
+      "outputs": [
+        "Átomo"
+      ]
+    },
+    {
+      "inputs": [
+        "Electrón",
+        "Núcleo atómico"
+      ],
+      "outputs": [
+        "Átomo"
+      ]
+    },
+    {
+      "inputs": [
+        "Átomo",
+        "Átomo"
+      ],
+      "outputs": [
+        "Molécula"
+      ]
+    },
+    {
+      "inputs": [
+        "Fotón",
+        "Fotón"
+      ],
+      "outputs": [
+        "Radiación electromagnética"
+      ]
+    },
+    {
+      "inputs": [
+        "Materia",
+        "Antimateria"
+      ],
+      "outputs": [
+        "Aniquilación",
+        "Radiación electromagnética"
+      ]
+    },
+    {
+      "inputs": [
+        "Núcleo atómico",
+        "Núcleo atómico"
+      ],
+      "outputs": [
+        "Fusión nuclear",
+        "Núcleos ligeros"
+      ]
+    },
+    {
+      "inputs": [
+        "Protón",
+        "Electrón"
+      ],
+      "outputs": [
+        "Hidrógeno"
+      ]
+    },
+    {
+      "inputs": [
+        "Hidrógeno",
+        "Hidrógeno"
+      ],
+      "outputs": [
+        "Helio",
+        "Fusión nuclear"
+      ]
+    },
+    {
+      "inputs": [
+        "Big Bang",
+        "Fusión nuclear"
+      ],
+      "outputs": [
+        "Nucleosíntesis primordial",
+        "Núcleos ligeros",
+        "Hidrógeno",
+        "Helio"
+      ]
+    },
+    {
+      "inputs": [
+        "Materia",
+        "Gravedad"
+      ],
+      "outputs": [
+        "Gas interestelar",
+        "Polvo interestelar"
+      ]
+    },
+    {
+      "inputs": [
+        "Gas interestelar",
+        "Enfriamiento radiativo"
+      ],
+      "outputs": [
+        "Nube molecular"
+      ]
+    },
+    {
+      "inputs": [
+        "Gravedad",
+        "Nube molecular"
+      ],
+      "outputs": [
+        "Colapso gravitatorio"
+      ]
+    },
+    {
+      "inputs": [
+        "Colapso gravitatorio",
+        "Nube molecular"
+      ],
+      "outputs": [
+        "Protoestrella"
+      ]
+    },
+    {
+      "inputs": [
+        "Protoestrella",
+        "Fusión nuclear"
+      ],
+      "outputs": [
+        "Estrella de secuencia principal"
+      ]
+    },
+    {
+      "inputs": [
+        "Protoestrella",
+        "Polvo interestelar"
+      ],
+      "outputs": [
+        "Disco protoplanetario"
+      ]
+    },
+    {
+      "inputs": [
+        "Estrella de secuencia principal",
+        "Fusión nuclear"
+      ],
+      "outputs": [
+        "Gigante roja"
+      ]
+    },
+    {
+      "inputs": [
+        "Gigante roja",
+        "Fusión nuclear"
+      ],
+      "outputs": [
+        "Nucleosíntesis estelar",
+        "Carbono",
+        "Oxígeno"
+      ]
+    },
+    {
+      "inputs": [
+        "Estrella de secuencia principal",
+        "Colapso gravitatorio"
+      ],
+      "outputs": [
+        "Supernova"
+      ]
+    },
+    {
+      "inputs": [
+        "Supernova",
+        "Nucleosíntesis estelar"
+      ],
+      "outputs": [
+        "Silicio",
+        "Azufre",
+        "Sodio",
+        "Magnesio",
+        "Aluminio",
+        "Calcio",
+        "Hierro",
+        "Níquel"
+      ]
+    },
+    {
+      "inputs": [
+        "Supernova",
+        "Materia"
+      ],
+      "outputs": [
+        "Restos de supernova",
+        "Gas interestelar",
+        "Polvo interestelar"
+      ]
+    },
+    {
+      "inputs": [
+        "Restos de supernova",
+        "Gravedad"
+      ],
+      "outputs": [
+        "Nube molecular"
+      ]
+    },
+    {
+      "inputs": [
+        "Estrella de secuencia principal",
+        "Estrella de secuencia principal"
+      ],
+      "outputs": [
+        "Cúmulo estelar"
+      ]
+    },
+    {
+      "inputs": [
+        "Cúmulo estelar",
+        "Gravedad"
+      ],
+      "outputs": [
+        "Galaxia"
+      ]
+    },
+    {
+      "inputs": [
+        "Disco protoplanetario",
+        "Gravedad"
+      ],
+      "outputs": [
+        "Planeta rocoso",
+        "Planeta gigante gaseoso"
+      ]
+    },
+    {
+      "inputs": [
+        "Hidrógeno",
+        "Hidrógeno"
+      ],
+      "outputs": [
+        "Hidrógeno molecular (H2)"
+      ]
+    },
+    {
+      "inputs": [
+        "Carbono",
+        "Oxígeno"
+      ],
+      "outputs": [
+        "Monóxido de carbono (CO)",
+        "Dióxido de carbono (CO2)"
+      ]
+    },
+    {
+      "inputs": [
+        "Hidrógeno",
+        "Oxígeno"
+      ],
+      "outputs": [
+        "Agua (H2O)"
+      ]
+    },
+    {
+      "inputs": [
+        "Carbono",
+        "Hidrógeno"
+      ],
+      "outputs": [
+        "Metano (CH4)"
+      ]
+    },
+    {
+      "inputs": [
+        "Nitrógeno",
+        "Hidrógeno"
+      ],
+      "outputs": [
+        "Amoniaco (NH3)"
+      ]
+    },
+    {
+      "inputs": [
+        "Oxígeno",
+        "Oxígeno"
+      ],
+      "outputs": [
+        "Oxígeno molecular (O2)"
+      ]
+    },
+    {
+      "inputs": [
+        "Nitrógeno",
+        "Nitrógeno"
+      ],
+      "outputs": [
+        "Nitrógeno molecular (N2)"
+      ]
+    },
+    {
+      "inputs": [
+        "Silicio",
+        "Oxígeno"
+      ],
+      "outputs": [
+        "Dióxido de silicio (SiO2)"
+      ]
+    }
+  ],
+  "definitions": {
+    "Singularidad": "Estado de densidad y curvatura extremas donde la relatividad general deja de ser predictiva.",
+    "Expansión": "Crecimiento del factor de escala del universo; el espacio mismo se estira.",
+    "Big Bang": "Fase caliente y densa inicial a partir de la cual se expande el universo observable.",
+    "Energía Primordial": "Contenido energético temprano que excita campos cuánticos.",
+    "Superfuerza": "Hipótesis de una fuerza unificada previa a la ruptura de simetrías.",
+    "Electromagnetismo": "Interacción sobre partículas con carga eléctrica; mediada por fotones.",
+    "Fuerza nuclear fuerte": "Interacción que confina quarks en hadrones; mediada por gluones.",
+    "Fuerza nuclear débil": "Interacción responsable de decaimientos beta y etapas de fusión estelar.",
+    "Gravedad": "Interacción universal asociada a la curvatura del espacio-tiempo.",
+    "Vacío cuántico": "Estado de mínima energía con fluctuaciones transitorias.",
+    "Espuma cuántica": "Imagen heurística de fluctuaciones del espacio-tiempo a escala de Planck.",
+    "Bosones": "Partículas de espín entero (mensajeros de fuerzas o colectivas).",
+    "Fermiones": "Partículas de espín semientero que obedecen exclusión de Pauli.",
+    "Quark": "Constituyentes fundamentales de hadrones; portan carga de color.",
+    "Leptón": "Fermiones que no sienten la interacción fuerte (electrón, neutrinos…).",
+    "Electrón": "Leptón cargado negativamente, clave en estructura atómica/química.",
+    "Gluón": "Bosón mediador de la interacción fuerte.",
+    "Fotón": "Bosón mediador del electromagnetismo.",
+    "Bosón de Higgs": "Campo/partícula cuyo acoplo da masa efectiva vía ruptura espontánea.",
+    "Bosones W/Z": "Bosones de la interacción débil (W±, Z0).",
+    "Hadrón": "Partícula compuesta de quarks unida por la fuerte.",
+    "Barión": "Hadrón con tres quarks (protones, neutrones).",
+    "Mesón": "Hadrón quark-antiquark.",
+    "Protón": "Barión (uud) con carga +1.",
+    "Neutrón": "Barión (udd) sin carga.",
+    "Núcleo atómico": "Conjunto ligado de protones y neutrones.",
+    "Átomo": "Núcleo rodeado por electrones ligados electromagnéticamente.",
+    "Molécula": "Conjunto de átomos unidos por enlaces químicos.",
+    "Radiación electromagnética": "Campo EM propagándose como onda/cuanto de fotones.",
+    "Partícula": "Entidad genérica antes de clasificar masa/espín.",
+    "Partícula con masa": "Partícula tras adquirir término de masa efectiva (mecanismo de Higgs).",
+    "Fusión nuclear": "Combinación de núcleos ligeros en otros más pesados liberando energía.",
+    "Aniquilación": "Conversión de partícula+antipartícula en radiación/otras partículas.",
+    "Materia": "Contenido con números cuánticos de materia positivos.",
+    "Antimateria": "Contenido con números cuánticos opuestos a la materia.",
+    "Hidrógeno": "Átomo Z=1 (protón+electrón).",
+    "Helio": "Átomo Z=2 (núcleo 2p+2n).",
+    "Nucleosíntesis primordial": "Síntesis de H, He y trazas de otros elementos minutos tras el Big Bang.",
+    "Gas interestelar": "Gas difuso (H, He, trazas) en las galaxias.",
+    "Polvo interestelar": "Granos sólidos (silicatos, carbonáceos) mezclados en el gas.",
+    "Enfriamiento radiativo": "Pérdida de energía del gas por emisión, facilitando el colapso.",
+    "Nube molecular": "Región fría y densa (H2) donde nacen estrellas.",
+    "Colapso gravitatorio": "Contracción bajo gravedad cuando la presión no sostiene el gas.",
+    "Protoestrella": "Fase temprana antes de la fusión sostenida.",
+    "Estrella de secuencia principal": "Fase estable con fusión H→He en el núcleo.",
+    "Gigante roja": "Fase evolucionada con expansión de envoltura y fusión en capas.",
+    "Nucleosíntesis estelar": "Formación de elementos más pesados en el interior estelar.",
+    "Nebulosa": "Nube de gas y polvo iluminada/expulsada por estrellas.",
+    "Supernova": "Explosión terminal que dispersa energía y elementos.",
+    "Restos de supernova": "Cascarón en expansión tras la explosión.",
+    "Carbono": "Elemento Z=6, clave para moléculas orgánicas y polvo interestelar.",
+    "Oxígeno": "Elemento Z=8, muy abundante; forma agua y óxidos.",
+    "Nitrógeno": "Elemento Z=7, frecuente en atmósferas y moléculas simples.",
+    "Silicio": "Elemento Z=14, base de silicatos/rocas.",
+    "Azufre": "Elemento Z=16, presente en sulfuros y atmósferas planetarias.",
+    "Sodio": "Elemento Z=11, metal alcalino (sales).",
+    "Magnesio": "Elemento Z=12, abundante en silicatos Mg-ricos.",
+    "Aluminio": "Elemento Z=13, forma aluminosilicatos.",
+    "Calcio": "Elemento Z=20, carbonatos y silicatos cálcicos.",
+    "Hierro": "Elemento Z=26, núcleo metálico de planetas rocosos.",
+    "Níquel": "Elemento Z=28, asociado al hierro en núcleos metálicos.",
+    "Hidrógeno molecular (H2)": "La forma molecular más simple y abundante en nubes frías.",
+    "Oxígeno molecular (O2)": "Molécula diatómica de oxígeno.",
+    "Nitrógeno molecular (N2)": "Molécula diatómica dominante en algunas atmósferas.",
+    "Monóxido de carbono (CO)": "Molécula diatómica C-O, traza común en nubes y discos.",
+    "Dióxido de carbono (CO2)": "Molécula triatómica, frecuente en hielos y atmósferas.",
+    "Agua (H2O)": "Molécula triatómica esencial; vapor/hielo en discos y planetas.",
+    "Metano (CH4)": "Hidrocarburo simple abundante en gigantes gaseosos y mundos fríos.",
+    "Amoniaco (NH3)": "Compuesto simple de N y H, presente en gigantes y hielos.",
+    "Dióxido de silicio (SiO2)": "Óxido de silicio; base de silicatos y rocas.",
+    "Disco protoplanetario": "Disco de gas/polvo alrededor de protoestrellas donde nacen planetas.",
+    "Planeta rocoso": "Mundo dominado por silicatos y metales.",
+    "Planeta gigante gaseoso": "Planeta masivo con envoltura H/He.",
+    "Espacio-Tiempo": "Continuo de cuatro dimensiones que une espacio y tiempo; base de la relatividad.",
+    "Núcleos ligeros": "Núcleos de baja masa (H, He, etc.) producidos en fusiones tempranas.",
+    "Viento estelar": "Flujo de partículas y plasma expulsado desde la superficie de una estrella."
+  },
+  "kid_definitions": {
+    "Singularidad": "Como todo el universo apretado en un punto diminuto.",
+    "Expansión": "El espacio se estira, como un globo que inflas.",
+    "Big Bang": "El gran inicio caliente del universo.",
+    "Energía Primordial": "La ‘gasolina’ del universo bebé.",
+    "Superfuerza": "Una sola súper-fuerza que luego se divide en varias.",
+    "Electromagnetismo": "La fuerza de la luz y la electricidad.",
+    "Fuerza nuclear fuerte": "El pegamento súper potente de los núcleos.",
+    "Fuerza nuclear débil": "La fuerza que permite ciertos cambios en partículas.",
+    "Gravedad": "La que hace que todo se atraiga.",
+    "Vacío cuántico": "Un ‘vacío’ que siempre tiembla un poco.",
+    "Espuma cuántica": "Burbujitas microscópicas si miras muy de cerca.",
+    "Bosones": "Los mensajeros de las fuerzas.",
+    "Fermiones": "Las piezas de la materia.",
+    "Quark": "Bloquecitos que forman protones y neutrones.",
+    "Leptón": "Parientes del electrón que no sienten la fuerza fuerte.",
+    "Electrón": "La partícula que rodea al núcleo.",
+    "Gluón": "El mensajero que pega quarks.",
+    "Fotón": "Un paquetito de luz.",
+    "Bosón de Higgs": "La ‘gelatina’ que hace que algunas partículas ‘pesen’.",
+    "Bosones W/Z": "Mensajeros de la fuerza débil.",
+    "Hadrón": "Algo hecho de quarks bien pegados.",
+    "Barión": "Hadrón de tres quarks.",
+    "Mesón": "Hadrón de un quark y un antiquark.",
+    "Protón": "Parte del núcleo con carga positiva.",
+    "Neutrón": "Parte del núcleo sin carga.",
+    "Núcleo atómico": "El centro del átomo.",
+    "Átomo": "Un núcleo con electrones alrededor.",
+    "Molécula": "Átomos tomados de la mano.",
+    "Radiación electromagnética": "Luz en todas sus formas.",
+    "Partícula": "Una bolita muy pequeña.",
+    "Partícula con masa": "Una partícula que ‘pesa’.",
+    "Fusión nuclear": "Unión de núcleos que suelta mucha energía.",
+    "Aniquilación": "Materia y antimateria se vuelven luz.",
+    "Hidrógeno": "El átomo más simple.",
+    "Helio": "El siguiente átomo más común del universo.",
+    "Nucleosíntesis primordial": "El universo bebé fabricó sus primeros átomos.",
+    "Gas interestelar": "Gas muy extendido entre estrellas.",
+    "Polvo interestelar": "Partículas minúsculas flotando en el espacio.",
+    "Enfriamiento radiativo": "El gas brilla y así se enfría.",
+    "Nube molecular": "La cuna fría donde nacen estrellas.",
+    "Colapso gravitatorio": "La gravedad gana y la nube se encoge.",
+    "Protoestrella": "Una estrella en construcción.",
+    "Estrella de secuencia principal": "Una estrella estable como el Sol.",
+    "Gigante roja": "Una estrella hinchada y envejecida.",
+    "Nucleosíntesis estelar": "La fábrica de elementos dentro de las estrellas.",
+    "Nebulosa": "Una nube colorida de gas y polvo.",
+    "Supernova": "Una explosión estelar gigantesca.",
+    "Restos de supernova": "La nube en expansión que queda después.",
+    "Carbono": "Un elemento clave para la vida y el polvo.",
+    "Oxígeno": "El de la respiración y el agua.",
+    "Nitrógeno": "Muy común en algunas atmósferas.",
+    "Silicio": "El de las rocas y la arena.",
+    "Azufre": "Aparece en volcanes y nubes planetarias.",
+    "Sodio": "Con cloro forma sal común.",
+    "Magnesio": "Presente en rocas.",
+    "Aluminio": "Ligero y común en minerales.",
+    "Calcio": "En rocas y conchas.",
+    "Hierro": "Metal que forma núcleos planetarios.",
+    "Níquel": "Metal que acompaña al hierro en núcleos.",
+    "Hidrógeno molecular (H2)": "Dos hidrógenos de la mano.",
+    "Oxígeno molecular (O2)": "Dos oxígenos juntos.",
+    "Nitrógeno molecular (N2)": "Dos nitrógenos juntos.",
+    "Monóxido de carbono (CO)": "Carbono y oxígeno unidos.",
+    "Dióxido de carbono (CO2)": "Carbono con dos oxígenos.",
+    "Agua (H2O)": "La molécula del agua.",
+    "Metano (CH4)": "Gas simple con carbono e hidrógeno.",
+    "Amoniaco (NH3)": "Nitrógeno con hidrógeno.",
+    "Dióxido de silicio (SiO2)": "El de la arena y muchas rocas.",
+    "Disco protoplanetario": "Anillo de material que forma planetas.",
+    "Planeta rocoso": "Mundo duro como la Tierra.",
+    "Planeta gigante gaseoso": "Mundo enorme de gas como Júpiter.",
+    "Materia": "Lo que forma todo lo que ves.",
+    "Antimateria": "Su versión espejo que se destruye al tocar la materia.",
+    "Espacio-Tiempo": "El escenario donde pasa todo: espacio y tiempo juntos.",
+    "Núcleos ligeros": "Núcleos pequeñitos como hidrógeno y helio.",
+    "Viento estelar": "Un soplo de partículas que sale de las estrellas."
+  },
+  "justifications": {
+    "Expansión|Singularidad": "El modelo estándar cosmológico describe una fase inicial caliente y densa (Big Bang) a partir de la expansión del espacio.",
+    "Big Bang|Expansión": "La expansión genera el continuo espacio-tiempo y un vacío con fluctuaciones.",
+    "Big Bang|Singularidad": "A energías altísimas se postula una simetría unificada (superfuerza) y un contenido energético primordial.",
+    "Expansión|Superfuerza": "La ruptura de simetrías separa la superfuerza en interacciones fundamentales.",
+    "Vacío cuántico|Vacío cuántico": "Fluctuaciones pueden generar pares partícula-antipartícula; heurísticamente espuma cuántica.",
+    "Energía Primordial|Expansión": "La excitación de campos produce modos bosónicos y fermiónicos.",
+    "Bosones|Expansión": "Surgen fotones (EM), gluones (fuerte), Higgs (masa) y W/Z (débil).",
+    "Expansión|Fermiones": "Aparecen familias de quarks y leptones.",
+    "Quark|Quark": "El confinamiento genera hadrones.",
+    "Hadrón|Quark": "Las combinaciones de quarks producen bariones (qqq) o mesones (q q̄).",
+    "Gluón|Quark": "La fuerte liga quarks en bariones concretos (protón/neutrón).",
+    "Neutrón|Protón": "La fuerza nuclear residual liga bariones en núcleos.",
+    "Bosón de Higgs|Partícula": "Acoplos de Yukawa/gauge confieren masa efectiva.",
+    "Leptón|Núcleo atómico": "El acoplo electromagnético liga electrones al núcleo → átomo.",
+    "Electrón|Núcleo atómico": "Ruta equivalente de formación de átomo neutro.",
+    "Átomo|Átomo": "Enlaces electrónicos forman moléculas.",
+    "Fotón|Fotón": "Colección de fotones ≈ radiación electromagnética.",
+    "Antimateria|Materia": "La aniquilación produce radiación.",
+    "Núcleo atómico|Núcleo atómico": "A altas T/P se produce fusión y núcleos ligeros.",
+    "Hidrógeno|Hidrógeno": "Fusión H→He en condiciones estelares.",
+    "Fusión nuclear|Gigante roja": "El triple-alfa y reacciones sucesivas forjan C y O.",
+    "Nucleosíntesis estelar|Supernova": "Las supernovas sintetizan y dispersan elementos más pesados (Si→Ni/Fe).",
+    "Hidrógeno|Hidrógeno (molecular)": "En nubes frías las superficies de polvo catalizan H2 (modelo simplificado en el juego).",
+    "Carbono|Oxígeno": "Rutas químicas en nubes/discos forman CO y, con oxígeno extra, CO2.",
+    "Hidrógeno|Oxígeno": "H y O forman agua en fases gas/hielo (simplificado).",
+    "Carbono|Hidrógeno": "Ambientes reductores favorecen CH4.",
+    "Hidrógeno|Nitrógeno": "Se forma NH3 en entornos fríos/reductores.",
+    "Oxígeno|Oxígeno": "Formación de O2 (idealizada para el juego).",
+    "Nitrógeno|Nitrógeno": "Formación de N2 (idealizada).",
+    "Oxígeno|Silicio": "Oxidación del silicio → SiO2, base de silicatos."
+  },
+  "story": {
+    "segments": [
+      {
+        "id": "s0",
+        "title": "Antes del tiempo",
+        "requires": [
+          "Singularidad",
+          "Expansión"
+        ],
+        "text": "Antes de que existiera el ‘dónde’ y el ‘cuándo’, todo lo que sería el universo cabía en algo más pequeño que un punto. Luego, el espacio mismo comenzó a estirarse."
+      },
+      {
+        "id": "s1",
+        "title": "El gran inicio",
+        "requires": [
+          "Big Bang"
+        ],
+        "text": "Una sopa densa y caliente inundó la nada. El universo no explotó ‘en’ algo: fue el espacio el que empezó a crecer."
+      },
+      {
+        "id": "s2",
+        "title": "Tejiendo el telón",
+        "requires": [
+          "Espacio-Tiempo"
+        ],
+        "text": "Se tejió el escenario donde todo ocurre: el espacio-tiempo. Sobre él, vibraciones diminutas llenaron el vacío."
+      },
+      {
+        "id": "s3",
+        "title": "Un vacío inquieto",
+        "requires": [
+          "Vacío cuántico"
+        ],
+        "text": "El vacío no estaba vacío. Como un mar con olas microscópicas, de sus crestas brotaban pares fugaces de materia y antimateria."
+      },
+      {
+        "id": "s4",
+        "title": "Romper la superfuerza",
+        "requires": [
+          "Electromagnetismo",
+          "Fuerza nuclear débil",
+          "Fuerza nuclear fuerte",
+          "Gravedad"
+        ],
+        "text": "Al enfriarse el cosmos, una sola fuerza se desdobló en cuatro, como una brújula que revela puntos cardinales."
+      },
+      {
+        "id": "s5",
+        "title": "Nacen mensajeros y materia",
+        "requires": [
+          "Bosones",
+          "Fermiones"
+        ],
+        "text": "Aparecieron los mensajeros de las fuerzas y las piezas que no se pueden apilar, listas para construir futuros mundos."
+      },
+      {
+        "id": "s6",
+        "title": "Quarks y gluones",
+        "requires": [
+          "Quark",
+          "Gluón"
+        ],
+        "text": "Los quarks, guiados por gluones, aprendieron a bailar en tríos y parejas, fundando protones y neutrones."
+      },
+      {
+        "id": "s7",
+        "title": "Los primeros ladrillos",
+        "requires": [
+          "Protón",
+          "Neutrón"
+        ],
+        "text": "Con protones y neutrones, el cosmos fabricó sus primeros núcleos, pequeñas fortalezas de energía."
+      },
+      {
+        "id": "s8",
+        "title": "Fábrica de elementos",
+        "requires": [
+          "Nucleosíntesis estelar"
+        ],
+        "text": "Los hornos estelares forjaron carbono y oxígeno; las explosiones de supernovas sembraron silicio, hierro, níquel y más."
+      },
+      {
+        "id": "s9",
+        "title": "Química de mundos",
+        "requires": [
+          "Disco protoplanetario",
+          "Agua (H2O)"
+        ],
+        "text": "En los discos que rodean a las estrellas jóvenes, el agua, el monóxido y dióxido de carbono, el metano y el amoniaco se unieron al polvo para formar futuros planetas."
+      }
+    ]
+  },
+  "en_names": {
+    "Singularidad": "Singularity",
+    "Expansión": "Expansion",
+    "Big Bang": "Big Bang",
+    "Energía Primordial": "Primordial Energy",
+    "Espacio-Tiempo": "Spacetime",
+    "Vacío cuántico": "Quantum Vacuum",
+    "Superfuerza": "Superforce",
+    "Gravedad": "Gravity",
+    "Fuerza nuclear fuerte": "Strong Nuclear Force",
+    "Fuerza nuclear débil": "Weak Nuclear Force",
+    "Electromagnetismo": "Electromagnetism",
+    "Bosones": "Bosons",
+    "Fermiones": "Fermions",
+    "Fotón": "Photon",
+    "Gluón": "Gluon",
+    "Bosón de Higgs": "Higgs Boson",
+    "Bosones W/Z": "W/Z Bosons",
+    "Partícula": "Particle",
+    "Quark": "Quark",
+    "Leptón": "Lepton",
+    "Electrón": "Electron",
+    "Hadrón": "Hadron",
+    "Barión": "Baryon",
+    "Mesón": "Meson",
+    "Protón": "Proton",
+    "Neutrón": "Neutron",
+    "Núcleo atómico": "Atomic Nucleus",
+    "Materia": "Matter",
+    "Antimateria": "Antimatter",
+    "Espuma cuántica": "Quantum Foam",
+    "Átomo": "Atom",
+    "Molécula": "Molecule",
+    "Radiación electromagnética": "Electromagnetic Radiation",
+    "Partícula con masa": "Massive Particle",
+    "Fusión nuclear": "Nuclear Fusion",
+    "Núcleos ligeros": "Light Nuclei",
+    "Hidrógeno": "Hydrogen",
+    "Helio": "Helium",
+    "Aniquilación": "Annihilation",
+    "Nucleosíntesis primordial": "Primordial Nucleosynthesis",
+    "Gas interestelar": "Interstellar Gas",
+    "Polvo interestelar": "Interstellar Dust",
+    "Enfriamiento radiativo": "Radiative Cooling",
+    "Nube molecular": "Molecular Cloud",
+    "Colapso gravitatorio": "Gravitational Collapse",
+    "Protoestrella": "Protostar",
+    "Estrella de secuencia principal": "Main-sequence Star",
+    "Gigante roja": "Red Giant",
+    "Nucleosíntesis estelar": "Stellar Nucleosynthesis",
+    "Viento estelar": "Stellar Wind",
+    "Nebulosa": "Nebula",
+    "Supernova": "Supernova",
+    "Restos de supernova": "Supernova Remnant",
+    "Carbono": "Carbon",
+    "Oxígeno": "Oxygen",
+    "Nitrógeno": "Nitrogen",
+    "Silicio": "Silicon",
+    "Azufre": "Sulfur",
+    "Sodio": "Sodium",
+    "Magnesio": "Magnesium",
+    "Aluminio": "Aluminum",
+    "Calcio": "Calcium",
+    "Hierro": "Iron",
+    "Níquel": "Nickel",
+    "Hidrógeno molecular (H2)": "Molecular Hydrogen (H2)",
+    "Oxígeno molecular (O2)": "Molecular Oxygen (O2)",
+    "Nitrógeno molecular (N2)": "Molecular Nitrogen (N2)",
+    "Monóxido de carbono (CO)": "Carbon Monoxide (CO)",
+    "Dióxido de carbono (CO2)": "Carbon Dioxide (CO2)",
+    "Agua (H2O)": "Water (H2O)",
+    "Metano (CH4)": "Methane (CH4)",
+    "Amoniaco (NH3)": "Ammonia (NH3)",
+    "Dióxido de silicio (SiO2)": "Silicon Dioxide (SiO2)",
+    "Disco protoplanetario": "Protoplanetary Disk",
+    "Planeta rocoso": "Rocky Planet",
+    "Planeta gigante gaseoso": "Gas Giant Planet"
+  },
+  "en_definitions": {
+    "Singularidad": "State of extreme density and curvature where general relativity stops being predictive.",
+    "Expansión": "Growth of the universe's scale factor; space itself stretches.",
+    "Big Bang": "Hot, dense initial phase from which the observable universe expands.",
+    "Energía Primordial": "Early energy content that excites quantum fields.",
+    "Espacio-Tiempo": "Four-dimensional continuum blending space and time; stage for relativity.",
+    "Vacío cuántico": "Lowest-energy state with transient fluctuations.",
+    "Superfuerza": "Hypothesized unified force before symmetry breaking.",
+    "Gravedad": "Universal interaction tied to spacetime curvature.",
+    "Fuerza nuclear fuerte": "Interaction that confines quarks inside hadrons; mediated by gluons.",
+    "Fuerza nuclear débil": "Interaction responsible for beta decays and stellar fusion stages.",
+    "Electromagnetismo": "Interaction on electrically charged particles, mediated by photons.",
+    "Bosones": "Integer-spin particles (force carriers or collective excitations).",
+    "Fermiones": "Half-integer spin particles that obey Pauli exclusion.",
+    "Fotón": "Gauge boson mediating electromagnetism.",
+    "Gluón": "Gauge boson mediating the strong interaction.",
+    "Bosón de Higgs": "Field/particle whose coupling gives effective mass via spontaneous breaking.",
+    "Bosones W/Z": "Bosons of the weak interaction (W+/-, Z0).",
+    "Partícula": "Generic entity before classifying mass or spin.",
+    "Quark": "Fundamental constituents of hadrons carrying color charge.",
+    "Leptón": "Fermions that do not feel the strong interaction (electron, neutrinos…).",
+    "Electrón": "Negatively charged lepton, key to atomic and chemical structure.",
+    "Hadrón": "Composite particle of quarks bound by the strong force.",
+    "Barión": "Hadron with three quarks (protons, neutrons).",
+    "Mesón": "Hadron made of one quark and one antiquark.",
+    "Protón": "Baryon (uud) with +1 charge.",
+    "Neutrón": "Baryon (udd) with no charge.",
+    "Núcleo atómico": "Bound set of protons and neutrons.",
+    "Materia": "Content with positive matter quantum numbers.",
+    "Antimateria": "Content with quantum numbers opposite to matter.",
+    "Espuma cuántica": "Heuristic picture of spacetime fluctuations at the Planck scale.",
+    "Átomo": "Nucleus surrounded by electrons bound electromagnetically.",
+    "Molécula": "Set of atoms joined by chemical bonds.",
+    "Radiación electromagnética": "EM field propagating as a wave/quantum of photons.",
+    "Partícula con masa": "Particle after acquiring an effective mass term (Higgs mechanism).",
+    "Fusión nuclear": "Combination of light nuclei into heavier ones releasing energy.",
+    "Núcleos ligeros": "Low-mass nuclei (H, He, etc.) produced in early fusion stages.",
+    "Hidrógeno": "Atom Z=1 (proton plus electron).",
+    "Helio": "Atom Z=2 (nucleus 2p+2n).",
+    "Aniquilación": "Conversion of particle and antiparticle into radiation or other particles.",
+    "Nucleosíntesis primordial": "Synthesis of H, He and trace elements minutes after the Big Bang.",
+    "Gas interestelar": "Diffuse gas (H, He, traces) within galaxies.",
+    "Polvo interestelar": "Solid grains (silicates, carbonaceous) mixed into the gas.",
+    "Enfriamiento radiativo": "Energy loss from gas by emission, enabling collapse.",
+    "Nube molecular": "Cold, dense region (H2) where stars are born.",
+    "Colapso gravitatorio": "Contraction under gravity when pressure cannot support the gas.",
+    "Protoestrella": "Early stage before sustained fusion.",
+    "Estrella de secuencia principal": "Stable phase with core H->He fusion.",
+    "Gigante roja": "Evolved phase with envelope expansion and layered fusion.",
+    "Nucleosíntesis estelar": "Formation of heavier elements inside stars.",
+    "Viento estelar": "Outflow of particles and plasma blown off a star.",
+    "Nebulosa": "Cloud of gas and dust illuminated or expelled by stars.",
+    "Supernova": "Terminal explosion dispersing energy and elements.",
+    "Restos de supernova": "Expanding shell after the explosion.",
+    "Carbono": "Element Z=6, key for organic molecules and interstellar dust.",
+    "Oxígeno": "Element Z=8, very abundant; forms water and oxides.",
+    "Nitrógeno": "Element Z=7, common in atmospheres and simple molecules.",
+    "Silicio": "Element Z=14, base of silicates and rocks.",
+    "Azufre": "Element Z=16, present in sulfides and planetary atmospheres.",
+    "Sodio": "Element Z=11, alkali metal found in salts.",
+    "Magnesio": "Element Z=12, abundant in Mg-rich silicates.",
+    "Aluminio": "Element Z=13, forms aluminosilicates.",
+    "Calcio": "Element Z=20, calcareous carbonates and silicates.",
+    "Hierro": "Element Z=26, metallic cores of rocky planets.",
+    "Níquel": "Element Z=28, associated with iron in metallic cores.",
+    "Hidrógeno molecular (H2)": "Simplest and most abundant molecular form in cold clouds.",
+    "Oxígeno molecular (O2)": "Diatomic oxygen molecule.",
+    "Nitrógeno molecular (N2)": "Diatomic molecule dominant in some atmospheres.",
+    "Monóxido de carbono (CO)": "Diatomic C-O molecule, common trace in clouds and disks.",
+    "Dióxido de carbono (CO2)": "Triatomic molecule, frequent in ices and atmospheres.",
+    "Agua (H2O)": "Essential triatomic molecule; vapor or ice in disks and planets.",
+    "Metano (CH4)": "Simple hydrocarbon abundant in gas giants and cold worlds.",
+    "Amoniaco (NH3)": "Simple N-H compound, present in giants and ices.",
+    "Dióxido de silicio (SiO2)": "Silicon oxide; base of silicates and rocks.",
+    "Disco protoplanetario": "Gas/dust disk around protostars where planets form.",
+    "Planeta rocoso": "World dominated by silicates and metals.",
+    "Planeta gigante gaseoso": "Massive planet with an H/He envelope."
+  },
+  "en_kid_definitions": {
+    "Singularidad": "Like the whole universe squished into a tiny point.",
+    "Expansión": "Space stretches like a balloon you blow up.",
+    "Big Bang": "The hot big start of the universe.",
+    "Energía Primordial": "The baby's-universe 'fuel'.",
+    "Espacio-Tiempo": "The stage where everything happens: space and time together.",
+    "Vacío cuántico": "A 'vacuum' that always wiggles a bit.",
+    "Superfuerza": "One super-force that later splits into several.",
+    "Gravedad": "The one that makes everything pull together.",
+    "Fuerza nuclear fuerte": "The super glue that holds nuclei together.",
+    "Fuerza nuclear débil": "The force that lets some particles change.",
+    "Electromagnetismo": "The force of light and electricity.",
+    "Bosones": "The messengers of forces.",
+    "Fermiones": "The pieces of matter.",
+    "Fotón": "A packet of light.",
+    "Gluón": "The messenger that glues quarks.",
+    "Bosón de Higgs": "The 'jelly' that makes some particles 'weigh'.",
+    "Bosones W/Z": "Messengers of the weak force.",
+    "Partícula": "A tiny little ball.",
+    "Quark": "Little blocks that make protons and neutrons.",
+    "Leptón": "Electron relatives that ignore the strong force.",
+    "Electrón": "The particle that goes around the nucleus.",
+    "Hadrón": "Something made of quarks stuck together.",
+    "Barión": "Hadron with three quarks.",
+    "Mesón": "Hadron with a quark and an antiquark.",
+    "Protón": "Part of the nucleus with positive charge.",
+    "Neutrón": "Part of the nucleus with no charge.",
+    "Núcleo atómico": "The center of the atom.",
+    "Materia": "What everything around you is made of.",
+    "Antimateria": "The mirror version that vanishes when it meets matter.",
+    "Espuma cuántica": "Tiny bubbles if you zoom in a lot.",
+    "Átomo": "A nucleus with electrons around it.",
+    "Molécula": "Atoms holding hands.",
+    "Radiación electromagnética": "Light in all its forms.",
+    "Partícula con masa": "A particle that 'weighs'.",
+    "Fusión nuclear": "Joining nuclei that releases lots of energy.",
+    "Núcleos ligeros": "Little nuclei like hydrogen and helium.",
+    "Hidrógeno": "The simplest atom.",
+    "Helio": "The next most common atom in the universe.",
+    "Aniquilación": "Matter and antimatter turn into light.",
+    "Nucleosíntesis primordial": "Baby universe making its first atoms.",
+    "Gas interestelar": "Gas spread out between stars.",
+    "Polvo interestelar": "Tiny particles floating in space.",
+    "Enfriamiento radiativo": "The gas glows and cools down.",
+    "Nube molecular": "The cold cradle where stars are born.",
+    "Colapso gravitatorio": "Gravity wins and the cloud shrinks.",
+    "Protoestrella": "A star under construction.",
+    "Estrella de secuencia principal": "A steady star like the Sun.",
+    "Gigante roja": "A puffed-up, aging star.",
+    "Nucleosíntesis estelar": "The element factory inside stars.",
+    "Viento estelar": "A stream of particles blowing off a star.",
+    "Nebulosa": "A colorful cloud of gas and dust.",
+    "Supernova": "A gigantic stellar explosion.",
+    "Restos de supernova": "The expanding cloud left after.",
+    "Carbono": "An element key for life and dust.",
+    "Oxígeno": "The one for breathing and water.",
+    "Nitrógeno": "Very common in some atmospheres.",
+    "Silicio": "The one in rocks and sand.",
+    "Azufre": "Shows up in volcanoes and planetary clouds.",
+    "Sodio": "With chlorine it makes table salt.",
+    "Magnesio": "Present in rocks.",
+    "Aluminio": "Light and common in minerals.",
+    "Calcio": "In rocks and shells.",
+    "Hierro": "Metal that forms planet cores.",
+    "Níquel": "Metal that goes with iron in cores.",
+    "Hidrógeno molecular (H2)": "Two hydrogens holding hands.",
+    "Oxígeno molecular (O2)": "Two oxygens together.",
+    "Nitrógeno molecular (N2)": "Two nitrogens together.",
+    "Monóxido de carbono (CO)": "Carbon and oxygen joined.",
+    "Dióxido de carbono (CO2)": "Carbon with two oxygens.",
+    "Agua (H2O)": "The water molecule.",
+    "Metano (CH4)": "Simple gas with carbon and hydrogen.",
+    "Amoniaco (NH3)": "Nitrogen with hydrogen.",
+    "Dióxido de silicio (SiO2)": "The one in sand and many rocks.",
+    "Disco protoplanetario": "Ring of material that makes planets.",
+    "Planeta rocoso": "Hard world like Earth.",
+    "Planeta gigante gaseoso": "Huge gas world like Jupiter."
+  },
+  "en_justifications": {
+    "Expansión|Singularidad": "The standard cosmological model describes a hot, dense early phase (Big Bang) from the expansion of space.",
+    "Big Bang|Expansión": "Expansion generates the spacetime continuum and a vacuum with fluctuations.",
+    "Big Bang|Singularidad": "At extremely high energies a unified symmetry (superforce) and primordial energy content are expected.",
+    "Expansión|Superfuerza": "Symmetry breaking splits the superforce into the fundamental interactions.",
+    "Vacío cuántico|Vacío cuántico": "Fluctuations can yield particle-antiparticle pairs; heuristically, quantum foam.",
+    "Energía Primordial|Expansión": "Field excitation produces bosonic and fermionic modes.",
+    "Bosones|Expansión": "Photons (EM), gluons (strong), Higgs (mass) and W/Z (weak) appear.",
+    "Fermiones|Expansión": "Families of quarks and leptons emerge.",
+    "Quark|Quark": "Confinement generates hadrons.",
+    "Hadrón|Quark": "Quark combinations produce baryons (qqq) or mesons (q + anti-q).",
+    "Quark|Gluón": "The strong force binds quarks into specific baryons (proton/neutron).",
+    "Protón|Neutrón": "The residual nuclear force binds baryons into nuclei.",
+    "Bosón de Higgs|Partícula": "Yukawa/gauge couplings confer effective mass.",
+    "Núcleo atómico|Leptón": "Electromagnetic coupling binds electrons to the nucleus -> atom.",
+    "Electrón|Núcleo atómico": "Equivalent route to forming a neutral atom.",
+    "Átomo|Átomo": "Electronic bonds form molecules.",
+    "Fotón|Fotón": "Collection of photons ≈ electromagnetic radiation.",
+    "Materia|Antimateria": "Annihilation produces radiation.",
+    "Núcleo atómico|Núcleo atómico": "At high T/P fusion occurs and yields light nuclei.",
+    "Hidrógeno|Hidrógeno": "H->He fusion under stellar conditions.",
+    "Gigante roja|Fusión nuclear": "Triple-alpha and successive reactions forge C and O.",
+    "Supernova|Nucleosíntesis estelar": "Supernovae synthesize and disperse heavier elements (Si->Ni/Fe).",
+    "Hidrógeno|Hidrógeno (molecular)": "In cold clouds, dust grains catalyze H2 (simplified in the game).",
+    "Carbono|Oxígeno": "Chemical routes in clouds/disks form CO and, with excess oxygen, CO2.",
+    "Hidrógeno|Oxígeno": "H and O form water in gas/ice phases (simplified).",
+    "Carbono|Hidrógeno": "Reducing environments favor CH4.",
+    "Nitrógeno|Hidrógeno": "NH3 forms in cold/reducing environments.",
+    "Oxígeno|Oxígeno": "Formation of O2 (idealized for the game).",
+    "Nitrógeno|Nitrógeno": "Formation of N2 (idealized).",
+    "Silicio|Oxígeno": "Oxidation of silicon -> SiO2, basis of silicates."
+  },
+  "story_en": {
+    "segments": [
+      {
+        "id": "s0",
+        "title": "Before Time",
+        "requires": [
+          "Singularidad",
+          "Expansión"
+        ],
+        "text": "Before there was a 'where' or a 'when', everything that would become the universe fit into less than a point. Then space itself began to stretch."
+      },
+      {
+        "id": "s1",
+        "title": "The Great Start",
+        "requires": [
+          "Big Bang"
+        ],
+        "text": "A hot, dense soup flooded the nothingness. The universe didn't explode into something: space itself began to grow."
+      },
+      {
+        "id": "s2",
+        "title": "Weaving the Stage",
+        "requires": [
+          "Espacio-Tiempo"
+        ],
+        "text": "The stage where everything happens was woven: spacetime. Tiny vibrations filled the vacuum."
+      },
+      {
+        "id": "s3",
+        "title": "A Restless Vacuum",
+        "requires": [
+          "Vacío cuántico"
+        ],
+        "text": "The vacuum was not empty. Like a sea with microscopic waves, fleeting pairs of matter and antimatter bubbled up."
+      },
+      {
+        "id": "s4",
+        "title": "Breaking the Superforce",
+        "requires": [
+          "Electromagnetismo",
+          "Fuerza nuclear débil",
+          "Fuerza nuclear fuerte",
+          "Gravedad"
+        ],
+        "text": "As the cosmos cooled, one force unfolded into four, like a compass revealing the cardinal points."
+      },
+      {
+        "id": "s5",
+        "title": "Messengers and Matter",
+        "requires": [
+          "Bosones",
+          "Fermiones"
+        ],
+        "text": "The messengers of the forces and the pieces that cannot stack appeared, ready to build future worlds."
+      },
+      {
+        "id": "s6",
+        "title": "Quarks and Gluons",
+        "requires": [
+          "Quark",
+          "Gluón"
+        ],
+        "text": "Quarks, guided by gluons, learned to dance in trios and pairs, founding protons and neutrons."
+      },
+      {
+        "id": "s7",
+        "title": "The First Bricks",
+        "requires": [
+          "Protón",
+          "Neutrón"
+        ],
+        "text": "With protons and neutrons, the cosmos forged its first nuclei, small fortresses of energy."
+      },
+      {
+        "id": "s8",
+        "title": "Element Factory",
+        "requires": [
+          "Nucleosíntesis estelar"
+        ],
+        "text": "Stellar furnaces forged carbon and oxygen; supernova explosions seeded silicon, iron, nickel, and more."
+      },
+      {
+        "id": "s9",
+        "title": "Chemistry of Worlds",
+        "requires": [
+          "Disco protoplanetario",
+          "Agua (H2O)"
+        ],
+        "text": "In the disks around young stars, water, carbon monoxide and dioxide, methane, and ammonia joined dust to form future planets."
+      }
+    ]
+  }
+}
