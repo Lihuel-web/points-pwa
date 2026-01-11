@@ -4,7 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "vite",
+    "build": "vite build",
+    "update-db": "npx supabase gen types typescript --project-id rmhwafuymxcicxaructc > supabase-types.js"
   },
   "repository": {
     "type": "git",
@@ -19,6 +21,7 @@
   },
   "homepage": "https://github.com/Lihuel-web/points-pwa#readme",
   "devDependencies": {
-    "supabase": "^2.62.5"
+    "supabase": "^2.72.3",
+    "vite": "^7.3.1"
   }
 }
