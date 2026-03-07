@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/Lihuel-web/points-pwa#readme",
   "devDependencies": {
-    "supabase": "^2.72.3",
+    "supabase": "^2.77.0",
     "vite": "^7.3.1"
   }
 }
