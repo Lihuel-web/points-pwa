@@ -377,12 +377,12 @@ async function bootstrapCommon(){
   }
   COMMON.student = { id: stu.id, name: stu.name || 'Student' };
 
-  const { data, error } = await sb.rpc('get_my_local_total');
-  if (error || !data || data.length===0){
+  const { data: localTotals, error: errLocalTotals } = await sb.rpc('get_my_local_total');
+  if (errLocalTotals || !localTotals || localTotals.length===0){
     setGamesUnavailable('Your local team could not be retrieved.');
     return false;
   }
-  const row = data[0];
+  const row = localTotals[0];
   COMMON.totals.pool       = row.pool_points || 0;
   COMMON.totals.spent      = row.spent || 0;
   COMMON.totals.totalLocal = Math.min(240, row.total_local || 0);
