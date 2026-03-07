@@ -133,8 +133,8 @@ async function refreshUI() {
   if (authedSec) authedSec.style.display = 'block';
   text(whoami, user.email || user.id);
 
-  const { data: profile, error } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  if (error) { console.error('load profile', error); alert('Error loading profile/role.'); return; }
+  const { data: profile, error: profileError } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  if (profileError) { console.error('load profile', profileError); alert('Error loading profile/role.'); return; }
 
   const role = profile?.role || 'student';
   text(roleBadge, role.toUpperCase());
