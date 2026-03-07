@@ -5,11 +5,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.87.1';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
 
-if (!/^https?:\/\//.test(SUPA_URL) || !SUPA_KEY) {
-  console.error('Config error. SUPABASE_URL or SUPABASE_ANON_KEY missing.');
-  alert('Config error. Check SUPABASE_URL / SUPABASE_ANON_KEY.');
-}
-const sb = createClient(SUPA_URL, SUPA_KEY);
+const sb = (/^https?:\/\//.test(SUPA_URL) && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
+if (!sb) { console.error('Supabase client failed to initialize: Missing config or SDK.'); }
 const EDGE_BASE = SUPA_URL.replace('.supabase.co', '.functions.supabase.co');
 
 // ---------------- Utilidades DOM ----------------
@@ -51,6 +48,7 @@ function colorForPool(poolId) {
 // ---------------- Team name cache ----------------
 let TEAM_CACHE = null;
 async function ensureTeamCache() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return TEAM_CACHE || { byId: new Map(), locals: [], pools: [] }; }
   if (TEAM_CACHE) return TEAM_CACHE;
   const { data, error } = await sb.from('teams').select('id,name,class,scope,parent_global_id');
   if (error) {
@@ -123,8 +121,10 @@ on($('change-pass'), 'click', async () => {
 
 // ---------------- Entrypoint UI ----------------
 async function refreshUI() {
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
+  const { data, error } = await sb.auth.getUser();
+  const user = data?.user;
+  if (error || !user) {
     if (authSec) authSec.style.display = 'block';
     if (authedSec) authedSec.style.display = 'none';
     return;
@@ -158,48 +158,60 @@ async function refreshUI() {
 
 // ---------------- Student panel ----------------
 async function loadStudent(userId, opts = {}) {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const preview = !!opts.preview;
   let student = null;
 
-  if (preview) {
-    const { data } = await sb.from('students').select('id,name,class').order('id', { ascending:true }).limit(1);
-    student = data && data.length ? data[0] : null;
-  } else {
-    const { data: stu } = await sb.from('students').select('id,name,class').eq('auth_user_id', userId).maybeSingle();
-    student = stu || null;
-  }
+  try {
+    if (preview) {
+      const { data, error: errPreview } = await sb.from('students').select('id,name,class').order('id', { ascending:true }).limit(1);
+      if (errPreview) throw errPreview;
+      student = data && data.length ? data[0] : null;
+    } else {
+      const { data: stu, error: errStu } = await sb.from('students').select('id,name,class').eq('auth_user_id', userId).maybeSingle();
+      if (errStu) throw errStu;
+      student = stu || null;
+    }
 
-  if (!student) {
-    text($('student-info'), preview ? 'Vista generica: aun no hay estudiantes cargados.' : 'Your account is not linked to a student record yet. Ask your teacher.');
-    text($('balance'), '—');
-    const mt = $('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
-    text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
-    const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
-    await renderPoolOverviewForStudent(null, null);
-    await renderStudentGlobalLeaderboard();
-    await renderStudentLocalTop9();
+    if (!student) {
+      text($('student-info'), preview ? 'Vista generica: aun no hay estudiantes cargados.' : 'Your account is not linked to a student record yet. Ask your teacher.');
+      text($('balance'), '—');
+      const mt = $('mytx-table')?.querySelector('tbody'); if (mt) mt.innerHTML = '';
+      text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
+      const ul = $('my-team-members'); if (ul) ul.innerHTML = '';
+      await renderPoolOverviewForStudent(null, null);
+      await renderStudentGlobalLeaderboard();
+      await renderStudentLocalTop9();
+      return;
+    }
+
+    const label = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})${preview ? ' - vista generica' : ''}`;
+    text($('student-info'), label);
+
+    const { data: bal, error: errBal } = await sb.from('balances').select('points').eq('student_id', student.id).maybeSingle();
+    if (errBal) throw errBal;
+    text($('balance'), bal?.points ?? 0);
+
+    const { data: txs, error: errTxs } = await sb.from('transactions')
+      .select('delta,reason,created_at')
+      .eq('student_id', student.id).order('created_at', { ascending:false }).limit(50);
+    if (errTxs) throw errTxs;
+
+    const tb = $('mytx-table')?.querySelector('tbody');
+    if (tb) tb.innerHTML = (txs || []).map(t =>
+      `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
+    ).join('');
+  } catch (err) {
+    console.error('loadStudent profile error:', err.message || err);
+    alert('Error loading student profile. Check your connection or permissions.');
     return;
   }
 
-  const label = `${student.name ?? 'Unnamed'} (${student.class ?? '—'})${preview ? ' - vista generica' : ''}`;
-  text($('student-info'), label);
-
-  const { data: bal } = await sb.from('balances').select('points').eq('student_id', student.id).maybeSingle();
-  text($('balance'), bal?.points ?? 0);
-
-  const { data: txs } = await sb.from('transactions')
-    .select('delta,reason,created_at')
-    .eq('student_id', student.id).order('created_at', { ascending:false }).limit(50);
-
-  const tb = $('mytx-table')?.querySelector('tbody');
-  if (tb) tb.innerHTML = (txs || []).map(t =>
-    `<tr><td>${new Date(t.created_at).toLocaleString()}</td><td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`
-  ).join('');
-
   try {
-    const { data: tm } = await sb.from('team_members')
+    const { data: tm, error: errTm } = await sb.from('team_members')
       .select('team_id, teams(name,class,scope,parent_global_id)')
       .eq('student_id', student.id).maybeSingle();
+    if (errTm) throw errTm;
 
     if (!tm?.team_id) {
       text($('team-info'), 'No team assigned.'); text($('my-team-balance'), '—');
@@ -211,11 +223,13 @@ async function loadStudent(userId, opts = {}) {
     }
 
     text($('team-info'), `${tm.teams?.name ?? tm.team_id} (${tm.teams?.class ?? '—'})`);
-    const { data: tbal } = await sb.from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
+    const { data: tbal, error: errTbal } = await sb.from('team_balances').select('points').eq('team_id', tm.team_id).maybeSingle();
+    if (errTbal) throw errTbal;
     text($('my-team-balance'), tbal?.points ?? 0);
 
-    const { data: members } = await sb.from('team_member_points')
+    const { data: members, error: errMembers } = await sb.from('team_member_points')
       .select('student_id,name,class,points').eq('team_id', tm.team_id).order('name', { ascending:true });
+    if (errMembers) throw errMembers;
 
     const ul = $('my-team-members');
     if (ul) ul.innerHTML = (members || []).map(m =>
@@ -230,7 +244,7 @@ async function loadStudent(userId, opts = {}) {
     await renderStudentGlobalLeaderboard();
     await renderStudentLocalTop9();
   } catch (e) {
-    console.warn('loadStudent membership:', e);
+    console.warn('loadStudent membership:', e.message || e);
     await renderPoolOverviewForStudent(null, null);
     await renderStudentGlobalLeaderboard();
     await renderStudentLocalTop9();
@@ -238,6 +252,7 @@ async function loadStudent(userId, opts = {}) {
 }
 
 async function renderPoolOverviewForStudent(poolId, localId) {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const meta = $('pool-meta');
   const totalEl = $('pool-total');
   const remGlobalEl = $('pool-remaining-global');
@@ -260,51 +275,58 @@ async function renderPoolOverviewForStudent(poolId, localId) {
   await ensureTeamCache();
   meta.textContent = `Global team: ${teamLabel(poolId)}`;
 
-  const { data: rows } = await sb.from('team_local_remaining')
-    .select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining')
-    .eq('pool_team_id', poolId)
-    .order('local_team_id', { ascending: true });
+  try {
+    const { data: rows, error: errRows } = await sb.from('team_local_remaining')
+      .select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining')
+      .eq('pool_team_id', poolId)
+      .order('local_team_id', { ascending: true });
+    if (errRows) throw errRows;
 
-  if (!rows || rows.length === 0) {
-    const { data: bal2 } = await sb.from('team_pool_balances')
-      .select('points').eq('pool_team_id', poolId).maybeSingle();
-    const poolPoints = bal2?.points ?? 0;
+    if (!rows || rows.length === 0) {
+      const { data: bal2, error: errBal2 } = await sb.from('team_pool_balances')
+        .select('points').eq('pool_team_id', poolId).maybeSingle();
+      if (errBal2) throw errBal2;
+      const poolPoints = bal2?.points ?? 0;
+      totalEl.textContent = poolPoints;
+      remGlobalEl.textContent = poolPoints;
+      tbody.innerHTML = '';
+      if (mySpentEl) mySpentEl.textContent = '—';
+      if (myRemainEl) myRemainEl.textContent = '—';
+      return;
+    }
+
+    const visible = localId ? rows.filter(r => r.local_team_id === localId) : rows;
+    const baseRow = rows[0];
+
+    const poolPoints = baseRow?.pool_points ?? 0;
+    const overallRemaining = baseRow?.pool_remaining ?? poolPoints;
     totalEl.textContent = poolPoints;
-    remGlobalEl.textContent = poolPoints;
-    tbody.innerHTML = '';
-    if (mySpentEl) mySpentEl.textContent = '—';
-    if (myRemainEl) myRemainEl.textContent = '—';
-    return;
+    remGlobalEl.textContent = overallRemaining;
+
+    tbody.innerHTML = (visible || []).map(r => {
+      const spent = r.spent_by_local ?? 0;
+      const remainingForLocal = Math.max(poolPoints - spent, 0);
+      const hl = (localId && r.local_team_id === localId) ? ' class="hl"' : '';
+      return `<tr${hl}>
+        <td>${teamLabel(r.local_team_id)}</td>
+        <td>${spent}</td>
+        <td><strong>${remainingForLocal}</strong></td>
+      </tr>`;
+    }).join('');
+
+    const mine = localId ? visible[0] : null;
+    const mySpent = mine?.spent_by_local ?? 0;
+    const myRemaining = Math.max((poolPoints ?? 0) - mySpent, 0);
+    if (mySpentEl) mySpentEl.textContent = mySpent;
+    if (myRemainEl) myRemainEl.textContent = myRemaining;
+  } catch (e) {
+    console.warn('renderPoolOverviewForStudent error:', e.message || e);
   }
-
-  const visible = localId ? rows.filter(r => r.local_team_id === localId) : rows;
-  const baseRow = rows[0];
-
-  const poolPoints = baseRow?.pool_points ?? 0;
-  const overallRemaining = baseRow?.pool_remaining ?? poolPoints;
-  totalEl.textContent = poolPoints;
-  remGlobalEl.textContent = overallRemaining;
-
-  tbody.innerHTML = (visible || []).map(r => {
-    const spent = r.spent_by_local ?? 0;
-    const remainingForLocal = Math.max(poolPoints - spent, 0);
-    const hl = (localId && r.local_team_id === localId) ? ' class="hl"' : '';
-    return `<tr${hl}>
-      <td>${teamLabel(r.local_team_id)}</td>
-      <td>${spent}</td>
-      <td><strong>${remainingForLocal}</strong></td>
-    </tr>`;
-  }).join('');
-
-  const mine = localId ? visible[0] : null;
-  const mySpent = mine?.spent_by_local ?? 0;
-  const myRemaining = Math.max((poolPoints ?? 0) - mySpent, 0);
-  if (mySpentEl) mySpentEl.textContent = mySpent;
-  if (myRemainEl) myRemainEl.textContent = myRemaining;
 }
 
 // Student: global leaderboard
 async function renderStudentGlobalLeaderboard() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const tbody = $('student-global-leaderboard')?.querySelector('tbody');
   if (!tbody) return;
@@ -329,6 +351,7 @@ async function renderStudentGlobalLeaderboard() {
 
 // NUEVO: Student: Top-9 locales (usa función SQL security definer)
 async function renderStudentLocalTop9() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const tbody = $('student-local-top9')?.querySelector('tbody');
   if (!tbody) return;
@@ -400,8 +423,10 @@ async function initAdminResetsUI() {
   function hide(el){ el.style.display = 'none'; }
 
   async function ensureTeacher() {
-    const { data:{ user } } = await sb.auth.getUser();
-    if (!user) { alert('Please sign in.'); return false; }
+    if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return false; }
+    const { data, error } = await sb.auth.getUser();
+    const user = data?.user;
+    if (error || !user) { alert('Please sign in.'); return false; }
     const { data: prof } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
     if (!prof || prof.role !== 'teacher') { alert('Solo profesores.'); return false; }
     return true;
@@ -543,6 +568,7 @@ road:   ${data.road_deleted}`;
 
 
 async function loadLatestTransactions() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const { data: txs } = await sb.from('transactions')
     .select('student_id,delta,reason,created_at,students!inner(name)')
     .order('created_at', { ascending:false }).limit(50);
@@ -557,6 +583,7 @@ async function loadLatestTransactions() {
 
 // ---- Teams overview ----
 async function refreshTeamOverview() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const poolBody = document.querySelector('#pool-table tbody');
   if (!poolBody) return;
@@ -586,6 +613,7 @@ async function refreshTeamOverview() {
 }
 
 async function loadLocalSummary() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const tbody = document.querySelector('#local-table tbody');
   const title = $('local-title');
@@ -613,6 +641,7 @@ async function loadLocalSummary() {
 
 // ---- Local leaderboard (por pool) ----
 async function initLeaderboardUI() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const sel = $('leaderboard-pool');
   const btn = $('refresh-leaderboard');
 
@@ -648,6 +677,7 @@ async function syncLeaderboardToSelectedPool() {
 }
 
 async function refreshLeaderboard() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const tbody = $('leaderboard-table')?.querySelector('tbody');
   if (!tbody) return;
   if (!_leaderboardPoolId) { tbody.innerHTML = ''; return; }
@@ -680,6 +710,7 @@ async function refreshLeaderboard() {
 
 // ---- All locals leaderboard (teacher) ----
 async function initAllLocalsLeaderboardUI() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const toggle = $('alllb-filter-toggle');
   const sel = $('alllb-pool');
@@ -703,6 +734,7 @@ async function initAllLocalsLeaderboardUI() {
 }
 
 async function refreshAllLocalsLeaderboard() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const toggle = $('alllb-filter-toggle');
   const sel = $('alllb-pool');
@@ -781,6 +813,7 @@ async function initAsciiLeaderboardsUI() {
 }
 
 async function refreshAsciiLeaderboards() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await ensureTeamCache();
   const sel = $('ascii-game-select');
   const tbStudents = $('ascii-lb-students')?.querySelector('tbody');
@@ -842,6 +875,7 @@ async function refreshAsciiLeaderboards() {
 
 // ---- Gestión equipos + membresías ----
 async function loadTeamsUI() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const selTeam = $('team-select');
   const selStudent = $('student-pool');
   const ulMembers = $('team-members');
@@ -941,6 +975,7 @@ async function loadTeamsUI() {
 
 // ---- Ajustes manuales ----
 async function loadTeamAdjustOptions() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const poolSel = $('adjust-pool-id');
   const localSel = $('adjust-local-id');
   const form = $('adjust-form');
@@ -998,6 +1033,7 @@ async function loadTeamAdjustOptions() {
 
 // ---- Vincular tarjetas ----
 async function loadCardSelects() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const roleSel = $('link-card-role');
   const uidInput = $('link-card-uid');
   const stuSel = $('link-card-student');
@@ -1045,6 +1081,7 @@ async function loadCardSelects() {
 
 // ---------------- Student forms (alta + delete; solo teacher) ----------------
 async function initStudentForms() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   await populateStudentTeamSelectors('real');
   await populateStudentTeamSelectors('fake');
   await populateDeleteStudentSelect();
@@ -1231,6 +1268,7 @@ async function populateStudentTeamSelectors(prefix) {
 }
 
 async function populateDeleteStudentSelect() {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const sel = $('delete-student-select');
   if (!sel) return;
   const { data: students } = await sb.from('students').select('id,name,class').order('name',{ascending:true});
@@ -1238,6 +1276,7 @@ async function populateDeleteStudentSelect() {
 }
 
 async function upsertMembership(studentId, teamId) {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   if (!studentId || !teamId) return;
   await sb.from('team_members').delete().eq('student_id', studentId); // 1 equipo por alumno
   const { error } = await sb.from('team_members').insert([{ team_id: teamId, student_id: studentId }]);
@@ -1245,6 +1284,7 @@ async function upsertMembership(studentId, teamId) {
 }
 
 async function upsertStudentCard(studentId, uid) {
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const { error } = await sb.from('cards').upsert(
     { student_id: studentId, card_uid: uid, active: true, card_role: 'student', team_id: null },
     { onConflict: 'card_uid' }

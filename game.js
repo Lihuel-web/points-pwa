@@ -9,7 +9,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.87.1';
 const SUPA_URL = String(window?.SUPABASE_URL || '').trim();
 const SUPA_KEY = String(window?.SUPABASE_ANON_KEY || '').trim();
-const sb = createClient(SUPA_URL, SUPA_KEY);
+const sb = (SUPA_URL && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
+if (!sb) { console.error('Supabase client failed to initialize: Missing config or SDK.'); }
 
 const $ = (id) => document.getElementById(id);
 const text = (el, v) => { if (el) el.textContent = v ?? ''; };
@@ -317,6 +318,7 @@ function setGamesUnavailable(message){
 }
 
 async function ensureTeacherAvatar(){
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return null; }
   if (COMMON.teacherAvatar) return COMMON.teacherAvatar;
   try{
     const { data: existing } = await sb.from('students')
@@ -347,22 +349,28 @@ initAudioVolume();
 
 // ---------- Supabase helpers ----------
 async function labelTeam(id){
-  const { data } = await sb.from('teams').select('id,name,class').eq('id', id).maybeSingle();
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return `#${id}`; }
+  const { data, error } = await sb.from('teams').select('id,name,class').eq('id', id).maybeSingle();
+  if (error) { console.warn('labelTeam error:', error.message || error); return `#${id}`; }
   return data ? `${data.name}${data.class?` (${data.class})`:''}` : `#${id}`;
 }
 
 async function bootstrapCommon(){
-  const { data:{ user } } = await sb.auth.getUser();
-  if (!user){ location.href='./index.html'; return false; }
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return false; }
+  const { data, error } = await sb.auth.getUser();
+  const user = data?.user;
+  if (error || !user){ location.href='./index.html'; return false; }
   COMMON.user = user;
 
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const { data: profile, error: errProfile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  if (errProfile) throw errProfile;
   const role = profile?.role || 'student';
   if (role === 'teacher') {
     return bootstrapTeacherPractice();
   }
 
-  const { data: stu } = await sb.from('students').select('id,name,class').eq('auth_user_id', user.id).maybeSingle();
+  const { data: stu, error: errStu } = await sb.from('students').select('id,name,class').eq('auth_user_id', user.id).maybeSingle();
+  if (errStu) throw errStu;
   if (!stu){
     setGamesUnavailable('You do not have a local team yet. Ask your teacher to assign you one.');
     return false;
@@ -398,6 +406,7 @@ async function bootstrapCommon(){
 }
 
 async function bootstrapTeacherPractice(){
+  if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return false; }
   COMMON.teacherPractice = true;
   const avatar = await ensureTeacherAvatar();
   if (!avatar){
@@ -484,7 +493,7 @@ function makeGameModule(cfg){
       const avatar = COMMON.student || COMMON.teacherAvatar;
       const studentName = avatar?.name || (COMMON.teacherPractice ? TEACHER_PRACTICE_ALIAS : null);
       if (!studentName) return;
-      await sb.from(cfg.table).insert([{
+      const { error } = await sb.from(cfg.table).insert([{
         user_id: COMMON.user.id,
         student_id: avatar?.id ?? null,
         student_name: studentName,
@@ -493,8 +502,9 @@ function makeGameModule(cfg){
         difficulty: ($(cfg.selectId)?.value || 'normal'),
         score: finalScore
       }]);
+      if (error) throw error;
       playSound('score');
-    }catch(e){ console.warn(`[${cfg.key}] save error`, e); }
+    }catch(e){ console.warn(`[${cfg.key}] save error:`, e.message || e); }
   }
 
   function getLbLimit(){
@@ -506,6 +516,7 @@ function makeGameModule(cfg){
   }
 
   async function loadLocalLeaderboard(){
+    if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
     const tb = $(cfg.lbLocalId);
     if (!tb) return;
     const limit = getLbLimit();
@@ -525,6 +536,7 @@ function makeGameModule(cfg){
   }
 
   async function loadTeamsLeaderboard(){
+    if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
     const tb = $(cfg.lbTeamsId);
     if (!tb) return;
     const limit = getLbLimit();
