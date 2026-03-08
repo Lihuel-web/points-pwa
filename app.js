@@ -553,7 +553,8 @@ game_scores borradas:  ${data.game_scores_deleted}`;
 flappy: ${data.flappy_deleted}
 snake:  ${data.snake_deleted}
 tetris: ${data.tetris_deleted}
-road:   ${data.road_deleted}`;
+road:   ${data.road_deleted}
+orbit:  ${data.orbit_deleted}`;
 
       // Si tienes tablas de leaderboards visibles, refresca lo que aplique aquí
       await refreshAllLocalsLeaderboard(); // por si pintas algo combinado

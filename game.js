@@ -434,7 +434,7 @@ async function bootstrapTeacherPractice(){
   COMMON.pool  = { id: top.pool_team_id,  name: poolName  };
   COMMON.totals.pool       = poolPoints || 0;
   COMMON.totals.spent      = top.spent ?? 0;
-  COMMON.totals.totalLocal = Math.min(240, top.total_local ?? 0);
+  COMMON.totals.totalLocal = Math.min(240, Math.max(10, top.total_local ?? 0));
 
   text($('common-user'), `${COMMON.user.email || COMMON.user.id} (${TEACHER_PRACTICE_ALIAS})`);
   text($('common-local'), COMMON.local.name);
@@ -443,7 +443,7 @@ async function bootstrapTeacherPractice(){
   text($('common-spent'), COMMON.totals.spent);
   text($('common-total'), COMMON.totals.totalLocal);
 
-  const info = `Teacher mode: using the time from the local team with the most points (${COMMON.local.name}). Press any key after Start to begin.`;
+  const info = `Teacher mode: using top team points (${COMMON.local.name}). Minimum 10s granted. Press any key after Start to begin.`;
   ['orbit','flappy','snake','tetris','road'].forEach(key => {
     text($(`${key}-status`), 'ready');
     text($(`${key}-screen`), info);
