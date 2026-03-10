@@ -1018,10 +1018,17 @@ async function loadTeamAdjustOptions() {
       } else {
         const localId = parseInt(localSel?.value || '0', 10);
         if (!localId) return alert('Select a local team');
-        const { error } = await sb.rpc('team_local_spend_adjust', {
-          _local_team_id: localId, _amount: Math.abs(delta), _reason: reason, _device_id: 'manual-adjust',
-        });
-        if (error) throw error;
+        if (delta < 0) {
+          const { error } = await sb.rpc('team_local_spend_adjust', {
+            _local_team_id: localId, _amount: Math.abs(delta), _reason: reason, _device_id: 'manual-adjust',
+          });
+          if (error) throw error;
+        } else {
+          const { error } = await sb.rpc('team_local_earn_adjust', {
+            _local_team_id: localId, _amount: delta, _reason: reason, _device_id: 'manual-adjust',
+          });
+          if (error) throw error;
+        }
       }
       await refreshTeamOverview();
       await loadLatestTransactions();
