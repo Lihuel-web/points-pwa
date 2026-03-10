@@ -305,7 +305,7 @@ async function renderPoolOverviewForStudent(poolId, localId) {
 
     tbody.innerHTML = (visible || []).map(r => {
       const spent = r.spent_by_local ?? 0;
-      const remainingForLocal = Math.max(poolPoints - spent, 0);
+      const remainingForLocal = r.pool_remaining ?? 0;
       const hl = (localId && r.local_team_id === localId) ? ' class="hl"' : '';
       return `<tr${hl}>
         <td>${teamLabel(r.local_team_id)}</td>
@@ -316,7 +316,7 @@ async function renderPoolOverviewForStudent(poolId, localId) {
 
     const mine = localId ? visible[0] : null;
     const mySpent = mine?.spent_by_local ?? 0;
-    const myRemaining = Math.max((poolPoints ?? 0) - mySpent, 0);
+    const myRemaining = mine?.pool_remaining ?? 0;
     if (mySpentEl) mySpentEl.textContent = mySpent;
     if (myRemainEl) myRemainEl.textContent = myRemaining;
   } catch (e) {
@@ -628,9 +628,8 @@ async function loadLocalSummary() {
 
   text(title, teamLabel(_selectedPoolId));
   tbody.innerHTML = (locals || []).map(r => {
-    const poolPoints = r.pool_points ?? 0;
     const spent = r.spent_by_local ?? 0;
-    const remainingForLocal = Math.max(poolPoints - spent, 0);
+    const remainingForLocal = r.pool_remaining ?? 0;
     return `
       <tr>
         <td>${teamLabel(r.local_team_id)}</td>
@@ -686,16 +685,15 @@ async function refreshLeaderboard() {
   await ensureTeamCache();
 
   const { data: rows } = await sb.from('team_local_remaining')
-    .select('local_team_id,pool_team_id,pool_points,spent_by_local')
+    .select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining')
     .eq('pool_team_id', _leaderboardPoolId);
 
   if (!rows || rows.length === 0) { tbody.innerHTML = ''; return; }
 
-  const poolPoints = rows[0]?.pool_points ?? 0;
   const ranked = rows.map(r => ({
     local_team_id: r.local_team_id,
     spent: r.spent_by_local ?? 0,
-    totalLocal: Math.max((poolPoints ?? 0) - (r.spent_by_local ?? 0), 0),
+    totalLocal: r.pool_remaining ?? 0,
   }))
   .sort((a,b) => b.totalLocal - a.totalLocal || a.local_team_id - b.local_team_id);
 
@@ -743,7 +741,7 @@ async function refreshAllLocalsLeaderboard() {
   const tbody = $('alllb-table')?.querySelector('tbody');
   if (!tbody) return;
 
-  let q = sb.from('team_local_remaining').select('local_team_id,pool_team_id,pool_points,spent_by_local');
+  let q = sb.from('team_local_remaining').select('local_team_id,pool_team_id,pool_points,spent_by_local,pool_remaining');
   if (toggle?.checked) {
     const poolId = parseInt(sel?.value || '0',10) || null;
     if (poolId) q = q.eq('pool_team_id', poolId);
@@ -760,17 +758,13 @@ async function refreshAllLocalsLeaderboard() {
     ).join('');
   }
 
-  const byPoolPoints = new Map();
-  rows.forEach(r => { if (!byPoolPoints.has(r.pool_team_id)) byPoolPoints.set(r.pool_team_id, r.pool_points ?? 0); });
-
   const ranked = rows.map(r => {
-    const poolPoints = byPoolPoints.get(r.pool_team_id) ?? 0;
     const spent = r.spent_by_local ?? 0;
     return {
       local_team_id: r.local_team_id,
       pool_team_id: r.pool_team_id,
       spent,
-      totalLocal: Math.max(poolPoints - spent, 0),
+      totalLocal: r.pool_remaining ?? 0,
       nameLocal: teamLabel(r.local_team_id),
       namePool: teamLabel(r.pool_team_id),
     };
@@ -1043,11 +1037,14 @@ async function loadTeamAdjustOptions() {
 async function loadCardSelects() {
   if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
   const roleSel = $('link-card-role');
+  const teamActionSel = $('link-card-team-action');
   const uidInput = $('link-card-uid');
   const stuSel = $('link-card-student');
   const teamSel = $('link-card-team');
   const btn = $('link-card-btn');
   if (!btn) return;
+
+  let teamsById = new Map();
 
   if (stuSel) {
     const { data: students } = await sb.from('students').select('id,name,class').order('name',{ascending:true});
@@ -1056,7 +1053,15 @@ async function loadCardSelects() {
   if (teamSel) {
     const { data: teams } = await sb.from('teams').select('id,name,class,scope').order('name',{ascending:true});
     teamSel.innerHTML = (teams || []).map(t => `<option value="${t.id}">${t.name}${t.class?` (${t.class})`:''} — ${t.scope}</option>`).join('');
+    (teams || []).forEach(t => teamsById.set(t.id, t));
   }
+
+  function syncTeamActionVisibility() {
+    if (!teamActionSel) return;
+    teamActionSel.style.display = (roleSel?.value === 'team') ? '' : 'none';
+  }
+  syncTeamActionVisibility();
+  on(roleSel, 'change', syncTeamActionVisibility);
 
   on(btn, 'click', async () => {
     const raw = uidInput?.value || '';
@@ -1075,8 +1080,17 @@ async function loadCardSelects() {
       } else {
         const tid = parseInt(teamSel?.value || '0', 10);
         if (!tid) return alert('Select a team');
+        const action = teamActionSel?.value || 'team_earn';
+        const team = teamsById.get(tid);
+        const teamScope = team?.scope || '';
+        if (action === 'team_earn' && teamScope === 'local') {
+          return alert('Earn Global requires a global team. Select a global team or choose Earn Local / Spend Local.');
+        }
+        if ((action === 'team_local_earn' || action === 'team_spend') && teamScope === 'global') {
+          return alert('Earn Local and Spend Local require a local team. Select a local team or choose Earn Global.');
+        }
         const { error } = await sb.from('cards').upsert(
-          { team_id: tid, card_uid: uid, active: true, card_role: 'team_earn', student_id: null },
+          { team_id: tid, card_uid: uid, active: true, card_role: action, student_id: null },
           { onConflict: 'card_uid' }
         );
         if (error) throw error;
