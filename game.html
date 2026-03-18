@@ -7,29 +7,31 @@
   <title>Team Games  ASCII Suite</title>
   <style>
     :root { color-scheme: light dark; }
-    body { font-family: "Space Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; margin:0; background:#0b1120; color:#e2e8f0; transition: background 0.3s ease, color 0.3s ease; }
-    header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:#111827; border-bottom:1px solid #1f2937; position:sticky; top:0; z-index:10; }
-    header h1 { margin:0; font-size:18px; color:#93c5fd; letter-spacing:0.4px; }
+    /* ── Light mode base (default / no class) ────────────── */
+    body { font-family: "Space Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; margin:0; background:#f4f7ff; color:#0f172a; transition: background 0.3s ease, color 0.3s ease; }
+    header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:#eaf1ff; border-bottom:1px solid #d6e2ff; position:sticky; top:0; z-index:10; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+    header h1 { margin:0; font-size:18px; color:#1959b7; letter-spacing:0.4px; }
     main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    .tag { font-size:12px; padding:2px 8px; border:1px solid #334155; border-radius:999px; background:#0f172a; color:#93c5fd; }
+    .tag { font-size:12px; padding:2px 8px; border:1px solid #cdd8ee; border-radius:999px; background:#f0f5ff; color:#1959b7; }
     .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
     .col { display:flex; flex-direction:column; gap:10px }
-    button { padding:8px 12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer; transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease; }
-    button.primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff }
-    button.ghost { background:transparent; color:#93c5fd; }
+    button { padding:8px 12px; border-radius:10px; border:1px solid #cdd8ee; background:#fff; color:#0f172a; cursor:pointer; transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease; }
+    button.primary { background:#1959b7; border-color:#1959b7; color:#fff }
+    button.ghost { background:transparent; color:#1959b7; border-color:#cdd8ee; }
     button:disabled { opacity:.6; cursor:not-allowed }
     button:hover:not(:disabled){ transform: translateY(-1px); }
-    select { padding:6px 8px; border-radius:8px; background:#0f172a; color:#e2e8f0; border:1px solid #334155 }
-    .card { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:14px; margin:16px 0; box-shadow:0 16px 40px rgba(0,0,0,0.25); }
+    select { padding:6px 8px; border-radius:8px; background:#fff; color:#0f172a; border:1px solid #cdd8ee }
+    .card { background:#fff; border:1px solid #e2e8f6; border-radius:14px; padding:14px; margin:16px 0; box-shadow:0 4px 12px rgba(15,23,42,.07); }
     .hud { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
-    .hud .cell { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:8px 10px; }
-    pre.screen { white-space: pre; min-height: 360px; background:#0a0f1f; border:1px solid #1f2937; border-radius:10px; padding:12px; color:#9cf6ff; text-shadow:0 0 6px rgba(0,255,255,0.2), 0 0 12px rgba(124,244,255,0.18); letter-spacing:0.2px; overflow:auto; width: max-content; max-width: 100%; margin: 0 auto; }
-    .help { color:#94a3b8; font-size:12px; margin-top:6px; }
-    h2 { margin: 8px 0 4px; color:#93c5fd; font-size:18px; }
-    h3 { margin: 6px 0 8px; color:#bfdbfe; font-size:14px; }
+    .hud .cell { background:#f2f6ff; border:1px solid #dde8ff; border-radius:10px; padding:8px 10px; }
+    /* Terminal screen stays dark for readability in all themes */
+    pre.screen { white-space: pre; min-height: 360px; background:#1e293b; border:1px solid #cbd5e1; border-radius:10px; padding:12px; color:#9cf6ff; text-shadow:0 0 6px rgba(0,255,255,0.2), 0 0 12px rgba(124,244,255,0.18); letter-spacing:0.2px; overflow:auto; width: max-content; max-width: 100%; margin: 0 auto; }
+    .help { color:#667892; font-size:12px; margin-top:6px; }
+    h2 { margin: 8px 0 4px; color:#1959b7; font-size:18px; }
+    h3 { margin: 6px 0 8px; color:#274c77; font-size:14px; }
     table { width:100%; border-collapse: collapse; margin-top:8px; }
-    th, td { border-bottom:1px solid #1f2937; padding:8px 6px; text-align:left }
-    thead th { background:#0f172a; color:#93c5fd }
+    th, td { border-bottom:1px solid #e2e8f6; padding:8px 6px; text-align:left }
+    thead th { background:#f2f6ff; color:#1959b7 }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     @media (max-width: 980px){ .grid2{ grid-template-columns: 1fr; } }
 
@@ -91,11 +93,73 @@
     body.theme-cyber th, body.theme-cyber td { border-bottom:1px solid rgba(124,244,255,0.2); }
     body.theme-cyber table tbody td { color:#e8f5ff; text-shadow:0 0 6px rgba(0,255,255,0.25); font-weight:600; }
     body.theme-cyber table tbody tr { backdrop-filter: saturate(1.05); }
+    body.theme-cyber .shortcut-card { background:#0f172a; border-color:#243048; color:#e2e8f0; }
+    body.theme-cyber .touch-controls { border-color:rgba(124,244,255,0.2); background:#0d152a; }
+    body.theme-cyber .touch-title { color:#9cb7ff; }
+    body.theme-cyber .volume-label { color:#9cb7ff; }
+
+    /* Vibrant / Pop theme */
+    body.theme-vibrant {
+      background: linear-gradient(150deg, #fdf4ff 0%, #f0f4ff 45%, #f4fff8 100%);
+      color: #1a1a2e;
+    }
+    body.theme-vibrant header {
+      background: linear-gradient(100deg, #7c5cfc 0%, #c56bff 50%, #ff6b9d 100%);
+      border-bottom: none;
+      box-shadow: 0 4px 24px rgba(124,92,252,.32);
+    }
+    body.theme-vibrant header h1 { color: #fff; text-shadow: 0 1px 8px rgba(255,255,255,.25); }
+    body.theme-vibrant .tag {
+      background: linear-gradient(135deg,#f3eeff,#ffe8f5);
+      border: 1.5px solid #d4c5ff; color: #7c5cfc; font-weight: 600; text-shadow: none;
+    }
+    body.theme-vibrant button {
+      background: #fff; color: #7c5cfc; border-color: #d4c5ff; box-shadow: none;
+    }
+    body.theme-vibrant button.primary {
+      background: linear-gradient(135deg, #7c5cfc, #ff6b9d);
+      border: none; color: #fff; box-shadow: 0 4px 14px rgba(124,92,252,.38);
+    }
+    body.theme-vibrant button.ghost {
+      background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.55); color: #fff;
+    }
+    body.theme-vibrant button:disabled { opacity: .5; }
+    body.theme-vibrant button:hover:not(:disabled) { filter: brightness(1.04); }
+    body.theme-vibrant select {
+      background: #fff; color: #1a1a2e; border: 1.5px solid #d4c5ff;
+    }
+    body.theme-vibrant .card {
+      background: #fff; border: 1px solid #ece5ff; border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(124,92,252,.10);
+    }
+    body.theme-vibrant .hud .cell { background: #f8f4ff; border-color: #d4c5ff; color: #1a1a2e; }
+    /* Keep screen readable — swap cyan glow → purple glow */
+    body.theme-vibrant pre.screen {
+      background: #150d2a; border-color: rgba(196,107,255,.35); color: #e8d9ff;
+      text-shadow: 0 0 6px rgba(180,100,255,.4), 0 0 14px rgba(124,92,252,.25);
+      box-shadow: inset 0 0 24px rgba(124,92,252,.12);
+    }
+    body.theme-vibrant .help { color: #9381c8; }
+    body.theme-vibrant h2 { color: #7c5cfc; text-shadow: none; }
+    body.theme-vibrant h3 { color: #c56bff; text-shadow: none; }
+    body.theme-vibrant table { color: #1a1a2e; }
+    body.theme-vibrant thead th {
+      background: linear-gradient(90deg,#f3eeff,#ffe8f5);
+      color: #7c5cfc; font-weight: 700; text-shadow: none;
+      border-bottom: 1px solid #d4c5ff;
+    }
+    body.theme-vibrant th, body.theme-vibrant td { border-bottom: 1px solid #ece5ff; text-shadow: none; font-weight: 400; }
+    body.theme-vibrant table tbody td { color: #1a1a2e; text-shadow: none; font-weight: 500; }
+    body.theme-vibrant .lb-scroll { border: 1px solid #ece5ff; border-radius: 12px; box-shadow: none; }
+    body.theme-vibrant .shortcut-card { background: #fff; border-color: #d4c5ff; color: #1a1a2e; }
+    body.theme-vibrant .touch-controls { border-color: #d4c5ff; background: #f8f4ff; }
+    body.theme-vibrant .volume-slider { accent-color: #7c5cfc; }
+    body.theme-vibrant .volume-label { color: #9381c8; }
 
         .shortcut-card {
       display:flex; align-items:center; gap:10px;
-      padding:10px 12px; border:1px solid #243048; border-radius:12px; background:#0f172a;
-      color:#e2e8f0;
+      padding:10px 12px; border:1px solid #e2e8f6; border-radius:12px; background:#fff;
+      color:#0f172a;
     }
     .shortcut-thumb { width:48px; height:48px; border-radius:10px; background:linear-gradient(135deg,#1d4ed8,#0ea5e9); }
     .shortcut-title { font-weight:700; }
@@ -105,14 +169,14 @@
     .tetris-thumb { background:linear-gradient(135deg,#f59e0b,#6366f1), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="10" y="44" font-size="32">[]</text></svg>') center/70% no-repeat; }
     .road-thumb   { background:linear-gradient(135deg,#f43f5e,#14b8a6), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="10" y="44" font-size="32">^</text></svg>') center/70% no-repeat; }
 
-    .lb-scroll { max-height: 240px; overflow: auto; border:1px solid #1f2937; border-radius:10px; }
+    .lb-scroll { max-height: 240px; overflow: auto; border:1px solid #e2e8f6; border-radius:10px; }
     body.theme-cyber .lb-scroll { border-color: rgba(124,244,255,0.2); box-shadow: inset 0 0 12px rgba(124,244,255,0.15); }
-    .volume-slider { width: 90px; accent-color:#1d4ed8; }
+    .volume-slider { width: 90px; accent-color:#1959b7; }
     body.theme-cyber .volume-slider { accent-color:#7cf4ff; }
-    .volume-label { font-size:12px; color:#94a3b8; }
+    .volume-label { font-size:12px; color:#667892; }
 
-    .touch-controls { display:none; margin-top:10px; padding:10px; border:1px dashed #243048; border-radius:12px; background:#0d152a; }
-    .touch-title { font-size:12px; color:#94a3b8; margin-bottom:6px; letter-spacing:0.3px; }
+    .touch-controls { display:none; margin-top:10px; padding:10px; border:1px dashed #dde8ff; border-radius:12px; background:#f5f8ff; }
+    .touch-title { font-size:12px; color:#667892; margin-bottom:6px; letter-spacing:0.3px; }
     .touch-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .touch-pad { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; max-width:280px; }
     .touch-btn { min-height:48px; flex:1 1 110px; font-size:14px; touch-action: manipulation; }

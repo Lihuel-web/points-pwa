@@ -253,19 +253,25 @@ function setTetrisMusicIntent(shouldPlay){
 }
 
 const THEME_KEY = 'pwa-theme';
+const _THEMES_G = ['light', 'cyber', 'vibrant'];
+const _THEME_NEXT_G = { light: 'Neon Mode', cyber: 'Pop Mode', vibrant: 'Light Mode' };
 function applyTheme(mode) {
-  const m = mode === 'cyber' ? 'cyber' : 'light';
-  document.body.classList.toggle('theme-cyber', m === 'cyber');
-  localStorage.setItem(THEME_KEY, m);
+  const valid = _THEMES_G.includes(mode) ? mode : 'light';
+  document.body.classList.remove('theme-cyber', 'theme-vibrant');
+  if (valid !== 'light') document.body.classList.add(`theme-${valid}`);
+  localStorage.setItem(THEME_KEY, valid);
   const btn = document.getElementById('theme-toggle-game');
-  if (btn) btn.textContent = m === 'cyber' ? 'Light mode' : 'Neon mode';
+  if (btn) btn.textContent = _THEME_NEXT_G[valid];
 }
 function initThemeToggleGame() {
   const saved = localStorage.getItem(THEME_KEY) || 'light';
   applyTheme(saved);
   const btn = document.getElementById('theme-toggle-game');
   if (btn) btn.addEventListener('click', () => {
-    const next = document.body.classList.contains('theme-cyber') ? 'light' : 'cyber';
+    const hasCyber   = document.body.classList.contains('theme-cyber');
+    const hasVibrant = document.body.classList.contains('theme-vibrant');
+    const cur  = hasCyber ? 'cyber' : hasVibrant ? 'vibrant' : 'light';
+    const next = _THEMES_G[(_THEMES_G.indexOf(cur) + 1) % _THEMES_G.length];
     applyTheme(next);
   });
 }
