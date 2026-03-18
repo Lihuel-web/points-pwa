@@ -15,20 +15,26 @@ const text = (el, v) => { if (el) el.textContent = v ?? ''; };
 const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
 function normalizeUID(s) { return String(s || '').toUpperCase().replace(/[^0-9A-F]/g, ''); }
 
-// ---------------- Theme (light / cyber) ----------------
+// ---------------- Theme (light / cyber / vibrant) ----------------
 const THEME_KEY = 'pwa-theme';
+const _THEMES = ['light', 'cyber', 'vibrant'];
+const _THEME_NEXT_LABEL = { light: 'Neon Mode', cyber: 'Pop Mode', vibrant: 'Light Mode' };
 function applyTheme(mode) {
-  const m = mode === 'cyber' ? 'cyber' : 'light';
-  document.body.classList.toggle('theme-cyber', m === 'cyber');
-  localStorage.setItem(THEME_KEY, m);
+  const valid = _THEMES.includes(mode) ? mode : 'light';
+  document.body.classList.remove('theme-cyber', 'theme-vibrant');
+  if (valid !== 'light') document.body.classList.add(`theme-${valid}`);
+  localStorage.setItem(THEME_KEY, valid);
   const btn = $('theme-toggle');
-  if (btn) btn.textContent = m === 'cyber' ? 'Light mode' : 'Neon mode';
+  if (btn) btn.textContent = _THEME_NEXT_LABEL[valid];
 }
 function initThemeToggle() {
   const saved = localStorage.getItem(THEME_KEY) || 'light';
   applyTheme(saved);
   on($('theme-toggle'), 'click', () => {
-    const next = document.body.classList.contains('theme-cyber') ? 'light' : 'cyber';
+    const hasCyber    = document.body.classList.contains('theme-cyber');
+    const hasVibrant  = document.body.classList.contains('theme-vibrant');
+    const cur  = hasCyber ? 'cyber' : hasVibrant ? 'vibrant' : 'light';
+    const next = _THEMES[(_THEMES.indexOf(cur) + 1) % _THEMES.length];
     applyTheme(next);
   });
 }
