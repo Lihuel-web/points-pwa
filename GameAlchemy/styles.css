@@ -227,3 +227,75 @@ body.theme-light #combination-results { color:#0b1a35; }
 body.theme-light #non-combinable-section h2 { color:#0b1a35; }
 body.theme-light #pedia { border-left-color:#e2e8f6; }
 body.theme-light .story-segment { background:#ffffff; border-left-color:#6a1b9a; }
+
+/* ===== Pop Theme ===== */
+body.theme-pop { background: #fdf0ff; color: #1a003a; }
+
+body.theme-pop .navbar {
+  background: #ff2d78;
+  border-bottom: 2px solid #ff6b00;
+  box-shadow: 0 8px 24px rgba(255,45,120,0.45);
+}
+body.theme-pop .nav-title { color: #ffe600; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+body.theme-pop .nav-btn { background: #7c00e0; border-color: #9c27b0; color: #fff; box-shadow: 0 6px 16px rgba(124,0,224,0.4); }
+body.theme-pop .nav-btn:hover { background: #5e00b0; }
+body.theme-pop .nav-btn.alt { background: #00bcd4; border-color: #00acc1; box-shadow: 0 6px 16px rgba(0,188,212,0.4); }
+body.theme-pop .nav-btn.alt:hover { background: #00acc1; }
+body.theme-pop .nav-btn.ghost { background: rgba(255,230,0,0.15); color: #ffe600; border-color: rgba(255,230,0,0.55); box-shadow: none; }
+body.theme-pop .nav-btn.ghost:hover { background: rgba(255,230,0,0.28); }
+
+body.theme-pop .element { background: #fff0f9; border-color: #ff2d78; color: #1a003a; box-shadow: 0 2px 8px rgba(255,45,120,0.15); }
+body.theme-pop .element.selected { box-shadow: 0 0 0 2px #ff2d78 inset, 0 0 12px rgba(255,45,120,0.4); }
+body.theme-pop .element.in-crafting-area { background: #e0f7ff; border-color: #00bcd4; box-shadow: 0 0 12px rgba(0,188,212,0.4); }
+body.theme-pop .element.non-combinable {
+  background: linear-gradient(135deg, #fff9c4, #fff59d);
+  color: #e65100;
+  border-color: #ffd600;
+  filter: saturate(1);
+}
+body.theme-pop .element.non-combinable::after {
+  color: #e65100;
+  background: rgba(255,214,0,0.25);
+  border-color: rgba(255,214,0,0.6);
+}
+body.theme-pop #crafting-area { border-color: #00bcd4; color: #1a003a; }
+body.theme-pop #combination-results { color: #1a003a; }
+
+body.theme-pop #session-box {
+  background: #fff0fb;
+  border: 1px solid #ff2d78;
+  box-shadow: 0 8px 24px rgba(255,45,120,0.2);
+}
+body.theme-pop .session-title { color: #e91e63; }
+body.theme-pop .session-stats strong { color: #1a003a; }
+body.theme-pop .session-message { color: #5c0080; }
+body.theme-pop .session-btn { background: #00bcd4; border-color: #00acc1; box-shadow: 0 4px 12px rgba(0,188,212,0.4); }
+body.theme-pop .session-btn:hover { background: #00acc1; }
+body.theme-pop .session-teacher { background: #fce4ff; border-color: #e040fb; }
+body.theme-pop .session-switch { color: #5c0080; }
+body.theme-pop .session-switch input { accent-color: #e91e63; }
+body.theme-pop .session-teacher-note { color: #e91e63; }
+
+body.theme-pop #non-combinable-section h2 { color: #1a003a; }
+body.theme-pop #pedia { border-left-color: #ff2d78; }
+
+body.theme-pop #diagram-content, body.theme-pop #story-content {
+  background: #fdf0ff;
+  border: 2px solid #ff2d78;
+}
+body.theme-pop #diagram-close-button, body.theme-pop #story-close-button { color: #ff2d78; }
+body.theme-pop #diagram-close-button:hover, body.theme-pop #story-close-button:hover { color: #c2185b; }
+
+body.theme-pop .story-segment { background: #fff0fb; border-left: 4px solid #ff2d78; color: #1a003a; }
+body.theme-pop .story-locked { background: #fdf5ff; border-left-color: #ce93d8; color: #5c0080; opacity: 0.75; }
+body.theme-pop .story-title { color: #c2185b; }
+body.theme-pop .story-requires { color: #7c0093; }
+
+body.theme-pop #reset-button { background-color: #e91e63; }
+body.theme-pop #reset-button:hover { background-color: #c2185b; }
+body.theme-pop #diagram-toggle-button { background-color: #7c00e0; }
+body.theme-pop #diagram-toggle-button:hover { background-color: #5e00b0; }
+body.theme-pop #story-toggle-button { background-color: #00bcd4; color: #fff; }
+body.theme-pop #story-toggle-button:hover { background-color: #00acc1; }
+body.theme-pop #lang-toggle-button { background-color: #ffd600; color: #1a003a; }
+body.theme-pop #lang-toggle-button:hover { background-color: #f9a825; color: #1a003a; }

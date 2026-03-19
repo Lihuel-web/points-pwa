@@ -168,6 +168,7 @@ const UI = {
     sessionTeacherTopSim: (team, pts, combos) => `Simulando mejor equipo (${team || 'N/A'}): ${pts} puntos -> ${combos} combos.`,
     themeNeon: 'Tema: Neón',
     themeLight: 'Tema: Claro',
+    themePop: 'Tema: Pop',
     sessionUnlimited: 'ilimitado',
     created: 'Has creado',
     nothing: 'No ha pasado nada...',
@@ -209,6 +210,7 @@ const UI = {
     sessionTeacherTopSim: (team, pts, combos) => `Simulating top team (${team || 'N/A'}): ${pts} points -> ${combos} combos.`,
     themeNeon: 'Theme: Neon',
     themeLight: 'Theme: Light',
+    themePop: 'Theme: Pop',
     sessionUnlimited: 'unlimited',
     created: 'You created',
     nothing: 'Nothing happened...',
@@ -252,11 +254,12 @@ function applyUILanguage() {
   updateNonCombinableElements();
 }
 
-// ===== Tema (neón / claro) =====
+// ===== Tema (neón / claro / pop) =====
 function applyTheme(mode) {
-  const m = mode === 'light' ? 'light' : 'dark';
-  document.body.classList.toggle('theme-dark', m === 'dark');
-  document.body.classList.toggle('theme-light', m === 'light');
+  const validModes = ['dark', 'light', 'pop'];
+  const m = validModes.includes(mode) ? mode : 'dark';
+  document.body.classList.remove('theme-dark', 'theme-light', 'theme-pop');
+  document.body.classList.add('theme-' + m);
   localStorage.setItem(THEME_KEY, m);
   updateThemeToggleLabel();
 }
@@ -264,16 +267,24 @@ function applyTheme(mode) {
 function updateThemeToggleLabel() {
   const btn = document.getElementById('theme-toggle');
   if (!btn) return;
-  const isDark = document.body.classList.contains('theme-dark');
-  btn.textContent = isDark ? UI[lang].themeNeon : UI[lang].themeLight;
+  const body = document.body;
+  if (body.classList.contains('theme-pop')) {
+    btn.textContent = UI[lang].themePop;
+  } else if (body.classList.contains('theme-dark')) {
+    btn.textContent = UI[lang].themeNeon;
+  } else {
+    btn.textContent = UI[lang].themeLight;
+  }
 }
 
 function initThemeToggle() {
   const saved = localStorage.getItem(THEME_KEY) || 'dark';
   applyTheme(saved);
   document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    const isDark = document.body.classList.contains('theme-dark');
-    applyTheme(isDark ? 'light' : 'dark');
+    const themes = ['dark', 'light', 'pop'];
+    const current = themes.find(t => document.body.classList.contains('theme-' + t)) || 'dark';
+    const next = themes[(themes.indexOf(current) + 1) % themes.length];
+    applyTheme(next);
   });
 }
 
