@@ -388,7 +388,7 @@ let _leaderboardPoolId = null;    // leaderboard por pool
 
 async function loadTeacher() {
   await ensureTeamCache();
-  await loadLatestTransactions();
+  await loadLatestTeamTransactions();
   await loadTeamsUI();
   await loadTeamAdjustOptions();
   await refreshTeamOverview();
@@ -482,7 +482,7 @@ game_scores borradas:  ${data.game_scores_deleted}`;
 
       // Refrescos de UI afectados por puntos
       await refreshTeamOverview();
-      await loadLatestTransactions();
+      await loadLatestTeamTransactions();
       await refreshLeaderboard();
       await refreshAllLocalsLeaderboard();
     } catch (e) {
@@ -574,18 +574,26 @@ orbit:  ${data.orbit_deleted}`;
 }
 
 
-async function loadLatestTransactions() {
+async function loadLatestTeamTransactions() {
   if (!sb) { console.warn('Supabase client not initialized. Aborting operation.'); return; }
-  const { data: txs } = await sb.from('transactions')
-    .select('student_id,delta,reason,created_at,students!inner(name)')
-    .order('created_at', { ascending:false }).limit(50);
+  await ensureTeamCache();
+  const { data: txs, error } = await sb.from('team_pool_tx')
+    .select('pool_team_id,local_team_id,delta,tx_type,reason,created_at')
+    .order('created_at', { ascending: false }).limit(50);
 
-  const tbody = $('tx-table')?.querySelector('tbody');
+  if (error) { console.warn('loadLatestTeamTransactions:', error); }
+
+  const tbody = $('team-tx-table')?.querySelector('tbody');
   if (!tbody) return;
   tbody.innerHTML = (txs || []).map(t => `
-    <tr><td>${new Date(t.created_at).toLocaleString()}</td>
-    <td>${t.students?.name ?? t.student_id}</td>
-    <td>${t.delta}</td><td>${t.reason ?? ''}</td></tr>`).join('');
+    <tr>
+      <td>${new Date(t.created_at).toLocaleString()}</td>
+      <td>${teamLabel(t.pool_team_id)}</td>
+      <td>${t.local_team_id ? teamLabel(t.local_team_id) : '—'}</td>
+      <td>${t.delta}</td>
+      <td><span class="tag">${t.tx_type ?? ''}</span></td>
+      <td>${t.reason ?? ''}</td>
+    </tr>`).join('');
 }
 
 // ---- Teams overview ----
@@ -1031,7 +1039,7 @@ async function loadTeamAdjustOptions() {
         }
       }
       await refreshTeamOverview();
-      await loadLatestTransactions();
+      await loadLatestTeamTransactions();
       await refreshLeaderboard();
       await refreshAllLocalsLeaderboard();
       alert('Adjustment applied.');
@@ -1238,7 +1246,7 @@ async function initStudentForms() {
       await refreshTeamOverview();
       await refreshLeaderboard();
       await refreshAllLocalsLeaderboard();
-      await loadLatestTransactions();
+      await loadLatestTeamTransactions();
       alert('Student deleted.');
     } catch (err) { console.error(err); alert(err?.message || 'Delete student failed'); }
   });
@@ -1324,4 +1332,4 @@ async function upsertStudentCard(studentId, uid) {
 
 // ---------------- Arranque ----------------
 refreshUI().catch(err => console.error(err));
-// setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTransactions().catch(()=>{}); }, 5000);
+// setInterval(() => { refreshTeamOverview().catch(()=>{}); loadLatestTeamTransactions().catch(()=>{}); }, 5000);
