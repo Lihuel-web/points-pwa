@@ -386,6 +386,59 @@ async function renderStudentLocalTop9() {
 let _selectedPoolId = null;       // overview locales
 let _leaderboardPoolId = null;    // leaderboard por pool
 
+/** Sticky section-nav: highlights the anchor matching the section currently
+ *  scrolled into view. Idempotent (_bound guard like loadTeamsUI). */
+function initSectionNav() {
+  if (initSectionNav._bound) return;
+  initSectionNav._bound = true;
+
+  const navLinks = document.querySelectorAll('.tsec-index a');
+  if (!navLinks.length) return;
+
+  const sectionIds = ['tsec-overview', 'tsec-points', 'tsec-management', 'tsec-leaderboards', 'tsec-admin'];
+
+  // map sectionId → nav anchor
+  const linkMap = {};
+  navLinks.forEach(a => {
+    const id = (a.getAttribute('href') || '').replace('#', '');
+    if (id) linkMap[id] = a;
+  });
+
+  const visible = new Set();
+
+  const setActive = () => {
+    // highlight the topmost visible section in document order
+    let activeId = null;
+    for (const id of sectionIds) {
+      if (visible.has(id)) { activeId = id; break; }
+    }
+    navLinks.forEach(a => a.classList.remove('is-active'));
+    if (activeId && linkMap[activeId]) linkMap[activeId].classList.add('is-active');
+  };
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) visible.add(e.target.id);
+      else                  visible.delete(e.target.id);
+    });
+    setActive();
+  }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+
+  sectionIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+
+  // smooth scroll on anchor click (progressive enhancement)
+  navLinks.forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
 async function loadTeacher() {
   await ensureTeamCache();
   await loadLatestTeamTransactions();
@@ -397,9 +450,9 @@ async function loadTeacher() {
   await initLeaderboardUI();
   await initAllLocalsLeaderboardUI();
   await initAsciiLeaderboardsUI();
-  await initAdminResetsUI();   // <— NUEVO: inicializa botones de reset
+  await initAdminResetsUI();
   initStudentPreviewLink();
-
+  initSectionNav();
 }
 
 function initStudentPreviewLink(){
